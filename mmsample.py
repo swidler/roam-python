@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
 import tools as t
+import numpy
+
 class Mmsample:
     def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[]):
         self.name = name
@@ -40,7 +42,7 @@ class Mmsample:
                 elif i > 6: #7th line is blank, rest are chroms
                     chrom = fields[0]
                     meth = fields[1].split(" ")
-                    meth = [int(x) if x.isdigit() else x for x in meth] #convert all numbers to int, leave NaN alone
+                    meth = [int(x) if x.isdigit() else numpy.nan for x in meth] #convert all numbers to int, leave NaN alone
                     self.chr_names.append(chrom)
                     self.methylation.append(meth)
                 i += 1
@@ -50,7 +52,7 @@ class Mmsample:
         result = []
         for chrom in chr_name:
             if chrom not in self.chr_names:
-                result.append("NaN") #returns NaN as index of nonexistent chrom
+                result.append(numpy.nan) #returns NaN as index of nonexistent chrom
             else:
                 index = self.chr_names.index(chrom)
                 result.append(index)

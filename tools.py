@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import numpy
 def nanconv(arr, operation):
     result = []
     if operation == "average":
@@ -7,13 +8,13 @@ def nanconv(arr, operation):
     elif operation == "sum":
         factor = 1
     for i in range(0,len(arr),2):
-        if arr[i] == "NaN":
-            if arr[i+1] == "NaN":
-                result.append("NaN") #NaN + NaN = NaN
+        if numpy.isnan(arr[i]):
+            if numpy.isnan(arr[i+1]):
+                result.append(numpy.nan) #NaN + NaN = NaN
             else:
                 result.append(arr[i+1]) #NaN + <num> = <num>
         else:
-            if arr[i+1] == "NaN":
+            if numpy.isnan(arr[i+1]):
                 result.append(arr[i]) #<num> + NaN = <num>
             else:
                 merged = (arr[i]+arr[i+1])*factor #num + num = (num + num) * factor. yields float result, with
