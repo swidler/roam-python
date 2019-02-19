@@ -2,8 +2,9 @@
 
 import tools as t
 import numpy
+from chroms import Chrom
 
-class Mmsample:
+class Mmsample(Chrom):
     def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[]):
         self.name = name
         self.abbrev = abbrev
@@ -47,16 +48,6 @@ class Mmsample:
                     self.methylation.append(meth)
                 i += 1
         self.no_chrs = len(self.coord_per_position) #reassign chrom num based on new info
-
-    def indexofchr(self, chr_name): #find index of chrom(s) by name (input and output are lists)
-        result = []
-        for chrom in chr_name:
-            if chrom not in self.chr_names:
-                result.append(numpy.nan) #returns NaN as index of nonexistent chrom
-            else:
-                index = self.chr_names.index(chrom)
-                result.append(index)
-        return result
 
     def scale(self):
         for i in range(0,len(self.methylation)):
