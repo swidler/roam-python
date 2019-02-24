@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import numpy as np
-def nanconv(arr, operation):
+def nanmerge(arr, operation):
     result = []
     if operation == "average":
         factor = 0.5
@@ -31,6 +31,8 @@ def standardize_region(region):
     end = fields[2]
     start = start.replace(",","")
     end = end.replace(",","")
+    start = int(start)
+    end = int(end)
     std_region = {
             "chrom":chrom,
             "start":start,
