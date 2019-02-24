@@ -18,7 +18,7 @@ class Mmsample(Chrom):
         self.no_chrs = len(coord_per_position) 
 
     def __repr__(self): #defines print of object
-        return "name: %s\nabbrev: %s\nspecies: %s\nreferece: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_postion: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
+        return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
     
     def parse_infile(self, infile):
         i = 0
@@ -55,7 +55,7 @@ class Mmsample(Chrom):
             if biggest > 1:
                 self.methylation[i] = [x/100 if isinstance(x, int) else x for x in self.methylation[i]] #divide numeric vals by 100
 
-    def getmethylation(self, chrom=""):
+    def get_methylation(self, chrom=""):
         if not chrom: #no input, get methylation for all chroms
             result = (self.chr_names, self.methylation)
         elif isinstance(chrom, str): #chrom name entered
@@ -71,8 +71,19 @@ class Mmsample(Chrom):
                 if report:
                     print(f"{self.chr_names[ind]} is already merged")
                 continue
-            self.methylation[ind] = t.nanconv(self.methylation[ind], "average")
+            self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
             self.coord_per_position[ind] = 1
+
+    def region_methylation(self, region, gc): 
+        region = t.standardize_region(region) #take region input and change to dictionary
+        chrom = region["chrom"] #get chrom from region dict
+        chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
+        
+        cpg_start = np.where(gc.coords[chr_ind] >= region["start"])[0][0] #get index of first
+        cpg_end = np.where(gc.coords[chr_ind] <= region["end"])[0][-1]    #and last coords in region
+        meth = self.get_methylation(chrom) #get methylation for chrom
+        meth = np.nanmean(meth[1][cpg_start:cpg_end+1]) #compute average methylation
+        return meth
 
 if __name__ == "__main__":
     mms = Mmsample()
@@ -87,12 +98,12 @@ if __name__ == "__main__":
     mms.scale()
     print(mms)
     chrom = "chr4"
-    meth = mms.getmethylation(chrom)
+    meth = mms.get_methylation(chrom)
     print(meth)
     chrom = 2
-    meth = mms.getmethylation(chrom)
+    meth = mms.get_methylation(chrom)
     print(meth)
-    meth = mms.getmethylation()
+    meth = mms.get_methylation()
     print(meth)
     mms.merge()
     print(mms)
