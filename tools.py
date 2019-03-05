@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import numpy as np
+import pickle
 def nanmerge(arr, operation):
     result = []
     if operation == "average":
@@ -39,6 +40,18 @@ def standardize_region(region):
             "end":end
             }
     return std_region
+
+def save_object(filename, obj):
+    outfile = open(filename, "wb") #open file for writing binaries
+    pickle.dump(obj, outfile, -1) #serialize object using highest protocol
+    outfile.close()
+
+def load_object(filename):
+    infile = open(filename, "rb") #open file for reading binaries
+    obj = pickle.load(infile)
+    infile.close()
+    return obj
+
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
     new_reg = standardize_region(reg)
