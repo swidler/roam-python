@@ -52,6 +52,34 @@ def load_object(filename):
     infile.close()
     return obj
 
+def nansmooth(vec, winsize, mode):
+    tpl = np.ones(winsize)
+    (nans, zero_for_nan) = get_zeroes(vec, tpl, mode)
+    res = do_conv(vec, nans, tpl, mode, zero_for_nan)
+    return(res, zero_for_nan)
+
+def nanconv(vec, tpl, mode):
+    (nans, zero_for_nan) = get_zeroes(vec, tpl, mode)
+    zero_for_nan = [1 if x>0 else 0 for x in zero_for_nan]
+    res = do_conv(vec, nans, tpl, mode, zero_for_nan)
+    return res
+
+def get_zeroes(vec, tpl, mode):
+    vec = np.array(vec)
+    vec_len = len(vec)
+    mod_vec = np.ones(vec_len)
+    nans = np.isnan(vec)
+    mod_vec[nans] = 0
+    zero_for_nan = np.convolve(mod_vec, tpl, mode)
+    return (nans, zero_for_nan)
+
+def do_conv(vec, nans, tpl, mode, zero_for_nan):
+    vec = np.array(vec)
+    vec[nans] = 0
+    res = np.convolve(vec, tpl, mode)/zero_for_nan
+    return res
+
+
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
     new_reg = standardize_region(reg)
