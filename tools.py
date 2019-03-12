@@ -54,17 +54,17 @@ def load_object(filename):
 
 def nansmooth(vec, winsize, mode):
     tpl = np.ones(winsize)
-    (nans, zero_for_nan) = get_zeroes(vec, tpl, mode)
+    (nans, zero_for_nan) = get_zeros(vec, tpl, mode)
     res = do_conv(vec, nans, tpl, mode, zero_for_nan)
     return(res, zero_for_nan)
 
 def nanconv(vec, tpl, mode):
-    (nans, zero_for_nan) = get_zeroes(vec, tpl, mode)
+    (nans, zero_for_nan) = get_zeros(vec, tpl, mode)
     zero_for_nan = [1 if x>0 else 0 for x in zero_for_nan]
     res = do_conv(vec, nans, tpl, mode, zero_for_nan)
     return res
 
-def get_zeroes(vec, tpl, mode):
+def get_zeros(vec, tpl, mode):
     vec = np.array(vec)
     vec_len = len(vec)
     mod_vec = np.ones(vec_len)
@@ -76,7 +76,7 @@ def get_zeroes(vec, tpl, mode):
 def do_conv(vec, nans, tpl, mode, zero_for_nan):
     vec = np.array(vec)
     vec[nans] = 0
-    res = np.convolve(vec, tpl, mode)/zero_for_nan
+    res = np.convolve(vec, tpl, mode)/zero_for_nan #raises divide by zero runtime warnings
     return res
 
 
