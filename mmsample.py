@@ -85,6 +85,20 @@ class Mmsample(Chrom):
         meth = np.nanmean(meth[1][cpg_start:cpg_end+1]) #compute average methylation
         return meth
 
+    def smooth(self, chrom, winsize):
+        meth = self.get_methylation(chrom)[1] #get methylation for chrom
+        MIN_VAR = 0.01**2 #1% error
+        (smooth_vec, zero_for_nan) = t.nansmooth(meth, winsize, "same")
+        tpl = np.ones(winsize)
+        meth_sq = np.square(meth)
+        m2 = t.nanconv(meth_sq, tpl, "same")
+        smooth_sq = np.square(smooth_vec)
+        variance = (m2 - zero_for_nan*smooth_sq) / (zero_for_nan-1) #raises divide by zero runtime warnings
+        variance[variance<MIN_VAR] = MIN_VAR #raises invalid value (for nan) runtime warnings 
+        weights = zero_for_nan/variance
+        return (smooth_vec, weights)
+
+
 if __name__ == "__main__":
     mms = Mmsample()
     print(mms)
