@@ -55,16 +55,6 @@ class Mmsample(Chrom):
             if biggest > 1:
                 self.methylation[i] = [x/100 if isinstance(x, int) else x for x in self.methylation[i]] #divide numeric vals by 100
 
-    def get_methylation(self, chrom=""):
-        if not chrom: #no input, get methylation for all chroms
-            result = (self.chr_names, self.methylation)
-        elif isinstance(chrom, str): #chrom name entered
-            index = self.chr_names.index(chrom) #get index of chrom by name
-            result = (chrom, self.methylation[index])
-        elif isinstance(chrom, int): #chrom index entered
-            result = (self.chr_names[chrom], self.methylation[chrom])
-        return result
-
     def merge(self, report=True):
         for ind in range(0,len(self.chr_names)):
             if self.coord_per_position[ind] == 1: #if coord_per_position has 1, meth vals are merged

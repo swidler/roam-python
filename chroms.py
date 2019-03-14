@@ -11,3 +11,13 @@ class Chrom:
                 index = self.chr_names.index(chrom)
                 result.append(index)
         return result
+
+    def get_methylation(self, chrom=""):
+        if not chrom: #no input, get methylation for all chroms
+            result = (self.chr_names, self.methylation)
+        elif isinstance(chrom, str): #chrom name entered
+            index = self.chr_names.index(chrom) #get index of chrom by name
+            result = (chrom, self.methylation[index])
+        elif isinstance(chrom, int): #chrom index entered
+            result = (self.chr_names[chrom], self.methylation[chrom])
+        return result
