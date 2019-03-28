@@ -5,6 +5,14 @@ import numpy as np
 from chroms import Chrom
 
 class Mmsample(Chrom):
+    """Modern methylation sample class
+
+    This class inherits from Chroms superclass and has attributes name, abbrev, reference
+    method, metadata, chr_names, coord_per_position, methylation, and no_chrs. The last 5 are
+    arrays. no_chrs is determined based on the length of coord_per_position. An mmsample object is 
+    created (with empty defaults): mms = Mmsample(). The attributes can then be populated.
+    """
+    
     def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[]):
         self.name = name
         self.abbrev = abbrev
