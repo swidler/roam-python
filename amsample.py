@@ -167,6 +167,7 @@ class Amsample(Chrom):
                         meth = [float(x) for x in meth] #convert all numbers to float (NaN is float)
                         self.methylation["methylation"].append(meth)
                 i += 1
+            self.no_chrs = len(self.coord_per_position)
 
     def get_base_no(self, chrom, base):
         chr_ind = self.indexofchr([chrom])[0]
@@ -194,13 +195,19 @@ class Amsample(Chrom):
         return(no_t, no_ct)
 
 if __name__ == "__main__":
-    ams = Amsample()
-    print(ams)
+    #ams = Amsample()
+    #print(ams)
     #ams2 = Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])
     #print(ams2)
-    ams.parse_infile("../../I1116.txt")
+    #ams.parse_infile("../../I1116.txt")
+    #outfile = "objects/I1116"
+    #t.save_object(outfile, ams)
+    infile = "objects/I1116"
+    ams = t.load_object(infile)
     name = ams.name
     print(f"name: {name}")
+    num = ams.no_chrs
+    print(f"num of chroms: {num}")
     base = ams.get_base_no("chr2", "c")
     print(f"base: {base[0:20]}")
     (no_t, no_ct) = ams.smooth("chr5", 17)
