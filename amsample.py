@@ -167,7 +167,7 @@ class Amsample(Chrom):
                         meth = [float(x) for x in meth] #convert all numbers to float (NaN is float)
                         self.methylation["methylation"].append(meth)
                 i += 1
-            self.no_chrs = len(self.coord_per_position)
+        self.no_chrs = len(self.coord_per_position)
 
     def get_base_no(self, chrom, base):
         chr_ind = self.indexofchr([chrom])[0]
@@ -193,6 +193,22 @@ class Amsample(Chrom):
         no_t = t.nanconv(no_t, tpl, "same")
         no_ct = t.nanconv(no_ct, tpl, "same")
         return(no_t, no_ct)
+
+    def region_methylation(self, region, gc):
+        region = t.standardize_region(region) #take region input and change to dictionary
+        chrom = region["chrom"] #get chrom from region dict
+        chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
+
+        cpg_start = np.where(gc.coords[chr_ind] >= region["start"])[0][0] #get index of first
+        cpg_end = np.where(gc.coords[chr_ind] <= region["end"])[0][-1]    #and last coords in region
+        chr_ind = self.indexofchr([chrom])[0] #find index of chrom in ams object
+        no_t = np.nansum(self.no_t[chr_ind][cpg_start:cpg_end+1])
+        no_ct = no_t + np.nansum(self.no_c[chr_ind][cpg_start:cpg_end+1])
+        meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
+        if not np.isnan(meth):
+            meth = min(max(meth,0),1)
+        return meth
+
 
 if __name__ == "__main__":
     #ams = Amsample()
