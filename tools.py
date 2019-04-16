@@ -2,6 +2,8 @@
 
 import numpy as np
 import pickle
+import scipy.stats as stats
+
 def nanmerge(arr, operation):
     result = []
     if operation == "average":
@@ -79,6 +81,74 @@ def do_conv(vec, nans, tpl, mode, zero_for_nan):
     res = np.convolve(vec, tpl, mode)/zero_for_nan #raises divide by zero runtime warnings
     return res
 
+def quantile(x,q):
+    n = len(x)
+    y = np.sort(x)
+    return(np.interp(q, np.linspace(1/(2*n), (2*n-1)/(2*n), n), y))
+
+def prctile(x,p):
+    return(quantile(x,np.array(p)/100))
+
+def nan_prctile(arr,perc):
+    no_nan = [x for x in arr if ~np.isnan(x)]
+    return(prctile(no_nan, perc))
+
+def pop_dist(p,N):
+    no_dists = len(p)
+    B = np.zeros((no_dists, N+1)) #correct length?
+    vals = range(N+1)
+    for x in range(no_dists):
+        B[x,] = stats.binom.pmf(vals,N,p[x])
+    return B
+
+def log_likelihood(w,B,H):
+    mat_prod = np.matmul((B+np.spacing(1)).T,w)
+    llike = np.matmul(H[0],np.log(mat_prod)) #does this behave as expected?
+    return llike
+
+def bmm(H, p, w, tolerance, p_known):
+    if p_known:
+        p_known = np.where(p_known)[0]
+        p_val = np.array(p)[p_known]
+    else:
+        p_known = []
+        p_val = np.nan
+
+    #compute basic magnitudes
+    N = len(H[0])-1 #N of binomial dist
+    n = sum(H[0]) #total number of observations
+    G = len(w) #number of mixed distributions
+    obs = [x for x in range(N+1)] #list of all poss observations
+
+    #initialize
+    B = pop_dist(p,N)
+    llike = log_likelihood(w,B,H)
+    #llike_copy = np.copy(llike)
+    #llike = [x*2 for x in llike]
+    #llike = np.append(llike, llike_copy)
+    llike = [llike*2, llike]
+
+    #EM iterations
+    while (llike[-2] - llike[-1])/llike[-2] > tolerance:
+        #update rgk
+        nom = ((np.array([w]).T)*np.ones(N+1))*B #this will work only if dimensions match
+        #is above numerator?
+        denom = np.array([np.ones(G)]).T*sum(nom)
+        rgk = nom/denom
+        #update w
+        w = 1/n * np.matmul(rgk,H[0].T)
+        #update p
+        nom = np.matmul(rgk,(H[0]*obs).T)
+        denom = N * np.matmul(rgk,H[0].T)
+        p = nom/denom
+        p[p_known] = p_val
+        #update matrix B
+        B = pop_dist(p,N)
+        #update log-likelihood
+        llike_new = log_likelihood(w,B,H)
+        llike = np.append(llike, llike_new) #should be llike+1 elements long
+        #like = [llike, llike_new]
+    return p, w, llike
 
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
