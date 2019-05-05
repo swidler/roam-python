@@ -95,7 +95,7 @@ def nan_prctile(arr,perc):
 
 def pop_dist(p,N):
     no_dists = len(p)
-    B = np.zeros((no_dists, N+1)) #correct length?
+    B = np.zeros((no_dists, N+1)) 
     vals = range(N+1)
     for x in range(no_dists):
         B[x,] = stats.binom.pmf(vals,N,p[x])
@@ -103,7 +103,7 @@ def pop_dist(p,N):
 
 def log_likelihood(w,B,H):
     mat_prod = np.matmul((B+np.spacing(1)).T,w)
-    llike = np.matmul(H[0],np.log(mat_prod)) #does this behave as expected?
+    llike = np.matmul(H[0],np.log(mat_prod)) 
     return llike
 
 def bmm(H, p, w, tolerance, p_known):
@@ -123,9 +123,6 @@ def bmm(H, p, w, tolerance, p_known):
     #initialize
     B = pop_dist(p,N)
     llike = log_likelihood(w,B,H)
-    #llike_copy = np.copy(llike)
-    #llike = [x*2 for x in llike]
-    #llike = np.append(llike, llike_copy)
     llike = [llike*2, llike]
 
     #EM iterations
@@ -136,7 +133,7 @@ def bmm(H, p, w, tolerance, p_known):
         denom = np.array([np.ones(G)]).T*sum(nom)
         rgk = nom/denom
         #update w
-        w = 1/n * np.matmul(rgk,H[0].T)
+        w = 1/n * np.matmul(rgk,H[0].T) 
         #update p
         nom = np.matmul(rgk,(H[0]*obs).T)
         denom = N * np.matmul(rgk,H[0].T)
@@ -147,7 +144,6 @@ def bmm(H, p, w, tolerance, p_known):
         #update log-likelihood
         llike_new = log_likelihood(w,B,H)
         llike = np.append(llike, llike_new) #should be llike+1 elements long
-        #like = [llike, llike_new]
     return p, w, llike
 
 if __name__ == "__main__":
