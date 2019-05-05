@@ -5,6 +5,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
+import scipy.stats as stats
 from chroms import Chrom
 
 class Amsample(Chrom):
@@ -222,19 +223,19 @@ class Amsample(Chrom):
         no_chrs = self.no_chrs
         eff_coverage = np.zeros(no_chrs)
         coverage_threshold = np.zeros(no_chrs)
-        c_to_t_threshold = []
+        c_to_t_threshold = [None] * no_chrs #set number of elements to add later by chrom index (use append instead?)
         fid = open(fname, "w")
 
         #compute number of rows and columns in output figures
         no_rows = math.floor(math.sqrt(no_chrs))
         if no_rows:
             no_cols = math.ceil(no_chrs/no_rows)
-        fig_coverage = plt.figure("coverage")
-        fig_coverage.suptitle(self.name)
-        fig_perc_removed_per_coverage = plt.figure("removed_per_coverage");
-        fig_perc_removed_per_coverage.suptitle(self.name)
-        fig_perc_removed = plt.figure("removed")
-        fig_perc_removed.suptitle(self.name)
+        #fig_coverage = plt.figure("coverage") #if we decide to plot figures, find faster utility
+        #fig_coverage.suptitle(self.name)
+        #fig_perc_removed_per_coverage = plt.figure("removed_per_coverage");
+        #fig_perc_removed_per_coverage.suptitle(self.name)
+        #fig_perc_removed = plt.figure("removed")
+        #fig_perc_removed.suptitle(self.name)
         
         #Loop on chromosomes
         for chrom in range(no_chrs):
@@ -248,108 +249,201 @@ class Amsample(Chrom):
             
             #vectors of current chromosome
             no_t = self.no_t[chrom]
-            no_t = np.array(no_t) #convert to numpy array in order to add elementwise
+            no_t = np.array(no_t, dtype="float") #convert to numpy array in order to add elementwise
             no_c = self.no_c[chrom]
             no_c = np.array(no_c)
             no_ct = no_t + no_c
-            if self.library == "SS":
+            if self.library == "SS": #test this function on single stranded data
                 no_a = self.no_a[chrom]
                 g_to_a = self.g_to_a[chrom]
                 if not g_to_a:
                     no_g = self.no_g[chrom]
-                    no_g = np.array(no_g) #convert to numpy array in order to add elementwise
+                    no_g = np.array(no_g, dtype="float") #convert to numpy array in order to add elementwise
                     no_a = np.array(no_a)
                     if no_g:
                         g_to_a = no_a / (no_a + no_g)
             fid.write(f"\tNumber of CpG positions: {len(no_ct):,d}\n")
-            fid.write(f"\tInitial coverage: {np.nanmean(no_ct)}\n")
+            fid.write(f"\tInitial coverage: {np.nanmean(no_ct):.1f}\n")
             
             #compute the upper threshold of {nt} in a few steps
             #crude outlier removal using very loose criterion
             percentiles = t.nan_prctile(no_ct, [25,50,75])
-            fid.write(f"\t[C+T]: median = {percentiles[1]}\n")
+            fid.write(f"\t[C+T]: median = {percentiles[1]:.0f}\n")
             fid.write(f"\t     [25th 75th] percentiles = {percentiles[[0,2]]}")
             iqrange = percentiles[2] - percentiles[0]
             thresh = percentiles[2] + span*iqrange
-            fid.write(f"=> initial threshold was set to {thresh}\n")
+            fid.write(f"=> initial threshold was set to {thresh:.0f}\n")
             to_remove = np.where(no_ct > thresh)[0]
-            fid.write(f"\t     {len(to_remove):,d} positions ({100*len(to_remove)/len(no_ct):,.2f}%) removed as no_ct > {thresh}\n")
-            no_ct = [float(x) for x in no_ct]
+            fid.write(f"\t     {len(to_remove):,d} positions ({100*len(to_remove)/len(no_ct):,.2f}%) removed as no_ct > {thresh:.0f}\n")
             for x in to_remove:
                 no_ct[x] = np.nan
-            no_ct = np.array(no_ct)
             
             #evaluate the parameters of the normal distribution of {nt}
             nt_zeros = np.where(no_ct == 0)[0]
             nz_ct = np.copy(no_ct) #copy array
             for x in nt_zeros:
                 nz_ct[x] = np.nan
-            N = plt.hist(nz_ct,bins=range(int(thresh)))
+            #N = plt.hist(nz_ct,bins=range(int(thresh)))
             more_to_remove = []
             if strict:
                 print("in strict loop") #handle later
             coverage_threshold[chrom] = thresh
             
             #plot the coverage
-            plt.figure("coverage")
-            plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
-            plt.bar(len(N[0]), N[0])
-            plt.plot([thresh, thresh], list(plt.gca().get_ylim()), "k")
+            #plt.figure("coverage")
+            #plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
+            #plt.bar(len(N[0]), N[0])
+            #plt.plot([thresh, thresh], list(plt.gca().get_ylim()), "k")
             if self.chr_names:
                 xlabel = self.chr_names[chrom]
             else:
                 xlabel = f"Chromosome #{chrom+1}"
-            plt.xlabel(xlabel)
-            
+            #plt.xlabel(xlabel)
+            #plt.show()
+
             #remove outliers
             to_remove = [to_remove, more_to_remove] #more_to_remove gets vals in skipped strict loop
             for x in to_remove:
                 for y in x:
                     no_ct[y] = np.nan
-            no_t = [float(x) for x in no_t]
             for x in to_remove:
                 for y in x:
                     no_t[y] = np.nan
             
             #effective coverage
             eff_coverage[chrom] = np.nanmean(no_ct)
-            fid.write(f"\t     Effective coverage: {eff_coverage[chrom]}\n")
+            fid.write(f"\t     Effective coverage: {eff_coverage[chrom]:.1f}\n")
             max_c = float(max_coverage)
             
             #compare to previous PCR-duplicate threshold
             prev_to_remove = np.where(no_ct>max_c)[0]
-            fid.write(f"\t     COMPARISON: {len(prev_to_remove):,d} positions ({100*len(prev_to_remove)/len(no_ct)}%) ")
+            fid.write(f"\t     COMPARISON: {len(prev_to_remove):,d} positions ({100*len(prev_to_remove)/len(no_ct):.2f}%) ")
             fid.write(f"would have been removed if the PCR-duplicate threshold were {max_coverage}\n")
             
             #report on the zero bin
-            fid.write(f"\t{len(nt_zeros):,d} positions ({100*len(nt_zeros)/len(no_ct)}%) have no_ct = 0\n")
+            fid.write(f"\t{len(nt_zeros):,d} positions ({100*len(nt_zeros)/len(no_ct):.2f}%) have no_ct = 0\n")
 
             #analyze each coverage level independently
             th_c2g = np.zeros(int(thresh))
-            chr_cov = [x for x in range(low_coverage, int(thresh+1))]
+            chr_cov = [x for x in range(low_coverage, int(thresh+2))] 
             no_pos_tot = np.zeros(int(thresh+1))
-            no_pos_removed = np.zeros(int(thresh))
-            for cover in range(int(thresh),low_coverage, -1):
-                fid.write(f"\tAnalyzing [xt] coming from coverage {cover}\n")
-                idx = np.where(no_ct==cover)[0]
+            no_pos_removed = np.zeros(int(thresh+1))
+            for cover in range(int(thresh-1),low_coverage-2, -1): 
+                fid.write(f"\tAnalyzing [xt] coming from coverage {cover+1}\n")
+                idx = np.where(no_ct==cover+1)[0]
                 no_pos_cover = len(idx)
-                no_pos_tot[cover] = no_pos_cover
+                no_pos_tot[cover] = no_pos_cover 
                 fid.write(f"\t\tTotal number of positions: {no_pos_cover:,d}\n")
-                H = plt.hist(np.array(no_t)[idx],bins=range(cover))
+                H = np.histogram(no_t[idx],bins=range(cover+3)) #+1 to compensate for 0 base, +1 for slice
+                #ie in matlab, 0:5 = [0,1,2,3,4,5], but in python, array of range(5) = [0,1,2,3,4]
                 p, w, llike = t.bmm(H, [0.01, 0.5, 0.99], [0.9, 0.05, 0.05], tolerance, [0, 1, 0])
                 fid.write("\t\tEstimated homozygous mutations: ")
-                fid.write(f"Pr(meth) = {p[2]}; Weight = {w[2]}\n")
+                fid.write(f"Pr(meth) = {p[2]:.2f}; Weight = {w[2]:.3f}\n")
                 fid.write("\t\tEstimated heterozygous mutations: ")
-                fid.write(f"Pr(meth) = {p[1]}; Weight = {w[1]}\n")
+                fid.write(f"Pr(meth) = {p[1]:.2f}; Weight = {w[1]:.3f}\n")
                 fid.write("\t\tEstimated deaminated positions: ")
-                fid.write(f"Pr(meth) = {p[0]}; Weight = {w[0]}\n")
+                fid.write(f"Pr(meth) = {p[0]:.2f}; Weight = {w[0]:.3f}\n")
+                thresh = np.ceil((np.log(w[1]/w[0]) + (cover+1) * np.log(1/2/ (1-p[0]))) / np.log(p[0]/(1-p[0]))) -1
+                th_c2g[cover] = thresh
+                more_to_remove = idx[no_t[idx]>thresh] 
+                no_pos_removed[cover] = len(more_to_remove)
+                fid.write(f"\t\t{len(more_to_remove):,d} positions ({100*len(more_to_remove)/len(no_ct):.2f}%) removed ")
+                fid.write(f"as xt > {thresh:.0f} ")
+                fid.write(f"corresponding to C2T-ratio of {(thresh+1)/(cover+1):.3f}\n")
+                fid.write(f"\t\tThe threshold ({thresh:.0f}) is expected to remove ")
+                fid.write(f"{w[0]*no_pos_cover*stats.binom.sf(thresh,cover+1,p[0]):.1f} true positives\n")
+                fid.write(f"\t\tand to include {w[1]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,0.5)+w[2]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,p[2]):.1f} false positives\n")
+                if thresh == cover+1:
+                    #what happens with no threshold?
+                    fid.write("\t\tIf no threshold is used (no positions removed), ")
+                    fid.write(f"then {(w[1]+w[2])*no_pos_cover:.1f} false positives will be retained\n")
+                #compute positions removed using G->A and C->T
+                if compare:
+                    if np.isfinite(max_c_to_t):
+                        c2t_crit = [x for x in idx if no_t[x]>1 and no_t[x]/no_ct[x] >= max_c_to_t]
+                        fid.write("\t\tCOMPARISON: Using C->T ")
+                        fid.write(f"{len(c2t_crit):,d} positions are removed\n")
+                    if self.library == "SS": #test sections with this condition
+                        g2a_crit = [x for x in idx if (no_a[x]==1 and a_to_g[x]>=max_a_to_g) or no_a[x]>1]
+                        fid.write("\t\tCOMPARISON: Using G->A ")
+                        fid.write(f"{len(g2a_crit):,d} are removed.")
+                        if np.isfinite(max_c_to_t):
+                            g2a_additional = np.setdiff1d(g2a_crit, c2t_crit)
+                            fid.write(f" Of them, {len(g2a_additional):,d} positions were not removed ")
+                            fid.write("by the C->T ration threshold.\n")
+                            flat_remove = [x for y in more_to_remove for x in y] #flatten 2d list to do intersect
+                            crits = c2t_crit+g2a_crit
+                            in_both = list(set(crits).intersection(set(flat_remove)))
+                            fid.write("\t\tCOMPARISON: ")
+                            if len(in_both) == len(more_to_remove):
+                                fid.write("All positions removed only by looking at [xt] ")
+                                fid.write(f"({len(more_to_remove):,d}) also removed when looking at ")
+                                fid.write("both C->T and G->A.\n")
+                            else:
+                                fid.write(f"Of the {len(more_to_remove):,d} positions removed only by looking at ")
+                                fid.write(f"[xt], {len(in_both):,d} ({100*len(in_both)/len(more_to_remove):.1f}%)")
+                                fid.write(" are also removed when looking at both C->T and G->A.\n")
+                        else:
+                            fid.write("\n")
+                        in_crit = list(set(g2a_crit).intersection(set(flat_remove)))
+                        fid.write("\t\tCOMPARISON: ")
+                        if len(in_crit) == len(more_to_remove):
+                            fid.write("All positions removed only by looking at [xt] ")
+                            fid.write(f"({len(more_to_remove):,d}) also removed when looking at G->A.\n")
+                        else:
+                            fid.write(f"Of the {len(more_to_remove):,d} positions removed only by looking at ")
+                            fid.write(f"[xt], {len(in_crit):,d} ({100*len(in_crit)/len(more_to_remove):.1f}%)")
+                            fid.write(" are also removed when looking at G->A.\n")
+                #remove the positions
+                for x in more_to_remove:
+                    no_ct[x] = np.nan #assumes 1d array
+                for x in more_to_remove:
+                    no_t[x] = np.nan
+            c_to_t_threshold[chrom] = th_c2g
 
+            #plot ratio of removed to total per coverage
+            quotient = no_pos_removed/no_pos_tot*100
+            #plt.figure("removed_per_coverage")
+            #plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
+            #plt.plot(chr_cov,quotient,"bp")
+            if self.chr_names:
+                xlabel = self.chr_names[chrom]
+            else:
+                xlabel = f"Chromosome #{chrom+1}"
+            #plt.xlabel(xlabel)
+            ylabel = "%removed(coverage)/total(coverage)"
+            #plt.ylabel(ylabel)
+            #plt.grid(True)
+            #plt.show()
+
+            #plot ratio of removed to total
+            tot = sum(no_pos_tot)
+            #plt.figure("removed")
+            #plt.subplot(no_rows,no_cols,chrom+1)
+            #plt.plot(chr_cov,no_pos_removed/tot*100,"bp")
+            if self.chr_names:
+                xlabel = self.chr_names[chrom]
+            else:
+                xlabel = f"Chromosome #{chrom+1}"
+            #plt.xlabel(xlabel)
+            ylabel = "%removed(coverage)/total(coverage)"
+            #plt.ylabel(ylabel)
+            #plt.grid(True)
+        #plt.show()
+
+        fid.close()
+        self.diagnostics["effective_coverage"] = eff_coverage
+        self.p_filters["method"] = ""
+        self.p_filters["max_coverage"] = coverage_threshold
+        self.p_filters["max_TsPerCoverage"] = c_to_t_threshold
+        self.p_filters["max_g_to_a"] = []
+        self.p_filters["max_a"] = []
 
 
 
 if __name__ == "__main__":
-    ams = Amsample()
-    print(ams)
+    #ams = Amsample()
+    #print(ams)
     #ams.diagnose()
     #ams2 = Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])
     #print(ams2)
@@ -357,16 +451,22 @@ if __name__ == "__main__":
     #outfile = "objects/U1116"
     #t.save_object(outfile, ams)
     infile = "objects/U1116"
+    import cProfile
+    #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
     ams = t.load_object(infile)
     name = ams.name
     print(f"name: {name}")
     num = ams.no_chrs
     print(f"num of chroms: {num}")
+    #cProfile.run("ams.diagnose()", "data/logs/amsample_profile")
     ams.diagnose()
-    base = ams.get_base_no("chr2", "c")
-    print(f"base: {base[0:20]}")
-    (no_t, no_ct) = ams.smooth("chr5", 17)
-    print(f"no_t: {no_t[0:20]}")
-    print(f"no_ct: {no_ct[0:25]}")
+    outfile = "objects/U1116_diag"
+    #cProfile.run("t.save_object(outfile, ams)", "data/logs/save_profile")
+    t.save_object(outfile, ams)
+    #base = ams.get_base_no("chr2", "c")
+    #print(f"base: {base[0:20]}")
+    #(no_t, no_ct) = ams.smooth("chr5", 17)
+    #print(f"no_t: {no_t[0:20]}")
+    #print(f"no_ct: {no_ct[0:25]}")
     
 
