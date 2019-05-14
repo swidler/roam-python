@@ -6,6 +6,7 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import scipy.stats as stats
+import copy
 from chroms import Chrom
 
 class Amsample(Chrom):
@@ -329,7 +330,7 @@ class Amsample(Chrom):
             no_pos_tot = np.zeros(int(thresh+1))
             no_pos_removed = np.zeros(int(thresh+1))
             for cover in range(int(thresh-1),low_coverage-2, -1): 
-                fid.write(f"\tAnalyzing [xt] coming from coverage {cover+1}\n")
+                fid.write(f"\tAnalyzing [xt] coming from coverage {cover+1}:\n")
                 idx = np.where(no_ct==cover+1)[0]
                 no_pos_cover = len(idx)
                 no_pos_tot[cover] = no_pos_cover 
@@ -349,7 +350,7 @@ class Amsample(Chrom):
                 no_pos_removed[cover] = len(more_to_remove)
                 fid.write(f"\t\t{len(more_to_remove):,d} positions ({100*len(more_to_remove)/len(no_ct):.2f}%) removed ")
                 fid.write(f"as xt > {thresh:.0f} ")
-                fid.write(f"corresponding to C2T-ratio of {(thresh+1)/(cover+1):.3f}\n")
+                fid.write(f"(corresponding to C2T-ratio of {(thresh+1)/(cover+1):.3f})\n")
                 fid.write(f"\t\tThe threshold ({thresh:.0f}) is expected to remove ")
                 fid.write(f"{w[0]*no_pos_cover*stats.binom.sf(thresh,cover+1,p[0]):.1f} true positives\n")
                 fid.write(f"\t\tand to include {w[1]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,0.5)+w[2]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,p[2]):.1f} false positives\n")
@@ -362,7 +363,7 @@ class Amsample(Chrom):
                     if np.isfinite(max_c_to_t):
                         c2t_crit = [x for x in idx if no_t[x]>1 and no_t[x]/no_ct[x] >= max_c_to_t]
                         fid.write("\t\tCOMPARISON: Using C->T ")
-                        fid.write(f"{len(c2t_crit):,d} positions are removed\n")
+                        fid.write(f"{len(c2t_crit):,d} positions are removed.\n")
                     if self.library == "SS": #test sections with this condition
                         g2a_crit = [x for x in idx if (no_a[x]==1 and a_to_g[x]>=max_a_to_g) or no_a[x]>1]
                         fid.write("\t\tCOMPARISON: Using G->A ")
@@ -439,7 +440,170 @@ class Amsample(Chrom):
         self.p_filters["max_g_to_a"] = []
         self.p_filters["max_a"] = []
 
+    @staticmethod
+    def extend_removed(to_remove):
+        odds = np.where(to_remove%2)
+        evens = np.where(~to_remove%2)
+        to_remove = list(to_remove) + list(to_remove[odds]-1) + list(to_remove[evens]+1)
+        to_remove = np.unique(to_remove)
+        return to_remove
 
+    def filter(self, max_c_to_t = None, min_t = 1, merge = True, fname = None, max_g_to_a = .25, max_a = 1, method = None, max_coverage = None, max_TsPerCoverage = None):
+        #initialize
+        no_chr = self.no_chrs
+        if fname == None:
+            fname = "data/logs/"+self.name+"_filter.txt"
+        is_c_to_t = False
+        is_ts_per_cov = False
+        if max_coverage == None:
+            max_coverage = self.p_filters["max_coverage"] if self.p_filters["max_coverage"].any() else 100
+        if method == None:
+            if self.library == "SS": #test this function on single stranded data
+                method = "both"
+            else:
+                method = "c_to_t"
+        if max_TsPerCoverage is not None:
+            is_ts_per_cov = True
+        else:
+            if max_c_to_t is not None:
+                max_TsPerCoverage = max_c_to_t
+            else:
+                max_TsPerCoverage = self.p_filters["max_TsPerCoverage"] if self.p_filters["max_TsPerCoverage"] else .25
+        if max_c_to_t is not None:
+            is_c_to_t = True
+        #'max_tOct' and 'max_TsPerCoverage' cannot be used at the same time
+        if is_c_to_t and is_ts_per_cov:
+            print("Both 'max_TsPerCoverage' and 'max_c_to_t' were used in the input")
+        #bring input parameters into standard form - max_coverage
+        if np.isscalar(max_coverage):
+            max_coverage = max_coverage * np.ones(no_chr)
+        #bring input parameters into standard form - max_TsPerCoverage
+        if np.isscalar(max_TsPerCoverage):
+            tmp_max = max_TsPerCoverage
+        else:
+            tmp_max = max_TsPerCoverage.copy() 
+        if is_c_to_t: #max_c_to_t
+            if np.isscalar(max_TsPerCoverage): #single ratio
+                for chrom in range(no_chr):
+                    max_TsPerCoverage[chrom] = math.ceil(tmp_max * range(max_coverage[chrom])-1)
+            else: #ratio per chrom or per coverage per chrom
+                for chrom in range(no_chr):
+                    max_TsPerCoverage[chrom] = math.ceil(tmp_max[chrom] * range(max_coverage[chrom])-1)
+        else: #max_TsPerCoverage or default
+            if np.isscalar(max_TsPerCoverage): #single number
+                for chrom in range(no_chr):
+                    max_TsPerCoverage[chrom] = tmp_max * np.ones(int(max_coverage[chrom]))
+            else: #number per chrom
+                for chrom in range(no_chr):
+                    max_TsPerCoverage[chrom] = tmp_max[chrom] * np.ones(int(max_coverage[chrom]))
+        #bring input parameters into standard form - max_g_to_a
+        if np.isscalar(max_g_to_a):
+            max_g_to_a = max_g_to_a * np.ones(no_chr)
+        #bring input parameters into standard form - max_a
+        if np.isscalar(max_a):
+            max_a = max_a * np.ones(no_chr)
+        #bring input parameters into standard form - min_t
+        for chrom in range(no_chr):
+            vec = max_TsPerCoverage[chrom] 
+            vec = [min_t if x < min_t else x for x in vec]
+            vec[0:min_t-1] = range(1,min_t) #min_t for a given coverage can't be more than the coverage
+            max_TsPerCoverage[chrom] = vec
+        #f_ams = copy.deepcopy(self) #copy object. copy incredible slow. nec? ie does it matter if ams is changed?
+        f_ams = self #don't need to worry abt overwriting, since output has diff filename
+        f_ams.p_filters["method"] = method
+        f_ams.p_filters["max_coverage"] = max_coverage
+        f_ams.p_filters["max_TsPerCoverage"] = max_TsPerCoverage
+        f_ams.p_filters["max_g_to_a"] = max_g_to_a
+        f_ams.p_filters["max_a"] = max_a
+        fid = open(fname, "w")
+        #loop on chromosomes
+        tot_removed = 0
+        for chrom in range(no_chr):
+            #report
+            if self.chr_names:
+                print(f"Filtering {self.chr_names[chrom]}")
+                fid.write(f"Filtering {self.chr_names[chrom]}\n")
+            else:
+                print(f"Filtering chrom #{chrom+1}")
+                fid.write(f"Filtering chrom #{chrom+1}\n")
+            #vectors of current chromosome
+            no_t = self.no_t[chrom]
+            no_t = np.array(no_t, dtype="float") #convert to numpy array in order to add elementwise
+            no_c = self.no_c[chrom]
+            no_c = np.array(no_c)
+            no_ct = no_t + no_c
+            if method != "c_to_t":
+                no_a = self.no_a[chrom]
+                g_to_a = self.g_to_a[chrom]
+            no_pos = len(no_t)
+            print("\tNumber of CpG positions ", end="")
+            print(f"({self.coord_per_position[chrom]} coordinates per position): {no_pos:,d}")
+            fid.write("\tNumber of CpG positions ")
+            fid.write(f"({self.coord_per_position[chrom]} coordinates per position): {no_pos:,d}\n")
+            #remove positions whose coverage is too high
+            to_remove = np.where(no_ct>max_coverage[chrom])[0]
+            no_removed = len(to_remove)
+            fid.write(f"\t{no_removed:,d} positions ({100*no_removed/no_pos:.2f}%) removed as No_CTs > {int(max_coverage[chrom])}\n")
+            #loop on each coverage level and remove positions with high No_Ts
+            if method != "g_to_a":
+                #loop over all coverage levels
+                for cover in range(int(max_coverage[chrom]),0,-1):
+                    idx = np.where(no_ct==cover)[0]
+                    fid.write(f"\tcoverage {cover} ({len(idx):,d} positions):")
+                    more_to_remove = idx[no_t[idx]>max_TsPerCoverage[chrom][cover-1]] 
+                    more_to_remove = self.extend_removed(more_to_remove)
+                    no_removed = len(to_remove) #redefined for every coverage level
+                    to_remove = np.unique(list(to_remove)+list(more_to_remove))
+                    no_removed = len(to_remove) - no_removed
+                    fid.write(f"\t{no_removed:,d} (extended) positions ")
+                    fid.write(f"were removed as No_Ts > {int(max_TsPerCoverage[chrom][cover-1])}\n")
+            #remove more positions if data on A's and G's is available
+            if method != "c_to_t":
+                more_to_remove = np.where((no_a<=max_no_a[chrom] and g_to_a>=max_g_to_a[chrom]) or no_a>max_a[chrom])[0]
+                more_to_remove = self.extend_removed(more_to_remove)
+                no_removed = len(to_remove)
+                to_remove = np.unique(list(to_remove)+list(more_to_remove))
+                no_removed = len(to_remove) - no_removed
+                fid.write(f"\t{no_removed:,d} additional positions ")
+                fid.write(f"removed as (1) No_As > {int(max_a[chrom])} or (2) No_As <= {int(max_a[chrom])} ")
+                fid.write(f"and aOga >= {max_g_to_a[chrom]:.2f}\n")
+            #remove positions and keep only relevant vectors in p_CpGs
+            no_removed = len(to_remove)
+            print(f"Overall {no_removed:,d} positions ({100*no_removed/no_pos:.2f}%) were removed")
+            fid.write(f"Overall {no_removed:,d} positions ({100*no_removed/no_pos:.2f}%) were removed\n")
+            for x in to_remove:
+                no_t[x] = np.nan
+                no_ct[x] = np.nan
+            np.array(no_ct) #for elementwise subtraction
+            np.array(no_t)
+            no_c = no_ct - no_t #does this behave? (should be elementwise subtraction)
+            #merge positions
+            if merge:
+                if f_ams.coord_per_position[chrom] == 1: #test on single stranded
+                    if f_ams.chr_names:
+                        print(f"{f_ams.chr_names[chrom]} had already gone through merger")
+                    else:
+                        print(f"Chromosome #{chrom} had already gone through merger")
+                else:
+                    f_ams.coord_per_position[chrom] = 1
+                    no_t = t.nanmerge(no_t, "sum")
+                    no_c = t.nanmerge(no_c, "sum")
+            #substitute into f_ams
+            f_ams.no_t[chrom] = no_t
+            f_ams.no_c[chrom] = no_c
+            f_ams.diagnostics["effective_coverage"][chrom] = (np.nansum(no_t) + np.nansum(no_c))/len(no_t)
+            if f_ams.no_a: f_ams.no_a[chrom] = []
+            if f_ams.no_g: f_ams.no_g[chrom] = []
+            if f_ams.g_to_a: f_ams.g_to_a[chrom] = []
+            if f_ams.c_to_t: f_ams.c_to_t[chrom] = []
+            tot_removed = tot_removed + no_removed
+        f_ams.is_filtered = True
+        print(f"In total {tot_removed:,d} posisions were removed")
+        #close file
+        fid.close()
+
+
+    
 
 if __name__ == "__main__":
     #ams = Amsample()
@@ -450,19 +614,23 @@ if __name__ == "__main__":
     #ams.parse_infile("../../u_1116.txt")
     #outfile = "objects/U1116"
     #t.save_object(outfile, ams)
-    infile = "objects/U1116"
-    import cProfile
+    #infile = "objects/U1116"
+    #import cProfile
     #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
+    
+    infile = "objects/U1116_diag"
     ams = t.load_object(infile)
     name = ams.name
     print(f"name: {name}")
     num = ams.no_chrs
     print(f"num of chroms: {num}")
     #cProfile.run("ams.diagnose()", "data/logs/amsample_profile")
-    ams.diagnose()
-    outfile = "objects/U1116_diag"
+    #ams.diagnose()
+    
+    ams.filter()
+    #outfile = "objects/U1116_filtered"
     #cProfile.run("t.save_object(outfile, ams)", "data/logs/save_profile")
-    t.save_object(outfile, ams)
+    #t.save_object(outfile, ams)
     #base = ams.get_base_no("chr2", "c")
     #print(f"base: {base[0:20]}")
     #(no_t, no_ct) = ams.smooth("chr5", 17)
