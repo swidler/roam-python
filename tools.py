@@ -144,6 +144,7 @@ def bmm(H, p, w, tolerance, p_known):
         #update log-likelihood
         llike_new = log_likelihood(w,B,H)
         llike = np.append(llike, llike_new) #should be llike+1 elements long
+    p = [min(max(0,x),1) for x in p] #make sure p is bet 0 and 1
     return p, w, llike
 
 if __name__ == "__main__":
