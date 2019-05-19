@@ -3,8 +3,8 @@
 import tools as t
 import numpy as np
 import math
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
+#import matplotlib.pyplot as plt
+#import matplotlib.mlab as mlab
 import scipy.stats as stats
 import copy
 from chroms import Chrom
@@ -242,8 +242,8 @@ class Amsample(Chrom):
         for chrom in range(no_chrs):
             #report
             if self.chr_names:
-                print(f"Diagnosing chrom {self.chr_names[chrom]}")
-                fid.write(f"Diagnosing chrom {self.chr_names[chrom]}\n")
+                print(f"Diagnosing {self.chr_names[chrom]}")
+                fid.write(f"Diagnosing {self.chr_names[chrom]}\n")
             else:
                 print(f"Diagnosing chrom #{chrom+1}")
                 fid.write(f"Diagnosing chrom #{chrom+1}\n")
@@ -598,11 +598,105 @@ class Amsample(Chrom):
             if f_ams.c_to_t: f_ams.c_to_t[chrom] = []
             tot_removed = tot_removed + no_removed
         f_ams.is_filtered = True
-        print(f"In total {tot_removed:,d} posisions were removed")
+        print(f"In total {tot_removed:,d} positions were removed")
         #close file
         fid.close()
 
+    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1):
+        ref_params = {}
+        global_params = {}
+        if global_meth > 1: #can be dec or %
+            global_meth = 0.01*global_meth
+        global_params["global_methylation"] = global_meth
+        ref_params["ref"] = ref
+        if min_beta > 1:
+            min_beta = 0.01*min_beta
+        ref_params["min_beta"] = min_beta
+        ref_params["min_coverage"] = min_cov
+        global_params["min_coverage"] = min_cov
+        if method == "global":
+            meth_params = global_params
+            if np.isnan(meth_params["global_methylation"]):
+                raise Exception("No global_methylation param provided when using 'global' method")
+        elif method == "reference":
+            meth_params = ref_params
+            if not meth_params["ref"]:
+                raise Exception("No reference provided when using 'reference' method")
+        elif method != "estref":
+            raise Exception(f"Unknown method '{method}'")
+        print(f"Estimating deamination rate using the '{method}' method")
+        if method == "global":
+            print(f"\tglobal_methylation: {meth_params['global_methylation']:.2f}")
+        elif method == "reference":
+            print(f"\tmin_beta: {meth_params['min_beta']:.2f}")
+        if method == "global" or method == "reference":
+            print(f"\tmin_coverage: {meth_params['min_coverage']:d}")
+        
+        #sanity check
+        if not self.is_filtered:
+            raise Exception(f"{self.name} is not filtered")
+        if not all(x == 1 for x in self.coord_per_position):
+            raise Exception(f"{self.name} is not merged")
+        
+        #verify reference is merged and scaled
+        if method == "reference":
+            meth_params["ref"].merge() #ref should be type mms, so this should work
+            meth_params["ref"].scale()
+        
+        #initialize
+        drate = {"global":np.nan, "dglobal":np.nan, "local":np.full((self.no_chrs),np.nan), "dlocal":np.full((self.no_chrs),np.nan), "no_positions":np.full((self.no_chrs),np.nan)}
+        factor = 1
+        if method == "global":
+            factor = 1/meth_params["global_methylation"]
+        tot_t = 0
+        tot_ct = 0
+        
+        #loop on chromosomes
+        for chrom in range(self.no_chrs):
+            
+            #report
+            print(f"Estimating deamination rate in {self.chr_names[chrom]}")
+            
+            #vectors of current chrom
+            no_t = self.no_t[chrom]
+            no_t = np.array(no_t) #convert to numpy array in order to add elementwise
+            no_c = self.no_c[chrom]
+            no_c = np.array(no_c)
+            no_ct = no_t + no_c
 
+            #remove positions for which the reference has low beta-values
+            if method == "reference":
+                #Take only positions where {ref}>=min_beta
+                include = np.where(np.array(meth_params["ref"].get_methylation(self.chr_names[chrom])[1])>=meth_params["min_beta"])[0]
+                no_t = no_t[include]
+                no_ct = no_ct[include]
+
+            #remove positions that are not covered high enough
+            include = np.where(no_ct >= meth_params["min_coverage"])[0]
+            no_t = no_t[include]
+            no_ct = no_ct[include]
+
+            #compute estimates based on the current chromosome
+            drate["local"][chrom] = factor * np.nansum(no_t)/np.nansum(no_ct)
+            drate["no_positions"][chrom] = sum(np.isfinite(no_t))
+            drate["dlocal"][chrom] = factor * math.sqrt(drate["local"][chrom]*(1-drate["local"][chrom])/drate["no_positions"][chrom])
+
+            #accumulate sums
+            tot_t = tot_t + np.nansum(no_t)
+            tot_ct = tot_ct + np.nansum(no_ct)
+        
+        #evaluate global degradation rate
+        drate["global"] = factor * tot_t/tot_ct
+        drate["global"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/sum(drate["no_positions"]))
+
+        #plug vals into object
+        if method == "reference":
+            self.drate = {"method":"reference", "rate":drate, "reference":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
+        elif method == "global":
+            self.drate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
+        elif method == "estref":
+            self.drate = {"method":"estref", "rate":drate}
+        
     
 
 if __name__ == "__main__":
@@ -618,8 +712,11 @@ if __name__ == "__main__":
     #import cProfile
     #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
     
-    infile = "objects/U1116_diag"
+    #infile = "objects/U1116_diag"
+    infile = "objects/U1116_filtered"
     ams = t.load_object(infile)
+    infile = "objects/bone_5"
+    mms = t.load_object(infile)
     name = ams.name
     print(f"name: {name}")
     num = ams.no_chrs
@@ -627,8 +724,9 @@ if __name__ == "__main__":
     #cProfile.run("ams.diagnose()", "data/logs/amsample_profile")
     #ams.diagnose()
     
-    ams.filter()
-    #outfile = "objects/U1116_filtered"
+    #ams.filter()
+    ams.estimate_drate(ref=mms)
+    outfile = "objects/U1116_filtered_drate"
     #cProfile.run("t.save_object(outfile, ams)", "data/logs/save_profile")
     #t.save_object(outfile, ams)
     #base = ams.get_base_no("chr2", "c")
