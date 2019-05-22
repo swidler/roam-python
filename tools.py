@@ -147,6 +147,14 @@ def bmm(H, p, w, tolerance, p_known):
     p = [min(max(0,x),1) for x in p] #make sure p is bet 0 and 1
     return p, w, llike
 
+def nan_eq_2d(list1, list2):
+    for x in range(len(list(list1))):
+        for y in range(len(list(list1[x]))):
+            if list1[x][y] != list2[x][y] and (~np.isnan(list1[x][y]) or ~np.isnan(list2[x][y])):
+                print(f"list1({x},{y}) is {list1[x][y]} and list2({x},{y}) is {list2[x][y]}")
+                return
+    print("lists are the same")
+
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
     new_reg = standardize_region(reg)
