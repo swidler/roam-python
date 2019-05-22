@@ -36,6 +36,42 @@ class Amsample(Chrom):
     def __repr__(self): #defines print of object
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nlibrary: %s\nchr_names: %s\ncoord_per_position: %s\nno_a: %s\nno_c: %s\nno_g: %s\nno_t: %s\ng_to_a: %s \nc_to_t: %s\ndiagnostics: %s\np_filters: %s\nis_filtered: %s\nis_simulated: %s\nmethylation: %s\nd_rate: %s\nmetadata: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.library, self.chr_names, self.coord_per_position, self.no_a, self.no_c, self.no_g, self.no_t, self.g_to_a, self.c_to_t, self.diagnostics, self.p_filters, self.is_filtered, self.is_simulated, self.methylation, self.d_rate, self.metadata, self.no_chrs)
 
+    def diag_eq(self, other):
+        if len(self.diagnostics) == 0 and len(other.diagnostics) == 0:
+            return True
+        else:
+            return(self.diagnostics["effective_coverage"] == other.diagnostics["effective_coverage"])
+    
+    def filt_eq(self, other):
+        if len(self.p_filters) == 0 and len(other.p_filters) == 0:
+            return True
+        else:
+            return(self.p_filters["method"] == other.p_filters["method"] and list(self.p_filters["max_coverage"]) == list(other.p_filters["max_coverage"]) and self.p_filters["max_TsPerCoverage"] == other.p_filters["max_TsPerCoverage"] and list(self.p_filters["max_g_to_a"]) == list(other.p_filters["max_g_to_a"]) and list(self.p_filters["max_a"]) == list(other.p_filters["max_a"]))
+    
+    def meth_eq(self, other):
+        if len(self.methylation) == 0 and len(other.methylation) == 0:
+            return True
+        else:
+            return(self.methylation == other.methylation) #need to add keys once populated
+
+    def drate_eq(self, other):
+        if len(self.d_rate) == 0 and len(other.d_rate == 0):
+            return True
+        else:
+            return(self.d_rate["global"] == other.d_rate["global"] and self.d_rate["dglobal"] == other.d_rate["dglobal"] and list(self.d_rate["local"]) == list(other.d_rate["local"]) and list(self.d_rate["dlocal"]) == list(other.d_rate["dlocal"]) and list(self.d_rate["no_positions"]) == list(other.d_rate["no_positions"]))
+
+
+
+    def __eq__(self, other): #overload == operator
+        return(self.name == other.name and self.abbrev == other.abbrev and self.species == other.species and
+                self.reference == other.reference and self.library == other.library and 
+                self.chr_names == other.chr_names and self.coord_per_position == other.coord_per_position and
+                self.no_a == other.no_a and self.no_c == other.no_c and self.no_g == other.no_g and
+                self.no_t == other.no_t and self.g_to_a == other.g_to_a and self.c_to_t == other.c_to_t and
+                self.diag_eq(other) and self.filt_eq(other) and self.meth_eq(other) and self.drate_eq(other) and
+                self.is_filtered == other.is_filtered and self.is_simulated == other.is_simulated and
+                self.metadata == other.metadata and self.no_chrs == other.no_chrs)
+
     def parse_infile(self, infile):
         i = 0
         flag = 0 #to keep track of which set of chr lines up to in file
@@ -78,7 +114,7 @@ class Amsample(Chrom):
                         ts = fields[1].split()
                         ts = [int(x) if x.isdigit() else np.nan for x in ts] #convert all numbers to int, leave NaN alone
                         self.p_filters["max_TsPerCoverage"].append(ts)
-                        self.chr_names.append(fields[0])
+                        #self.chr_names.append(fields[0])
                     elif fields[0] == "max_aOga":
                         flag = 1 #after first set of chr lines
                         aga = fields[1].split()
@@ -687,7 +723,7 @@ class Amsample(Chrom):
         
         #evaluate global degradation rate
         drate["global"] = factor * tot_t/tot_ct
-        drate["global"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/sum(drate["no_positions"]))
+        drate["dglobal"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/sum(drate["no_positions"]))
 
         #plug vals into object
         if method == "reference":
