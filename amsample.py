@@ -131,9 +131,9 @@ class Amsample(Chrom):
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
                         self.coord_per_position = coord
                     elif fields[0] == "Deamination rate":
-                        self.d_rate["local"] = []
-                        self.d_rate["dlocal"] = []
-                        self.d_rate["no_positions"] = []
+                        self.d_rate["rate"]["local"] = []
+                        self.d_rate["rate"]["dlocal"] = []
+                        self.d_rate["rate"]["no_positions"] = []
                     elif fields[0] == "Reference":
                         self.d_rate["ref"] = fields[1]
                     elif fields[0] == "min_beta":
@@ -141,21 +141,21 @@ class Amsample(Chrom):
                     elif fields[0] == "min_coverage":
                         self.d_rate["min_coverage"] = float(fields[1])
                     elif fields[0] == "global":
-                        self.d_rate["global"] = float(fields[1])
+                        self.d_rate["rate"]["global"] = float(fields[1])
                     elif fields[0] == "dglobal":
-                        self.d_rate["dglobal"] = float(fields[1])
+                        self.d_rate["rate"]["dglobal"] = float(fields[1])
                     elif fields[0] == "local":
                         local = fields[1].split()
                         local = [float(x) for x in local] #convert all numbers to float (NaN is a float)
-                        self.d_rate["local"] = local
+                        self.d_rate["rate"]["local"] = local
                     elif fields[0] == "dlocal":
                         dlocal = fields[1].split()
                         dlocal = [float(x) for x in dlocal] #convert all numbers to float (NaN is a float)
-                        self.d_rate["dlocal"] = dlocal
+                        self.d_rate["rate"]["dlocal"] = dlocal
                     elif fields[0] == "no_positions":
                         no_positions = fields[1].split()
                         no_positions = [float(x) for x in no_positions] #convert all numbers to float (NaN is a float)
-                        self.d_rate["no_positions"] = no_positions
+                        self.d_rate["rate"]["no_positions"] = no_positions
                     elif fields[0] == "Effective coverage":
                         eff_cov = fields[1].split()
                         eff_cov = [float(x) for x in eff_cov] #convert all numbers to float (NaN is float)
@@ -727,13 +727,59 @@ class Amsample(Chrom):
 
         #plug vals into object
         if method == "reference":
-            self.drate = {"method":"reference", "rate":drate, "reference":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
+            self.d_rate = {"method":"reference", "rate":drate, "reference":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
         elif method == "global":
-            self.drate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
+            self.d_rate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
         elif method == "estref":
-            self.drate = {"method":"estref", "rate":drate}
+            self.d_rate = {"method":"estref", "rate":drate}
         
-    
+    def dump(self, stage):
+        aname = self.name
+        fname = "data/python_dumps/" + aname + "_" + stage + ".txt"
+        with open(fname, "w") as fid:
+            fid.write(f"Name: {aname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\n")
+            fid.write(f"Library: {self.library}\n\n")
+            filt = "" if self.is_filtered else "not "
+            fid.write(f"This sample is {filt}filtered\n")
+            fid.write(f"\tMethod: {self.p_filters['method']}\n")
+            max_cov = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_coverage']]
+            fid.write(f"\tmax_coverage: {' '.join(map(str, max_cov))}\n")
+            fid.write("\tmax_TsPerCoverage:\n")
+            for chrom in range(self.no_chrs):
+                max_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
+                fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
+            fid.write(f"\tmax_g_to_a: {' '.join(map(str, self.p_filters['max_g_to_a']))}\n")
+            max_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_a']]
+            fid.write(f"\tmax_No_As: {' '.join(map(str, max_a))}\n")
+            sim = "" if self.is_simulated else "not "
+            fid.write(f"This sample is {sim}simulated\n")
+            fid.write(f"Coordinates per position: {' '.join(map(str, self.coord_per_position))}\n")
+            fid.write("Deamination rate:\n")
+            fid.write(f"\tReference: {self.d_rate['reference']}\n\tmin_beta: {int(self.d_rate['min_beta']):.6f}\n")
+            fid.write(f"\tmin_coverage: {int(self.d_rate['min_coverage']):6f}\n\tglobal: {self.d_rate['rate']['global']:.6f}\n")
+            fid.write(f"\tdglobal: {self.d_rate['rate']['dglobal']:.6f}\n\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
+            fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
+            fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+            fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
+            for chrom in range(self.no_chrs):
+                fid.write(f"\n{self.chr_names[chrom]}:\n")
+                no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]]
+                fid.write(f"No_As: {' '.join(map(str, no_a))}\n")
+                no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]]
+                fid.write(f"No_Cs: {' '.join(map(str, no_c))}\n")
+                no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]]
+                fid.write(f"No_Gs: {' '.join(map(str, no_g))}\n")
+                no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]]
+                fid.write(f"No_Ts: {' '.join(map(str, no_t))}\n")
+                if len(self.g_to_a) != 0:
+                    g_to_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.g_to_a[chrom]]
+                    fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
+                c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
+                fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
+                #add reconstructed methylation
+
+
+
 
 if __name__ == "__main__":
     #ams = Amsample()
@@ -753,16 +799,18 @@ if __name__ == "__main__":
     ams = t.load_object(infile)
     infile = "objects/bone_5"
     mms = t.load_object(infile)
-    name = ams.name
-    print(f"name: {name}")
-    num = ams.no_chrs
-    print(f"num of chroms: {num}")
+    #name = ams.name
+    #print(f"name: {name}")
+    #num = ams.no_chrs
+    #print(f"num of chroms: {num}")
     #cProfile.run("ams.diagnose()", "data/logs/amsample_profile")
     #ams.diagnose()
     
     #ams.filter()
     ams.estimate_drate(ref=mms)
-    outfile = "objects/U1116_filtered_drate"
+    stage = "drate"
+    ams.dump(stage)
+    #outfile = "objects/U1116_filtered_drate"
     #cProfile.run("t.save_object(outfile, ams)", "data/logs/save_profile")
     #t.save_object(outfile, ams)
     #base = ams.get_base_no("chr2", "c")
