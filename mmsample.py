@@ -59,7 +59,7 @@ class Mmsample(Chrom):
 
     def scale(self):
         for i in range(0,len(self.methylation)):
-            biggest = max([x for x in self.methylation[i] if isinstance(x, int) or isinstance(x, float)]) #get biggest number in list (ignore string vals)
+            biggest = max([x for x in self.methylation[i] if ~np.isnan(x)]) #get biggest number in list (ignore string vals)
             if biggest > 1:
                 self.methylation[i] = [x/100 if ~np.isnan(x) else x for x in self.methylation[i]] #divide numeric vals by 100
 
