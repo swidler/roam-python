@@ -115,7 +115,7 @@ class Amsample(Chrom):
                         ts = [int(x) if x.isdigit() else np.nan for x in ts] #convert all numbers to int, leave NaN alone
                         self.p_filters["max_TsPerCoverage"].append(ts)
                         #self.chr_names.append(fields[0])
-                    elif fields[0] == "max_aOga":
+                    elif fields[0] == "max_aOga" or fields[0] == "max_g_to_a":
                         flag = 1 #after first set of chr lines
                         aga = fields[1].split()
                         aga = [float(x) for x in aga] #convert all numbers to float (NaN is a float)
@@ -131,9 +131,7 @@ class Amsample(Chrom):
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
                         self.coord_per_position = coord
                     elif fields[0] == "Deamination rate":
-                        self.d_rate["rate"]["local"] = []
-                        self.d_rate["rate"]["dlocal"] = []
-                        self.d_rate["rate"]["no_positions"] = []
+                        self.d_rate["rate"] = {"local":[], "dlocal":[], "no_positions":[]}
                     elif fields[0] == "Reference":
                         self.d_rate["ref"] = fields[1]
                     elif fields[0] == "min_beta":
@@ -178,11 +176,11 @@ class Amsample(Chrom):
                         no_t = fields[1].split()
                         no_t = [int(x) if x.isdigit() else np.nan for x in no_t] #convert all numbers to int, leave NaN alone
                         self.no_t.append(no_t)
-                    elif fields[0] == "aOga":
+                    elif fields[0] == "aOga" or fields[0] == "g_to_a":
                         g_to_a = fields[1].split()
                         g_to_a = [int(x) if x.isdigit() else np.nan for x in g_to_a] #convert all numbers to int, leave NaN alone
                         self.g_to_a.append(g_to_a)
-                    elif fields[0] == "tOct":
+                    elif fields[0] == "tOct" or fields[0] == "c_to_t":
                         c_to_t = fields[1].split()
                         c_to_t = [int(x) if x.isdigit() else np.nan for x in c_to_t] #convert all numbers to int, leave NaN alone
                         self.c_to_t.append(c_to_t)
@@ -213,7 +211,10 @@ class Amsample(Chrom):
         self.no_chrs = len(self.coord_per_position)
 
     def get_base_no(self, chrom, base):
-        chr_ind = self.indexofchr([chrom])[0]
+        if isinstance(chrom, str):
+            chr_ind = self.indexofchr([chrom])[0]
+        else:
+            chr_ind = chrom
         if base == "a":
             result = self.no_a
         elif base == "c":
@@ -727,12 +728,101 @@ class Amsample(Chrom):
 
         #plug vals into object
         if method == "reference":
-            self.d_rate = {"method":"reference", "rate":drate, "reference":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
+            self.d_rate = {"method":"reference", "rate":drate, "ref":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
         elif method == "global":
             self.d_rate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
         elif method == "estref":
             self.d_rate = {"method":"estref", "rate":drate}
+    
+    def determine_winsize(self, chrom, method="prob", coverage=None, drate=None, min_meth=0.2, p0=0.01, k_inv=1/2.5, max_width=31):
+        if coverage == None:
+            coverage = self.diagnostics["effective_coverage"][chrom]
+        if drate == None:
+            drate=self.d_rate["rate"]["global"]
+        if not method=="prob" and not method=="relerror":
+            raise Exception(f"Unknown method '{method}'")
+        if min_meth>1:
+            min_meth = 0.01 * min_meth
+        if method == "prob":
+            param = p0
+        else:
+            param = k_inv
+
+        #compute the window size
+        p = min_meth * drate
+        if method == "prob":
+            win_size = np.ceil(np.log(param)/np.log(1-p)/coverage)
+        else:
+            win_size = ceil((1-p)/coverage/p/param**2)
+
+        #narrow window if too wide
+        win_size = min(win_size, max_width)
+
+        #make sure win_size is odd
+        if not win_size%2:
+            win_size += 1
         
+        return win_size
+    
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="log", slope=None, intercept=[0], lcf=0.05, report=True):
+        no_chr = self.no_chrs
+        if slope == None:
+            slope=[1/self.d_rate["rate"]["global"]]
+        if isinstance(win_size, str):
+            auto_win = True
+        else:
+            auto_win = False
+        
+        #bring parameters into standard format - win_size
+        if not auto_win:
+            if len(win_size) == 1:
+                if not win_size%2:
+                    win_size += 1 #win_size should be odd
+                win_size = win_size * np.ones(no_chr)
+            else:
+                for chrom in range(no_chr):
+                    if not win_size[chrom]%2:
+                        win_size[chrom] += 1 #win_size should be odd
+        else:
+            win_size = np.zeros(no_chr)
+            for chrom in range(no_chr):
+                win_size[chrom] = self.determine_winsize(chrom, **winsize_alg)
+        win_size = [int(x) for x in win_size]
+
+        #bring parameters into standard formt - slope
+        if len(slope) == 1:
+            slope = slope * np.ones(no_chr)
+
+        #bring parameters into standard formt - intercept
+        if len(intercept) == 1:
+            intercept = intercept * np.ones(no_chr)
+        intercept = [int(x) for x in intercept]
+
+        meth = []
+        for chrom in range(no_chr):
+            if self.chr_names:
+                print(f"Computing methylation in {self.chr_names[chrom]}")
+            else:
+                print(f"Computing methylation in chrom #{chrom+1}")
+            #get smoothed No_Ts and No_CTs
+            (no_t, no_ct) = self.smooth(chrom, int(win_size[chrom]))
+            #remove regions with particularly low coverage
+            lct = t.find_low_coverage_thresh(no_ct, lcf)
+            no_ct = [np.nan if x < lct else x for x in no_ct]
+            #compute methylation
+            if function == "log":
+                tmp_exp = np.exp(2*slope[chrom]*no_t/no_ct)
+                methi = 2*tmp_exp/(tmp_exp+1)-1
+            else:
+                methi = slope[chrom]*no_t/no_ct+intercept[chrom]
+                methi = min(max(methi,0),1) #keep between 0 and 1 (nans untouched)
+            if report:
+                print(f"Average methylation: {np.nanmean(methi):.2f}")
+            meth.append(methi)
+        self.methylation = {"methylation":meth, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
+
+
+
     def dump(self, stage):
         aname = self.name
         fname = "data/python_dumps/" + aname + "_" + stage + ".txt"
@@ -755,7 +845,7 @@ class Amsample(Chrom):
             fid.write(f"This sample is {sim}simulated\n")
             fid.write(f"Coordinates per position: {' '.join(map(str, self.coord_per_position))}\n")
             fid.write("Deamination rate:\n")
-            fid.write(f"\tReference: {self.d_rate['reference']}\n\tmin_beta: {int(self.d_rate['min_beta']):.6f}\n")
+            fid.write(f"\tReference: {self.d_rate['ref']}\n\tmin_beta: {int(self.d_rate['min_beta']):.6f}\n")
             fid.write(f"\tmin_coverage: {int(self.d_rate['min_coverage']):6f}\n\tglobal: {self.d_rate['rate']['global']:.6f}\n")
             fid.write(f"\tdglobal: {self.d_rate['rate']['dglobal']:.6f}\n\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
             fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
@@ -776,18 +866,29 @@ class Amsample(Chrom):
                     fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
                 c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
                 fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
-                #add reconstructed methylation
+            fid.write("Reconstructed methylation:\n")
+            fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
+            fid.write(f"\tslope: {' '.join(map(str, self.methylation['slope']))}\n")
+            fid.write(f"\tintercept: {' '.join(map(str, self.methylation['intercept']))}\n")
+            fid.write(f"\tlcf: {self.methylation['lcf']:.6f}\n")
+            for chrom in range(self.no_chrs):
+                meth = [round(x, 6) if ~np.isnan(x) else "NaN" for x in self.methylation["methylation"][chrom]]
+                fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
+            
 
 
 
 
 if __name__ == "__main__":
-    #ams = Amsample()
+    ams = Amsample()
+    mat = Amsample()
     #print(ams)
     #ams.diagnose()
     #ams2 = Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])
     #print(ams2)
     #ams.parse_infile("../../u_1116.txt")
+    ams.parse_infile("data/python_dumps/I1116_drate.txt")
+    mat.parse_infile("data/matlab_dumps/I1116_meth.txt")
     #outfile = "objects/U1116"
     #t.save_object(outfile, ams)
     #infile = "objects/U1116"
@@ -795,10 +896,10 @@ if __name__ == "__main__":
     #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
     
     #infile = "objects/U1116_diag"
-    infile = "objects/U1116_filtered"
-    ams = t.load_object(infile)
-    infile = "objects/bone_5"
-    mms = t.load_object(infile)
+    #infile = "objects/U1116_filtered"
+    #ams = t.load_object(infile)
+    #infile = "objects/bone_5"
+    #mms = t.load_object(infile)
     #name = ams.name
     #print(f"name: {name}")
     #num = ams.no_chrs
@@ -807,9 +908,19 @@ if __name__ == "__main__":
     #ams.diagnose()
     
     #ams.filter()
-    ams.estimate_drate(ref=mms)
-    stage = "drate"
-    ams.dump(stage)
+    #ams.estimate_drate(ref=mms)
+    #stage = "drate"
+    ams.reconstruct_methylation()
+    meth_py = ams.methylation["methylation"]
+    meth_mat = mat.methylation["methylation"]
+    for chrom in range(ams.no_chrs):
+        py = np.array(meth_py[chrom])
+        diffs = py - meth_mat[chrom]
+        diffs_nonan = [abs(x) for x in diffs if ~np.isnan(x)]
+        res = max(diffs_nonan)
+        print(f"Max methylation diff for {chrom}: {res}")
+    #stage = "meth"
+    #ams.dump(stage)
     #outfile = "objects/U1116_filtered_drate"
     #cProfile.run("t.save_object(outfile, ams)", "data/logs/save_profile")
     #t.save_object(outfile, ams)
