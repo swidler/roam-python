@@ -821,7 +821,28 @@ class Amsample(Chrom):
             meth.append(methi)
         self.methylation = {"methylation":meth, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
+    def simulate(self, degrad_rate, mms, report=True):
+        
+        #initialize
+        self.name = self.name + "_(sim)"
+        self.is_simulated = True
 
+        #make sure methylation in {mms} is scaled to [0,1]
+        mms.scale()
+
+        #parameters needed for the simulation
+        meth_map = mms.get_methylation()[1]
+
+        for chrom in range(self.no_chrs):
+            if report:
+                print(f"Processing {self.chr_names[chrom]} ... ")
+            no_c = np.array(self.no_c[chrom])
+            tot_ct = no_c + self.no_t[chrom]
+            self.no_t[chrom] = np.random.binomial(tot_ct, degrad_rate*np.array(meth_map[chrom]))
+            self.no_t[chrom] = [max(0,x) for x in self.no_t[chrom]] #change bad (neg) vals resulting from nans to 0
+            self.no_c[chrom] = tot_ct - self.no_t[chrom]
+            if report:
+                print("done")
 
     def dump(self, stage):
         aname = self.name
@@ -831,26 +852,41 @@ class Amsample(Chrom):
             fid.write(f"Library: {self.library}\n\n")
             filt = "" if self.is_filtered else "not "
             fid.write(f"This sample is {filt}filtered\n")
-            fid.write(f"\tMethod: {self.p_filters['method']}\n")
-            max_cov = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_coverage']]
-            fid.write(f"\tmax_coverage: {' '.join(map(str, max_cov))}\n")
-            fid.write("\tmax_TsPerCoverage:\n")
-            for chrom in range(self.no_chrs):
-                max_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
-                fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
-            fid.write(f"\tmax_g_to_a: {' '.join(map(str, self.p_filters['max_g_to_a']))}\n")
-            max_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_a']]
-            fid.write(f"\tmax_No_As: {' '.join(map(str, max_a))}\n")
+            for key in self.p_filters.keys():
+                if key == "method":
+                    fid.write(f"\tMethod: {self.p_filters['method']}\n")
+                elif key == "max_coverage":
+                    max_cov = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_coverage']]
+                    fid.write(f"\tmax_coverage: {' '.join(map(str, max_cov))}\n")
+                elif key == "max_TsPerCoverage":
+                    fid.write("\tmax_TsPerCoverage:\n")
+                    for chrom in range(self.no_chrs):
+                        max_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
+                        fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
+                elif key == "max_g_to_a":
+                    fid.write(f"\tmax_g_to_a: {' '.join(map(str, self.p_filters['max_g_to_a']))}\n")
+                elif key == "max_a":
+                    max_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_a']]
+                    fid.write(f"\tmax_No_As: {' '.join(map(str, max_a))}\n")
             sim = "" if self.is_simulated else "not "
             fid.write(f"This sample is {sim}simulated\n")
             fid.write(f"Coordinates per position: {' '.join(map(str, self.coord_per_position))}\n")
             fid.write("Deamination rate:\n")
-            fid.write(f"\tReference: {self.d_rate['ref']}\n\tmin_beta: {int(self.d_rate['min_beta']):.6f}\n")
-            fid.write(f"\tmin_coverage: {int(self.d_rate['min_coverage']):6f}\n\tglobal: {self.d_rate['rate']['global']:.6f}\n")
-            fid.write(f"\tdglobal: {self.d_rate['rate']['dglobal']:.6f}\n\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
-            fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
-            fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
-            fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
+            for key in self.d_rate.keys():
+                if key == "ref":
+                    fid.write(f"\tReference: {self.d_rate['ref']}\n")
+                elif key == "min_beta":
+                    fid.write(f"\tmin_beta: {int(self.d_rate['min_beta'])}\n")
+                elif key == "min_coverage":
+                    fid.write(f"\tmin_coverage: {int(self.d_rate['min_coverage'])}\n")
+                elif key == "rate":
+                    fid.write(f"\tglobal: {self.d_rate['rate']['global']}\n\tdglobal: {self.d_rate['rate']['dglobal']}\n")
+                    fid.write(f"\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
+                    fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
+                    fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+            for key in self.diagnostics.keys():
+                if key == "effective_coverage":
+                    fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
             for chrom in range(self.no_chrs):
                 fid.write(f"\n{self.chr_names[chrom]}:\n")
                 no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]]
@@ -867,58 +903,64 @@ class Amsample(Chrom):
                 c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
                 fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
             fid.write("Reconstructed methylation:\n")
-            fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
-            fid.write(f"\tslope: {' '.join(map(str, self.methylation['slope']))}\n")
-            fid.write(f"\tintercept: {' '.join(map(str, self.methylation['intercept']))}\n")
-            fid.write(f"\tlcf: {self.methylation['lcf']:.6f}\n")
-            for chrom in range(self.no_chrs):
-                meth = [round(x, 6) if ~np.isnan(x) else "NaN" for x in self.methylation["methylation"][chrom]]
-                fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
+            for key in self.methylation.keys():
+                if key == "win_size":
+                    fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
+                elif key == "slope":
+                    fid.write(f"\tslope: {' '.join(map(str, self.methylation['slope']))}\n")
+                elif key == "intercept":
+                    fid.write(f"\tintercept: {' '.join(map(str, self.methylation['intercept']))}\n")
+                elif key == "lcf":
+                    fid.write(f"\tlcf: {self.methylation['lcf']}\n")
+                elif key == "methylation":
+                    for chrom in range(self.no_chrs):
+                #meth = [round(x, 6) if ~np.isnan(x) else "NaN" for x in self.methylation["methylation"][chrom]]
+                        meth = self.methylation["methylation"][chrom]
+                        fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
             
 
 
 
 
 if __name__ == "__main__":
-    ams = Amsample()
-    mat = Amsample()
+    #ams = Amsample()
+    #mat = Amsample()
     #print(ams)
     #ams.diagnose()
     #ams2 = Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])
     #print(ams2)
     #ams.parse_infile("../../u_1116.txt")
-    ams.parse_infile("data/python_dumps/I1116_drate.txt")
-    mat.parse_infile("data/matlab_dumps/I1116_meth.txt")
+    #ams.parse_infile("data/python_dumps/I1116_drate.txt")
+    #ams.parse_infile("data/python_dumps/I1116_meth.txt")
     #outfile = "objects/U1116"
     #t.save_object(outfile, ams)
-    #infile = "objects/U1116"
+    infile = "objects/U1116"
     #import cProfile
     #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
     
     #infile = "objects/U1116_diag"
     #infile = "objects/U1116_filtered"
-    #ams = t.load_object(infile)
-    #infile = "objects/bone_5"
-    #mms = t.load_object(infile)
+    ams = t.load_object(infile)
+    infile = "objects/bone_5"
+    mms = t.load_object(infile)
     #name = ams.name
     #print(f"name: {name}")
     #num = ams.no_chrs
     #print(f"num of chroms: {num}")
     #cProfile.run("ams.diagnose()", "data/logs/amsample_profile")
     #ams.diagnose()
-    
     #ams.filter()
     #ams.estimate_drate(ref=mms)
     #stage = "drate"
-    ams.reconstruct_methylation()
-    meth_py = ams.methylation["methylation"]
-    meth_mat = mat.methylation["methylation"]
-    for chrom in range(ams.no_chrs):
-        py = np.array(meth_py[chrom])
-        diffs = py - meth_mat[chrom]
-        diffs_nonan = [abs(x) for x in diffs if ~np.isnan(x)]
-        res = max(diffs_nonan)
-        print(f"Max methylation diff for {chrom}: {res}")
+    #ams.reconstruct_methylation()
+    #meth_py = ams.methylation["methylation"]
+    #meth_mat = mat.methylation["methylation"]
+    #for chrom in range(ams.no_chrs):
+    #    py = np.array(meth_py[chrom])
+    #    diffs = py - meth_mat[chrom]
+    #    diffs_nonan = [abs(x) for x in diffs if ~np.isnan(x)]
+    #    res = max(diffs_nonan)
+    #    print(f"Max methylation diff for {chrom}: {res}")
     #stage = "meth"
     #ams.dump(stage)
     #outfile = "objects/U1116_filtered_drate"
@@ -929,5 +971,7 @@ if __name__ == "__main__":
     #(no_t, no_ct) = ams.smooth("chr5", 17)
     #print(f"no_t: {no_t[0:20]}")
     #print(f"no_ct: {no_ct[0:25]}")
-    
+    ams.simulate(0.018598, mms) #rate comes from drate global in I1116_meth.txt
+    stage = "sim"
+    ams.dump(stage)
 
