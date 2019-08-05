@@ -159,6 +159,7 @@ def find_low_coverage_thresh(vec, factor=0.05):
     lct= np.ceil(factor * np.nanmean(vec))
     return lct
 
+
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
     new_reg = standardize_region(reg)
