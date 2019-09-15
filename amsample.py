@@ -12,6 +12,8 @@ import pysam
 from Bio import SeqIO
 import gzip
 import datetime
+import glob
+import re
 
 class Amsample(Chrom):
     def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", library="", chr_names=[], coord_per_position=[], no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
@@ -103,13 +105,147 @@ class Amsample(Chrom):
                 qual[key:key] = [0 for x in range(size)]
         return(seq, qual)
 
-
-    def bam_to_am(self, filename="../../I1116.bam", library=None, chr_lengths=None, genome_seq=None, org=None, species=None, chr_format="num", chroms=list(range(23)), save_aligned=False, folder="", tot_chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names):
         corrupt_reads = 0
         low_mapq_reads = 0
         reads_long_cigar = 0
         long_cigar_not_i_d = 0
         xflag = 0
+        date = datetime.datetime.now()
+        date = date.strftime("%c")
+        print(f"Starting chromosome {chrom_name}: {date}")
+        chrom_bam = bam.fetch(chrom_name)
+        tot_a_plus = np.zeros(chr_lengths[chrom])
+        tot_a_minus = np.zeros(chr_lengths[chrom])
+        tot_g_plus = np.zeros(chr_lengths[chrom])
+        tot_g_minus = np.zeros(chr_lengths[chrom])
+        tot_c_plus = np.zeros(chr_lengths[chrom])
+        tot_c_minus = np.zeros(chr_lengths[chrom])
+        tot_t_plus = np.zeros(chr_lengths[chrom])
+        tot_t_minus = np.zeros(chr_lengths[chrom])
+            #write aligned reads to file?
+        for record in records:  # these are from the genome fasta file
+            num, seq = record.id, str(record.seq)
+            if num == "chr"+chrom_name:
+                seq = seq.upper()  # change all letters to uppercase
+                c_in_genome = [1 if x == "C" else 0 for x in seq]
+                c_in_genome[-1] = 0  # c in last pos can't be cpg
+                g_in_genome = [1 if x == "G" else 0 for x in seq]
+        c_in_cpg = np.zeros(chr_lengths[chrom])
+        g_in_cpg = np.zeros(chr_lengths[chrom])
+        c_idx = []
+        g_idx = []
+        for i in range(len(c_in_genome)):
+            if c_in_genome[i] and g_in_genome[i+1]:
+                c_in_cpg[i] = 1
+                g_in_cpg[i+1] = 1
+                c_idx.append(i)
+                g_idx.append(i+1)
+        if asian_african:
+            mutations = [x[2] for x in asian_african if x[0] == "chr"+chrom_name]  # start coord, = 0-based point mutation pos
+            to_remove = []
+            for i in c_idx:
+                if i in mutations:
+                    to_remove.append(i)
+                    to_remove.append(i+1)
+            for i in g_idx:
+                if i in mutations:
+                    to_remove.append(i)
+                    to_remove.append(i-1)
+            for i in to_remove:
+                c_in_cpg[i] = 2
+                g_in_cpg[i] = 2
+        cpg_plus = [x for x,y in enumerate(c_in_cpg) if y == 1]
+        cpg_minus = [x for x,y in enumerate(g_in_cpg) if y == 1]
+        for read in chrom_bam:
+            if read.is_unmapped:
+                print(f"Read {read.qname} on chrom {chrom_name} is unampped. Skipping.")
+                continue
+            seq = read.query_sequence
+            cig = read.cigar
+            flag = read.flag
+            mapq = read.mapping_quality
+            qual = read.query_qualities[:]  # copy, so as not to change in object
+            qual = [1 if x>qual_thresh else 0 for x in qual]
+            pos = read.reference_start
+            strand = "-" if read.is_reverse else "+"
+            if mapq < mapq_thresh:
+                low_mapq_reads += 1
+                continue
+            if len(seq) != len(qual):
+                corrupt_reads += 1
+                continue
+            #if read.is_duplicate:
+            #   continue
+            if len(cig) != 1:
+                (seq, qual) = self.find_indel(cig, seq, qual)
+            if pos + len(seq) > chr_lengths[chrom]:
+                print(f"Chrom {chrom_name} is {chr_lengths[chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
+                continue
+            if trim_ends:
+                if strand == "+":
+                    qual[0] = 0
+                    qual[-2:] = [0,0]
+                else:
+                    qual[:2] = [0,0]
+                    qual[-1] = 0
+            read_a = [1 if x=="A" else 0 for x in seq]
+            read_a = np.array(read_a)*qual
+            read_g = [1 if x=="G" else 0 for x in seq]
+            read_g = np.array(read_g)*qual
+            read_c = [1 if x=="C" else 0 for x in seq]
+            read_c = np.array(read_c)*qual
+            read_t = [1 if x=="T" else 0 for x in seq]
+            read_t = np.array(read_t)*qual
+            if strand == "+":
+                tot_a_plus[pos:pos+len(read_a)] += read_a
+                tot_g_plus[pos:pos+len(read_g)] += read_g
+                tot_c_plus[pos:pos+len(read_c)] += read_c
+                tot_t_plus[pos:pos+len(read_t)] += read_t
+            else:
+                tot_a_minus[pos:pos+len(read_t)] += read_t
+                tot_g_minus[pos:pos+len(read_c)] += read_c
+                tot_c_minus[pos:pos+len(read_g)] += read_g
+                tot_t_minus[pos:pos+len(read_a)] += read_a
+        chr_a = np.zeros(len(cpg_plus)*2)
+        chr_g = np.zeros(len(cpg_plus)*2)
+        chr_c = np.zeros(len(cpg_plus)*2)
+        chr_t = np.zeros(len(cpg_plus)*2)
+        if library == "single":
+            chr_a[0::2] = tot_a_minus[cpg_plus]
+            chr_a[1::2] = tot_a_plus[cpg_minus]
+            chr_g[0::2] = tot_g_minus[cpg_plus]
+            chr_g[1::2] = tot_g_plus[cpg_minus]
+            chr_c[0::2] = tot_c_plus[cpg_plus]
+            chr_c[1::2] = tot_c_minus[cpg_minus]
+            chr_t[0::2] = tot_t_plus[cpg_plus]
+            chr_t[1::2] = tot_t_minus[cpg_minus]
+        elif library == "double":
+            chr_a[0::2] = tot_a_plus[cpg_plus]+tot_t_minus[cpg_plus]
+            chr_a[1::2] = tot_a_minus[cpg_minus]+tot_t_plus[cpg_minus]
+            chr_g[0::2] = tot_g_plus[cpg_plus]+tot_c_minus[cpg_plus]
+            chr_g[1::2] = tot_g_minus[cpg_minus]+tot_c_plus[cpg_minus]
+            chr_c[0::2] = tot_c_plus[cpg_plus]+tot_g_minus[cpg_plus]
+            chr_c[1::2] = tot_c_minus[cpg_minus]+tot_g_plus[cpg_minus]
+            chr_t[0::2] = tot_t_plus[cpg_plus]+tot_a_minus[cpg_plus]
+            chr_t[1::2] = tot_t_minus[cpg_minus]+tot_a_plus[cpg_minus]
+        c_to_t = chr_t/(chr_c+chr_t)
+        if library == "single":
+            g_to_a = chr_a/(chr_a+chr_g)
+        else:
+            g_to_a = []
+        self.no_a[chrom] = chr_a
+        self.no_g[chrom] = chr_g
+        self.no_c[chrom] = chr_c
+        self.no_t[chrom] = chr_t
+        self.c_to_t[chrom] = c_to_t
+        self.g_to_a[chrom] = g_to_a
+        self.chr_names[chrom] = "chr"+chrom_names[chrom]
+
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, org=None, species=None, chr_format="num", chroms=list(range(23)), save_aligned=False, folder="", tot_chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+        self.library = library
+        self.species = species
+        self.chr_names = [None]*(max(tot_chroms)+1)
         if len(tot_chroms) == len(chroms):
             self.no_t = [[]]*(max(chroms)+1)
             self.no_c = [[]]*(max(chroms)+1)
@@ -117,156 +253,45 @@ class Amsample(Chrom):
             self.no_a = [[]]*(max(chroms)+1)
             self.c_to_t = [[]]*(max(chroms)+1)
             self.g_to_a = [[]]*(max(chroms)+1)
-
-        bam = pysam.AlignmentFile(filename, "rb")
-        chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
         with gzip.open(genome_seq, "rt") as fas:
             records = list(SeqIO.parse(fas, "fasta"))
-                #for record in SeqIO.parse(fas, "fasta"):
-        for chrom in tot_chroms:
-            chrom_name = chrom_names[chrom]
-            date = datetime.datetime.now()
-            date = date.strftime("%c")
-            print(f"Starting chromosome {chrom_name}: {date}")
-            chrom_bam = bam.fetch(chrom_name)
-            tot_a_plus = np.zeros(chr_lengths[chrom])
-            tot_a_minus = np.zeros(chr_lengths[chrom])
-            tot_g_plus = np.zeros(chr_lengths[chrom])
-            tot_g_minus = np.zeros(chr_lengths[chrom])
-            tot_c_plus = np.zeros(chr_lengths[chrom])
-            tot_c_minus = np.zeros(chr_lengths[chrom])
-            tot_t_plus = np.zeros(chr_lengths[chrom])
-            tot_t_minus = np.zeros(chr_lengths[chrom])
-            #write aligned reads to file?
-            for record in records:  # these are from the genome fasta file
-                num, seq = record.id, str(record.seq)
-                if num == "chr"+chrom_name:
-                    seq = seq.upper()  # change all letters to uppercase
-                    c_in_genome = [1 if x == "C" else 0 for x in seq]
-                    c_in_genome[-1] = 0  # c in last pos can't be cpg
-                    g_in_genome = [1 if x == "G" else 0 for x in seq]
-            c_in_cpg = np.zeros(chr_lengths[chrom])
-            g_in_cpg = np.zeros(chr_lengths[chrom])
-            c_idx = []
-            g_idx = []
-            for i in range(len(c_in_genome)):
-                if c_in_genome[i] and g_in_genome[i+1]:
-                    c_in_cpg[i] = 1
-                    g_in_cpg[i+1] = 1
-                    c_idx.append(i)
-                    g_idx.append(i+1)
-            if asian_african:
-                mutations = [x[2] for x in asian_african if x[0] == "chr"+chrom_name]  # start coord, = 0-based point mutation pos
-                to_remove = []
-                for i in c_idx:
-                    if i in mutations:
-                        to_remove.append(i)
-                        to_remove.append(i+1)
-                for i in g_idx:
-                    if i in mutations:
-                        to_remove.append(i)
-                        to_remove.append(i-1)
-                for i in to_remove:
-                    c_in_cpg[i] = 2
-                    g_in_cpg[i] = 2
-            cpg_plus = [x for x,y in enumerate(c_in_cpg) if y == 1]
-            cpg_minus = [x for x,y in enumerate(g_in_cpg) if y == 1]
-            for read in chrom_bam:
-                if read.is_unmapped:
-                    print(f"Read {read.qname} on chrom {chrom_name} is unampped. Skipping.")
+        if filedir:
+            filenames = glob.glob(filedir+"/*.bam")
+            if file_per_chrom:
+                chrom_nums = [re.findall("\d+", x) for x in filenames]  # filenames need to have chrom nums, x should be 23
+                file_ref = {}
+        if file_per_chrom:
+            for i in range(len(chrom_nums)):
+                file_ref[int(chrom_nums[i][0])-1] = filenames[i]
+            for chrom in tot_chroms:
+                bamfile = file_ref[chrom]  # take files in chrom order, regardless of filename order
+                bam = pysam.AlignmentFile(bamfile, "rb")
+                chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
+                if self.chr_names[chrom]:
                     continue
-                seq = read.query_sequence
-                cig = read.cigar
-                flag = read.flag
-                mapq = read.mapping_quality
-                qual = read.query_qualities[:]  # copy, so as not to change in object
-                qual = [1 if x>qual_thresh else 0 for x in qual]
-                pos = read.reference_start
-                strand = "-" if read.is_reverse else "+"
-                if mapq < mapq_thresh:
-                    low_mapq_reads += 1
+                chrom_name = chrom_names[chrom]
+                if bam.count(chrom_name) == 0:
                     continue
-                if len(seq) != len(qual):
-                    corrupt_reads += 1
-                    continue
-                #if read.is_duplicate:
-                #   continue
-                if len(cig) != 1:
-                    (seq, qual) = self.find_indel(cig, seq, qual)
-                if pos + len(seq) > chr_lengths[chrom]:
-                    print(f"Chrom {chrom_name} is {chr_lengths[chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
-                    continue
-
-                if trim_ends:
-                    if strand == "+":
-                        #seq = seq[1:-2]
-                        #del qual[0]
-                        #del qual[-2:]
-                        qual[0] = 0
-                        qual[-2:] = [0,0]
-                    else:
-                        #seq = seq[2:-1]
-                        #del qual[:2]
-                        #del qual[-1]
-                        qual[:2] = [0,0]
-                        qual[-1] = 0
-                read_a = [1 if x=="A" else 0 for x in seq]
-                read_a = np.array(read_a)*qual
-                read_g = [1 if x=="G" else 0 for x in seq]
-                read_g = np.array(read_g)*qual
-                read_c = [1 if x=="C" else 0 for x in seq]
-                read_c = np.array(read_c)*qual
-                read_t = [1 if x=="T" else 0 for x in seq]
-                read_t = np.array(read_t)*qual
-                if strand == "+":
-                    tot_a_plus[pos:pos+len(read_a)] += read_a
-                    tot_g_plus[pos:pos+len(read_g)] += read_g
-                    tot_c_plus[pos:pos+len(read_c)] += read_c
-                    tot_t_plus[pos:pos+len(read_t)] += read_t
-                else:
-                    tot_a_minus[pos:pos+len(read_t)] += read_t
-                    tot_g_minus[pos:pos+len(read_c)] += read_c
-                    tot_c_minus[pos:pos+len(read_g)] += read_g
-                    tot_t_minus[pos:pos+len(read_a)] += read_a
-            chr_a = np.zeros(len(cpg_plus)*2)
-            chr_g = np.zeros(len(cpg_plus)*2)
-            chr_c = np.zeros(len(cpg_plus)*2)
-            chr_t = np.zeros(len(cpg_plus)*2)
-            if library == "single":
-                chr_a[0::2] = tot_a_plus[cpg_plus]
-                chr_a[1::2] = tot_a_minus[cpg_minus]
-                chr_g[0::2] = tot_g_plus[cpg_plus]
-                chr_g[1::2] = tot_g_minus[cpg_minus]
-                chr_c[0::2] = tot_c_plus[cpg_plus]
-                chr_c[1::2] = tot_c_minus[cpg_minus]
-                chr_t[0::2] = tot_t_plus[cpg_plus]
-                chr_t[1::2] = tot_t_minus[cpg_minus]
-            elif library == "double":
-                chr_a[0::2] = tot_a_plus[cpg_plus]+tot_t_minus[cpg_plus]
-                chr_a[1::2] = tot_a_minus[cpg_minus]+tot_t_plus[cpg_minus]
-                chr_g[0::2] = tot_g_plus[cpg_plus]+tot_c_minus[cpg_plus]
-                chr_g[1::2] = tot_g_minus[cpg_minus]+tot_c_plus[cpg_minus]
-                chr_c[0::2] = tot_c_plus[cpg_plus]+tot_g_minus[cpg_plus]
-                chr_c[1::2] = tot_c_minus[cpg_minus]+tot_g_plus[cpg_minus]
-                chr_t[0::2] = tot_t_plus[cpg_plus]+tot_a_minus[cpg_plus]
-                chr_t[1::2] = tot_t_minus[cpg_minus]+tot_a_plus[cpg_minus]
-            c_to_t = chr_t/(chr_c+chr_t)
-            if library == "single":
-                g_to_a = chr_a/(chr_a+chr_g)
-            else:
-                g_to_a = []
-            self.no_a[chrom] = chr_a
-            self.no_g[chrom] = chr_g
-            self.no_c[chrom] = chr_c
-            self.no_t[chrom] = chr_t
-            self.c_to_t[chrom] = c_to_t
-            self.g_to_a[chrom] = g_to_a
-        self.library = library
+                self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+                bam.close()
+        elif filedir:
+            for filename in filenames:
+                bam = pysam.AlignmentFile(filename, "rb")
+                chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
+                for chrom in tot_chroms:
+                    chrom_name = chrom_names[chrom]
+                    self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+                bam.close()        
+        else:
+            bam = pysam.AlignmentFile(filename, "rb")
+            chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
+            for chrom in tot_chroms:
+                chrom_name = chrom_names[chrom]
+                self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+            bam.close()        
         self.coord_per_position = [2]*len(tot_chroms)
         self.no_chrs = len(tot_chroms)
-        self.chr_names = ["chr"+bam.references[x] for x in chroms]  # lists names of chroms requested in order sent
         #add object name
-        bam.close()        
 
     def parse_infile(self, infile):
         i = 0
@@ -487,7 +512,7 @@ class Amsample(Chrom):
             no_c = self.no_c[chrom]
             no_c = np.array(no_c)
             no_ct = no_t + no_c
-            if self.library == "SS": #test this function on single stranded data
+            if self.library == "single": #test this function on single stranded data
                 no_a = self.no_a[chrom]
                 g_to_a = self.g_to_a[chrom]
                 if not g_to_a:
@@ -597,7 +622,7 @@ class Amsample(Chrom):
                         c2t_crit = [x for x in idx if no_t[x]>1 and no_t[x]/no_ct[x] >= max_c_to_t]
                         fid.write("\t\tCOMPARISON: Using C->T ")
                         fid.write(f"{len(c2t_crit):,d} positions are removed.\n")
-                    if self.library == "SS": #test sections with this condition
+                    if self.library == "single": #test sections with this condition
                         g2a_crit = [x for x in idx if (no_a[x]==1 and a_to_g[x]>=max_a_to_g) or no_a[x]>1]
                         fid.write("\t\tCOMPARISON: Using G->A ")
                         fid.write(f"{len(g2a_crit):,d} are removed.")
@@ -691,7 +716,7 @@ class Amsample(Chrom):
         if max_coverage == None:
             max_coverage = self.p_filters["max_coverage"] if self.p_filters["max_coverage"].any() else 100
         if method == None:
-            if self.library == "SS": #test this function on single stranded data
+            if self.library == "single": #test this function on single stranded data
                 method = "both"
             else:
                 method = "c_to_t"
@@ -812,7 +837,7 @@ class Amsample(Chrom):
             no_c = no_ct - no_t #does this behave? (should be elementwise subtraction)
             #merge positions
             if merge:
-                if f_ams.coord_per_position[chrom] == 1: #test on single stranded
+                if f_ams.coord_per_position[chrom] == 1: #test on single coord per pos 
                     if f_ams.chr_names:
                         print(f"{f_ams.chr_names[chrom]} had already gone through merger")
                     else:
@@ -1040,7 +1065,7 @@ class Amsample(Chrom):
             if report:
                 print("done")
 
-    def dump(self, stage):  # currently, dump works only for sorted list of sequential chroms
+    def dump(self, stage, chroms=None):  # currently, dump works only for sorted list of sequential chroms
         aname = self.name
         fname = "data/python_dumps/" + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
@@ -1083,7 +1108,9 @@ class Amsample(Chrom):
             for key in self.diagnostics.keys():
                 if key == "effective_coverage":
                     fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
-            for chrom in range(self.no_chrs):
+            if not chroms:
+                chroms = range(self.no_chrs)
+            for chrom in chroms:
                 fid.write(f"\n{self.chr_names[chrom]}:\n")
                 no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]]
                 fid.write(f"No_As: {' '.join(map(str, no_a))}\n")
@@ -1120,6 +1147,8 @@ class Amsample(Chrom):
 
 if __name__ == "__main__":
     ams = Amsample(name="I1116", abbrev="1116")
+    #ams = Amsample(name="Ust_Ishim", abbrev="Ust")
+    #ams = Amsample(name="Altai_Neanderthal", abbrev="Alt")
     #mat = Amsample()
     #print(ams)
     #ams.diagnose()
@@ -1131,7 +1160,7 @@ if __name__ == "__main__":
     #outfile = "objects/U1116"
     #t.save_object(outfile, ams)
     #infile = "objects/U1116"
-    import cProfile
+    #import cProfile
     #cProfile.run("ams = t.load_object(infile)", "data/logs/load_profile")
     
     #infile = "objects/U1116_diag"
@@ -1172,8 +1201,13 @@ if __name__ == "__main__":
     #stage = "sim_0"
     #ams.dump(stage)
     chr_lengths = [249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566]
+    #ust_chr_lengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566, 16569]
     #cProfile.run("ams.bam_to_am(library='double', chr_lengths=chr_lengths, genome_seq='../../hg19.fa.gz', species='Homo sapiens')", "data/logs/bam_profile")
     #ams.bam_to_am(library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[15], tot_chroms=[15])
-    ams.bam_to_am(library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True)
+    #ams.bam_to_am(filename="../../I1116.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True)
+    #ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
+    #ams.bam_to_am(filename="../../Alt_chr22.bam", library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[21], tot_chroms=[21])
+    #ams.bam_to_am(filedir="../../altai", library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[20, 21], tot_chroms=[20, 21])
+    ams.bam_to_am(filedir="../../altai", file_per_chrom=True, library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
     stage = "bam"
     ams.dump(stage)
