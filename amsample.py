@@ -24,19 +24,19 @@ class Amsample(Chrom):
         self.library = library
         self.chr_names = chr_names
         self.coord_per_position = coord_per_position
-        self.no_a = no_a
-        self.no_c = no_c
-        self.no_g = no_g
-        self.no_t = no_t
-        self.g_to_a = g_to_a
-        self.c_to_t = c_to_t
-        self.diagnostics = diagnostics
-        self.p_filters = p_filters
+        self.no_a = copy.deepcopy(no_a)  # if these are just assigned (not copied), when creating 2 objects, these
+        self.no_c = copy.deepcopy(no_c)  # elements will be identical and changing one will change the other
+        self.no_g = copy.deepcopy(no_g)
+        self.no_t = copy.deepcopy(no_t)
+        self.g_to_a = copy.deepcopy(g_to_a)
+        self.c_to_t = copy.deepcopy(c_to_t)
+        self.diagnostics = copy.deepcopy(diagnostics)
+        self.p_filters = copy.deepcopy(p_filters)
         self.is_filtered = is_filtered
         self.is_simulated = is_simulated
-        self.methylation = methylation
-        self.d_rate = d_rate
-        self.metadata = metadata
+        self.methylation = copy.deepcopy(methylation)
+        self.d_rate = copy.deepcopy(d_rate)
+        self.metadata = copy.deepcopy(metadata)
         self.no_chrs = len(coord_per_position)
 
     def __repr__(self): #defines print of object
@@ -79,14 +79,22 @@ class Amsample(Chrom):
                 self.metadata == other.metadata and self.no_chrs == other.no_chrs)
 
     @staticmethod
-    def find_indel(cig, seq, qual):
+    def find_indel_old(cig, seq, qual):
         types = {0:"M", 1:"I", 2:"D", 3:"N", 4:"S"}
         start = 0
         cig_dict = {}
+        dels = 0  # count deletes for index reckoning in case of later insert
         for element in cig:
             cat = types[element[0]]
             end = start + element[1]
-            cig_dict[start] = str(end) + cat
+            if cat == "D":
+                dels += end-start
+                cig_dict[start] = str(end) + cat
+            elif cat == "I":
+                cig_dict[start-dels] = str(end-dels) + cat
+                dels = 0
+            else:
+                cig_dict[start] = str(end) + cat
             start = end
         keys = list(cig_dict.keys())
         keys.sort(reverse=True)
@@ -94,16 +102,57 @@ class Amsample(Chrom):
             val = cig_dict[key]
             cat = val[-1]
             val = int(val[:-1])
-            if cat == "M" or cat == "S":  # what should be done with soft clipped?
+            if cat == "M":  
                 continue
+            elif cat == "S":
+                qual = [0 for x in range(len(qual))]  # throw out soft-clipped reads by making qual = 0 for each pos
             elif cat == "I":
                 seq = seq[:key]+seq[val:]
                 del qual[key:val]
+                #qual = qual[0:len(seq)]  # temporarily adding a bug to match matlab code
             elif cat == "D" or cat == "N":
                 size = val - key
                 seq = seq[:key] + "0"*size + seq[key:]
                 qual[key:key] = [0 for x in range(size)]
         return(seq, qual)
+
+    @staticmethod
+    def find_indel(cig, seq, qual):
+        types = {0:"M", 1:"I", 2:"D", 3:"N", 4:"S"}
+        start = 0
+        cig_vals = []
+        seq_new = ""
+        seq_old = seq
+        qual_new = []
+        for element in cig:
+            cat = types[element[0]]
+            val = element[1]
+            cig_vals.append(str(val)+cat)
+        cig_string = "".join(cig_vals)
+        for val in cig_vals:
+            cat = val[-1]
+            val = int(val[:-1])
+            if cat == "M":
+                seq_new += seq[0:val]
+                seq = seq[val:]
+                qual_new.append(qual[:val])
+                qual = qual[val:]
+            elif cat == "S":
+                seq_new = seq_old
+                qual_new = [0 for x in range(len(seq_new))]  # throw out soft-clipped reads by making qual = 0 for each pos
+                return(seq_new, qual_new)
+            elif cat == "I":
+                seq = seq[val:]
+                #qual = qual[val:]  # commented till temp bug removed
+                continue
+            elif cat == "D" or cat == "N":
+                size = val
+                seq_new += "0"*size
+                qual_new.append([0 for x in range(size)])
+        if "I" in cig_string:
+            qual_new = qual_new[0:len(seq_new)]  # temporarily adding a bug to match matlab code
+        qual_new = [x for y in qual_new for x in y]  # flatten list
+        return(seq_new, qual_new)
 
     def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names):
         corrupt_reads = 0
@@ -178,7 +227,7 @@ class Amsample(Chrom):
             #if read.is_duplicate:
             #   continue
             if len(cig) != 1:
-                (seq, qual) = self.find_indel(cig, seq, qual)
+                (seq, qual) = self.find_indel(cig, seq, qual)  # self nec?
             if pos + len(seq) > chr_lengths[chrom]:
                 print(f"Chrom {chrom_name} is {chr_lengths[chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
                 continue
@@ -319,12 +368,13 @@ class Amsample(Chrom):
                 elif i == 6: #filtered line
                     if "not" in line:
                         self.is_filtered = False
-                        flag = 1 #no first set of chr lines for filtered
+                        flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     else:
                         self.is_filtered = True
                 elif i > 6:
                     if fields[0] == "Method":
                         self.p_filters["method"] = fields[1]
+                        flag = 0  # fix for newer files with diagnostics for unfiltered
                     elif fields[0] == "max_coverage":
                         cov = fields[1].split()
                         cov = [int(x) if x.isdigit() else np.nan for x in cov] #convert all numbers to int, leave NaN alone
@@ -352,7 +402,8 @@ class Amsample(Chrom):
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
                         self.coord_per_position = coord
                     elif fields[0] == "Deamination rate":
-                        self.d_rate["rate"] = {"local":[], "dlocal":[], "no_positions":[]}
+                        #self.d_rate["rate"] = {"local":[], "dlocal":[], "no_positions":[]}
+                        self.d_rate["rate"] = {}
                     elif fields[0] == "Reference":
                         self.d_rate["ref"] = fields[1]
                     elif fields[0] == "min_beta":
@@ -611,7 +662,7 @@ class Amsample(Chrom):
                 fid.write(f"(corresponding to C2T-ratio of {(thresh+1)/(cover+1):.3f})\n")
                 fid.write(f"\t\tThe threshold ({thresh:.0f}) is expected to remove ")
                 fid.write(f"{w[0]*no_pos_cover*stats.binom.sf(thresh,cover+1,p[0]):.1f} true positives\n")
-                fid.write(f"\t\tand to include {w[1]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,0.5)+w[2]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,p[2]):.1f} false positives\n")
+                fid.write(f"\t\t\tand to include {w[1]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,0.5)+w[2]*no_pos_cover*stats.binom.cdf(thresh-1,cover+1,p[2]):.1f} false positives\n")
                 if thresh == cover+1:
                     #what happens with no threshold?
                     fid.write("\t\tIf no threshold is used (no positions removed), ")
@@ -623,35 +674,38 @@ class Amsample(Chrom):
                         fid.write("\t\tCOMPARISON: Using C->T ")
                         fid.write(f"{len(c2t_crit):,d} positions are removed.\n")
                     if self.library == "single": #test sections with this condition
-                        g2a_crit = [x for x in idx if (no_a[x]==1 and a_to_g[x]>=max_a_to_g) or no_a[x]>1]
+                        g2a_crit = [x for x in idx if (no_a[x]==1 and g_to_a[x]>=max_g_to_a) or no_a[x]>1]
                         fid.write("\t\tCOMPARISON: Using G->A ")
                         fid.write(f"{len(g2a_crit):,d} are removed.")
                         if np.isfinite(max_c_to_t):
                             g2a_additional = np.setdiff1d(g2a_crit, c2t_crit)
                             fid.write(f" Of them, {len(g2a_additional):,d} positions were not removed ")
-                            fid.write("by the C->T ration threshold.\n")
-                            flat_remove = [x for y in more_to_remove for x in y] #flatten 2d list to do intersect
+                            fid.write("by the C->T ratio threshold.\n")
+                            if (more_to_remove.ndim>1):
+                                flat_remove = [x for y in more_to_remove for x in y] #flatten 2d list to do intersect
+                            else:
+                                flat_remove = more_to_remove
                             crits = c2t_crit+g2a_crit
                             in_both = list(set(crits).intersection(set(flat_remove)))
                             fid.write("\t\tCOMPARISON: ")
-                            if len(in_both) == len(more_to_remove):
+                            if len(in_both) == len(flat_remove):
                                 fid.write("All positions removed only by looking at [xt] ")
-                                fid.write(f"({len(more_to_remove):,d}) also removed when looking at ")
+                                fid.write(f"({len(flat_remove):,d}) also removed when looking at ")
                                 fid.write("both C->T and G->A.\n")
                             else:
-                                fid.write(f"Of the {len(more_to_remove):,d} positions removed only by looking at ")
+                                fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
                                 fid.write(f"[xt], {len(in_both):,d} ({100*len(in_both)/len(more_to_remove):.1f}%)")
                                 fid.write(" are also removed when looking at both C->T and G->A.\n")
                         else:
                             fid.write("\n")
                         in_crit = list(set(g2a_crit).intersection(set(flat_remove)))
                         fid.write("\t\tCOMPARISON: ")
-                        if len(in_crit) == len(more_to_remove):
+                        if len(in_crit) == len(flat_remove):
                             fid.write("All positions removed only by looking at [xt] ")
-                            fid.write(f"({len(more_to_remove):,d}) also removed when looking at G->A.\n")
+                            fid.write(f"({len(flat_remove):,d}) also removed when looking at G->A.\n")
                         else:
-                            fid.write(f"Of the {len(more_to_remove):,d} positions removed only by looking at ")
-                            fid.write(f"[xt], {len(in_crit):,d} ({100*len(in_crit)/len(more_to_remove):.1f}%)")
+                            fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
+                            fid.write(f"[xt], {len(in_crit):,d} ({100*len(in_crit)/len(flat_remove):.1f}%)")
                             fid.write(" are also removed when looking at G->A.\n")
                 #remove the positions
                 for x in more_to_remove:
@@ -714,7 +768,7 @@ class Amsample(Chrom):
         is_c_to_t = False
         is_ts_per_cov = False
         if max_coverage == None:
-            max_coverage = self.p_filters["max_coverage"] if self.p_filters["max_coverage"].any() else 100
+            max_coverage = self.p_filters["max_coverage"] if any(self.p_filters["max_coverage"]) else 100
         if method == None:
             if self.library == "single": #test this function on single stranded data
                 method = "both"
@@ -805,6 +859,7 @@ class Amsample(Chrom):
             #loop on each coverage level and remove positions with high No_Ts
             if method != "g_to_a":
                 #loop over all coverage levels
+                max_t_int = [int(x) if ~np.isnan(x) else np.nan for x in max_TsPerCoverage[chrom]]
                 for cover in range(int(max_coverage[chrom]),0,-1):
                     idx = np.where(no_ct==cover)[0]
                     fid.write(f"\tcoverage {cover} ({len(idx):,d} positions):")
@@ -814,10 +869,12 @@ class Amsample(Chrom):
                     to_remove = np.unique(list(to_remove)+list(more_to_remove))
                     no_removed = len(to_remove) - no_removed
                     fid.write(f"\t{no_removed:,d} (extended) positions ")
-                    fid.write(f"were removed as No_Ts > {int(max_TsPerCoverage[chrom][cover-1])}\n")
+                    #fid.write(f"were removed as No_Ts > {int(max_TsPerCoverage[chrom][cover-1])}\n")
+                    fid.write(f"were removed as No_Ts > {max_t_int[cover-1]}\n")
             #remove more positions if data on A's and G's is available
             if method != "c_to_t":
-                more_to_remove = np.where((no_a<=max_no_a[chrom] and g_to_a>=max_g_to_a[chrom]) or no_a>max_a[chrom])[0]
+                #more_to_remove = np.where((no_a<=max_a[chrom] and g_to_a>=max_g_to_a[chrom]) or no_a>max_a[chrom])[0]
+                more_to_remove = np.union1d(np.intersect1d(np.where(no_a<=max_a[chrom]), np.where(g_to_a>=max_g_to_a[chrom])), np.where(no_a>max_a[chrom]))
                 more_to_remove = self.extend_removed(more_to_remove)
                 no_removed = len(to_remove)
                 to_remove = np.unique(list(to_remove)+list(more_to_remove))
@@ -1101,10 +1158,17 @@ class Amsample(Chrom):
                 elif key == "min_coverage":
                     fid.write(f"\tmin_coverage: {int(self.d_rate['min_coverage'])}\n")
                 elif key == "rate":
-                    fid.write(f"\tglobal: {self.d_rate['rate']['global']}\n\tdglobal: {self.d_rate['rate']['dglobal']}\n")
-                    fid.write(f"\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
-                    fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
-                    fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+                    for subkey in self.d_rate["rate"].keys():
+                        if subkey == "global":
+                            fid.write(f"\tglobal: {self.d_rate['rate']['global']}\n")
+                        elif subkey == "dglobal":
+                            fid.write(f"\tdglobal: {self.d_rate['rate']['dglobal']}\n")
+                        elif subkey == "local":
+                            fid.write(f"\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
+                        elif subkey == "dlocal":
+                            fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
+                        elif subkey == "no_positions":
+                            fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
             for key in self.diagnostics.keys():
                 if key == "effective_coverage":
                     fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
@@ -1136,7 +1200,8 @@ class Amsample(Chrom):
                 elif key == "lcf":
                     fid.write(f"\tlcf: {self.methylation['lcf']}\n")
                 elif key == "methylation":
-                    for chrom in range(self.no_chrs):
+                    #for chrom in range(self.no_chrs):
+                    for chrom in range(len(self.methylation["methylation"])):
                 #meth = [round(x, 6) if ~np.isnan(x) else "NaN" for x in self.methylation["methylation"][chrom]]
                         meth = self.methylation["methylation"][chrom]
                         fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
@@ -1146,9 +1211,10 @@ class Amsample(Chrom):
 
 
 if __name__ == "__main__":
-    ams = Amsample(name="I1116", abbrev="1116")
+    #ams = Amsample(name="I1116", abbrev="1116")
     #ams = Amsample(name="Ust_Ishim", abbrev="Ust")
-    #ams = Amsample(name="Altai_Neanderthal", abbrev="Alt")
+    ams = Amsample(name="Altai_Neanderthal", abbrev="Alt")
+    #ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag.txt")
     #mat = Amsample()
     #print(ams)
     #ams.diagnose()
@@ -1204,6 +1270,7 @@ if __name__ == "__main__":
     #ust_chr_lengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566, 16569]
     #cProfile.run("ams.bam_to_am(library='double', chr_lengths=chr_lengths, genome_seq='../../hg19.fa.gz', species='Homo sapiens')", "data/logs/bam_profile")
     #ams.bam_to_am(library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[15], tot_chroms=[15])
+    #ams.bam_to_am(filename="../../I1116_chr8.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True, chroms=[7], tot_chroms=[7])
     #ams.bam_to_am(filename="../../I1116.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True)
     #ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
     #ams.bam_to_am(filename="../../Alt_chr22.bam", library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[21], tot_chroms=[21])
