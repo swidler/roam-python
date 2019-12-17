@@ -143,14 +143,14 @@ class Amsample(Chrom):
                 return(seq_new, qual_new)
             elif cat == "I":
                 seq = seq[val:]
-                #qual = qual[val:]  # commented till temp bug removed
+                qual = qual[val:]  # commented till temp bug removed
                 continue
             elif cat == "D" or cat == "N":
                 size = val
                 seq_new += "0"*size
                 qual_new.append([0 for x in range(size)])
-        if "I" in cig_string:
-            qual_new = qual_new[0:len(seq_new)]  # temporarily adding a bug to match matlab code
+        #if "I" in cig_string:
+            #qual_new = qual_new[0:len(seq_new)]  # temporarily adding a bug to match matlab code
         qual_new = [x for y in qual_new for x in y]  # flatten list
         return(seq_new, qual_new)
 
@@ -224,8 +224,8 @@ class Amsample(Chrom):
             if len(seq) != len(qual):
                 corrupt_reads += 1
                 continue
-            #if read.is_duplicate:
-            #   continue
+            if read.is_duplicate:  # new in python script--matlab didn't skip duplicates
+               continue
             if len(cig) != 1:
                 (seq, qual) = self.find_indel(cig, seq, qual)  # self nec?
             if pos + len(seq) > chr_lengths[chrom]:
