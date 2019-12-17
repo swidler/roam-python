@@ -450,11 +450,13 @@ class Amsample(Chrom):
                         self.no_t.append(no_t)
                     elif fields[0] == "aOga" or fields[0] == "g_to_a":
                         g_to_a = fields[1].split()
-                        g_to_a = [int(x) if x.isdigit() else np.nan for x in g_to_a] #convert all numbers to int, leave NaN alone
+                        #g_to_a = [int(x) if x.isdigit() else np.nan for x in g_to_a] #convert all numbers to int, leave NaN alone
+                        g_to_a = [float(x) for x in g_to_a] #convert all numbers to float
                         self.g_to_a.append(g_to_a)
                     elif fields[0] == "tOct" or fields[0] == "c_to_t":
                         c_to_t = fields[1].split()
-                        c_to_t = [int(x) if x.isdigit() else np.nan for x in c_to_t] #convert all numbers to int, leave NaN alone
+                        #c_to_t = [int(x) if x.isdigit() else np.nan for x in c_to_t] #convert all numbers to int, leave NaN alone
+                        c_to_t = [float(x) for x in c_to_t] #convert all numbers to float
                         self.c_to_t.append(c_to_t)
                     elif fields[0] == "Reconstructed methylation":
                         self.methylation["methylation"] = []
@@ -1185,9 +1187,11 @@ class Amsample(Chrom):
                 no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]]
                 fid.write(f"No_Ts: {' '.join(map(str, no_t))}\n")
                 if len(self.g_to_a) != 0:
-                    g_to_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.g_to_a[chrom]]
+                    #g_to_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.g_to_a[chrom]]
+                    g_to_a = [float(x) for x in self.g_to_a[chrom]]
                     fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
-                c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
+                #c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
+                c_to_t = [float(x) for x in self.c_to_t[chrom]]
                 fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
             fid.write("Reconstructed methylation:\n")
             for key in self.methylation.keys():
