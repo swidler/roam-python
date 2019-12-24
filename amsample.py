@@ -678,7 +678,7 @@ class Amsample(Chrom):
                     if self.library == "single": #test sections with this condition
                         g2a_crit = [x for x in idx if (no_a[x]==1 and g_to_a[x]>=max_g_to_a) or no_a[x]>1]
                         fid.write("\t\tCOMPARISON: Using G->A ")
-                        fid.write(f"{len(g2a_crit):,d} are removed.")
+                        fid.write(f"{len(g2a_crit):,d} positions are removed.")
                         if np.isfinite(max_c_to_t):
                             g2a_additional = np.setdiff1d(g2a_crit, c2t_crit)
                             fid.write(f" Of them, {len(g2a_additional):,d} positions were not removed ")
@@ -697,7 +697,7 @@ class Amsample(Chrom):
                             else:
                                 fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
                                 fid.write(f"[xt], {len(in_both):,d} ({100*len(in_both)/len(more_to_remove):.1f}%)")
-                                fid.write(" are also removed when looking at both C->T and G->A.\n")
+                                fid.write(" also removed when looking at both C->T and G->A.\n")
                         else:
                             fid.write("\n")
                         in_crit = list(set(g2a_crit).intersection(set(flat_remove)))
@@ -708,7 +708,7 @@ class Amsample(Chrom):
                         else:
                             fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
                             fid.write(f"[xt], {len(in_crit):,d} ({100*len(in_crit)/len(flat_remove):.1f}%)")
-                            fid.write(" are also removed when looking at G->A.\n")
+                            fid.write(" also removed when looking at G->A.\n")
                 #remove the positions
                 for x in more_to_remove:
                     no_ct[x] = np.nan #assumes 1d array
@@ -1182,8 +1182,9 @@ class Amsample(Chrom):
                 fid.write(f"No_As: {' '.join(map(str, no_a))}\n")
                 no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]]
                 fid.write(f"No_Cs: {' '.join(map(str, no_c))}\n")
-                no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]]
-                fid.write(f"No_Gs: {' '.join(map(str, no_g))}\n")
+                if self.no_g:  # single stranded from matlab doesn't have
+                    no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]]
+                    fid.write(f"No_Gs: {' '.join(map(str, no_g))}\n")
                 no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]]
                 fid.write(f"No_Ts: {' '.join(map(str, no_t))}\n")
                 if len(self.g_to_a) != 0:
@@ -1191,8 +1192,9 @@ class Amsample(Chrom):
                     g_to_a = [float(x) for x in self.g_to_a[chrom]]
                     fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
                 #c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
-                c_to_t = [float(x) for x in self.c_to_t[chrom]]
-                fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
+                if self.c_to_t:  # single stranded from matlab doesn't have
+                    c_to_t = [float(x) for x in self.c_to_t[chrom]]
+                    fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
             fid.write("Reconstructed methylation:\n")
             for key in self.methylation.keys():
                 if key == "win_size":
