@@ -23,8 +23,9 @@ ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
 #ams.bam_to_am(filedir="../../altai", file_per_chrom=True, library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")                                                                              
 
 #get object info from text file
-ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")                                       
-#ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag.txt")                                       
+#ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")                                       
+ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag_from_matlab.txt")                                       
+#ams.parse_infile("data/matlab_dumps/altai.txt")                                       
 #ams.parse_infile("../../u_1116.txt")                                                                                
 #ams.parse_infile("data/python_dumps/I1116_drate.txt")
 #ams.parse_infile("data/python_dumps/I1116_meth.txt")                                                       
@@ -48,8 +49,8 @@ ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")
 
 #run various methods
 #ams.diagnose() 
-ams.diagnose()                                                                                                      
-#ams.filter()
+#ams.diagnose()                                                                                                      
+ams.filter()
 #ams.estimate_drate(ref=mms)                                                                                         
 #ams.reconstruct_methylation()
 #ams.simulate(0.018598, mms) #rate comes from drate global in I1116_meth.txt
@@ -92,7 +93,7 @@ ams.diagnose()
 #stage = "drate"                                                                                                     
 #stage = "meth"                                                                                                      
 #stage = "sim_0"
-stage = "diag_new"
+stage = "filt_from_matlab"
 
 #dump object to text file
 ams.dump(stage)
