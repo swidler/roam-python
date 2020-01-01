@@ -649,6 +649,7 @@ class Amsample(Chrom):
                 H = np.histogram(no_t[idx],bins=range(cover+3)) #+1 to compensate for 0 base, +1 for slice
                 #ie in matlab, 0:5 = [0,1,2,3,4,5], but in python, array of range(5) = [0,1,2,3,4]
                 p, w, llike = t.bmm(H, [0.01, 0.5, 0.99], [0.9, 0.05, 0.05], tolerance, [0, 1, 0])
+                p[0] = max(p[0],0.001)
                 fid.write("\t\tEstimated homozygous mutations: ")
                 fid.write(f"Pr(meth) = {p[2]:.2f}; Weight = {w[2]:.3f}\n")
                 fid.write("\t\tEstimated heterozygous mutations: ")
