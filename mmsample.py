@@ -51,7 +51,7 @@ class Mmsample(Chrom):
                 elif i > 6: #7th line is blank, rest are chroms
                     chrom = fields[0]
                     meth = fields[1].split(" ")
-                    meth = [int(x) if x.isdigit() else np.nan for x in meth] #convert all numbers to int, leave NaN alone
+                    meth = [float(x) for x in meth] #convert all numbers to float (NaN is a float)
                     self.chr_names.append(chrom)
                     self.methylation.append(meth)
                 i += 1
