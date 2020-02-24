@@ -24,7 +24,7 @@ ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
 
 #get object info from text file
 #ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")                                       
-ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag_from_matlab.txt")                                       
+ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag2_from_matlab.txt")                                       
 #ams.parse_infile("data/matlab_dumps/altai.txt")                                       
 #ams.parse_infile("../../u_1116.txt")                                                                                
 #ams.parse_infile("data/python_dumps/I1116_drate.txt")
@@ -48,7 +48,6 @@ ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag_from_matlab.txt")
 #cProfile.run("ams.bam_to_am(library='double', chr_lengths=chr_lengths, genome_seq='../../hg19.fa.gz', species='Homo sapiens')", "data/logs/bam_profile")
 
 #run various methods
-#ams.diagnose() 
 #ams.diagnose()                                                                                                      
 ams.filter()
 #ams.estimate_drate(ref=mms)                                                                                         
@@ -93,7 +92,7 @@ ams.filter()
 #stage = "drate"                                                                                                     
 #stage = "meth"                                                                                                      
 #stage = "sim_0"
-stage = "filt_from_matlab"
+stage = "filt2_from_matlab"
 
 #dump object to text file
 ams.dump(stage)
