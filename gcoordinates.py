@@ -2,22 +2,28 @@
 
 from chroms import Chrom
 import numpy as np
+
 class Gcoordinates(Chrom):
-    def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], coords=[], strand=[], metadata=[]):
+    def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], coords=[], strand=[], metadata=[], metadata_name=[]):
         self.name = name
         self.description = description
         self.species = species
         self.reference = reference
         self.chr_names = chr_names
-        self.coords = np.array(coords)
-        for i in range(0,len(coords)):
-            self.coords[i] = np.array(self.coords[i])
+        self.no_chrs = len(chr_names)
+        #for chrom in range(no_chrs)):
+        #    self.coords[i] = np.array(self.coords[i])
+        #for chrom in range(self.no_chrs):
+        strand.extend([[]]*self.no_chrs)
+        coords.extend([[]]*self.no_chrs)
         self.strand = strand
+        self.coords = coords
         self.metadata = metadata
-        self.no_chrs = len(coords)
+        self.metadata_name = metadata_name
+        
 
     def __repr__(self): #defines print of object
-        return "name: %s\ndescription: %s\nspecies: %s\nreference: %s\nmetadata: %s\nchr_names: %s\ncoords: %s\nstrand: %s\nno_chrs: %s" % (self.name, self.description, self.species, self.reference, self.metadata, self.chr_names, self.coords, self.strand, self.no_chrs)
+        return "name: %s\ndescription: %s\nspecies: %s\nreference: %s\nmetadata: %s\nchr_names: %s\ncoords: %s\nstrand: %s\nno_chrs: %s\nmetadata_name: %s" % (self.name, self.description, self.species, self.reference, self.metadata, self.chr_names, self.coords, self.strand, self.no_chrs, self.metadata_name)
 
     def parse_infile(self, infile):
         i = 0
@@ -45,4 +51,32 @@ class Gcoordinates(Chrom):
         self.coords = np.asarray(temp)
         self.no_chrs = len(self.coords) #reassign chrom num based on new info
 
-
+    def calc_tss(self, genes):
+        self.metadata_name.append("UCSC_name")
+        for chrom in range(self.no_chrs):
+            tss = []
+            strands = []
+            names = []
+            metadata = []
+            for ivl in genes:
+                if int(ivl.chrom) == chrom+1:  # chrom index val is one less than chrom num
+                    start = ivl.start
+                    end = ivl.end
+                    strand = ivl.strand
+                    name = ivl.name
+                    UCSC_name = ivl.score
+                    if strand == '+':
+                        pos = start
+                        strand = 1
+                    else:
+                        pos = end
+                        strand = 0
+                else:
+                    continue    
+                tss.append(pos)
+                strands.append(strand)
+                names.append(name)
+                metadata.append(UCSC_name)
+            self.coords[chrom] = np.asarray(tss)
+            self.strand[chrom] = np.asarray(strands)
+            self.metadata.append(metadata)
