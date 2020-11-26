@@ -5,6 +5,10 @@ import numpy as np
 import itertools
 import datetime
 import cDMRs as c
+import pybedtools as pbt
+import gintervals as gint
+import gcoordinates as gcoord
+import copy
 
 class DMRs:
     def __init__(self, samples=[], groups={}, species="", reference="", chromosomes=[], cDMRs=[], is_ancient=[], algorithm=[]):
@@ -110,7 +114,23 @@ class DMRs:
                 idm.methylation.append(meth)
         idm.no_DMRs = len(idm.gen_start)
 
-
+    @staticmethod
+    def get_region_meth(cdmr, no_samples, samples, samp_meth, coord):
+        for dmr in range(cdmr.no_DMRs):
+                region = f"{cdmr.chromosome}:{cdmr.gen_start[dmr]}-{cdmr.gen_end[dmr]}"
+                reg_std = t.standardize_region(region)
+                for samp in range(no_samples):
+                    samp_meth[samp,dmr] = samples[samp].region_methylation(reg_std, coord)
+        return(samp_meth)    
+    
+    @staticmethod
+    def get_regions(cdmr):
+        regions = []
+        for dmr in range(cdmr.no_DMRs):
+                region = f"{cdmr.chromosome} {cdmr.gen_start[dmr]} {cdmr.gen_end[dmr]}"  # format for pybedtools
+                #reg_std = t.standardize_region(region)
+                regions.append(region)
+        return(regions)    
 
     def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], fname="groupDMRs.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_meth=0, max_meth=1, min_Qt=0, min_CpGs=10, max_adj_dist=1000, k=2, min_finite=1, max_iterations=20, tol=1e-3, report=True, real=False, no_permutations=None):
         no_samples = len(samples)
@@ -450,13 +470,7 @@ class DMRs:
             cdm[chrom].chromosome = chromosomes[chrom]
             # compute methylation in each sample
             samp_meth = np.zeros((len(samples),cdm[chrom].no_DMRs))
-            #dregion = []
-            for dmr in range(cdm[chrom].no_DMRs):
-                region = f"{cdm[chrom].chromosome}:{cdm[chrom].gen_start[dmr]}-{cdm[chrom].gen_end[dmr]}"
-                #dregion.append(t.standardize_region(region))
-                reg_std = t.standardize_region(region)
-                for samp in range(no_samples):
-                    samp_meth[samp,dmr] = samples[samp].region_methylation(reg_std, coord)
+            samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)
             meth = np.array(cdm[chrom].methylation)
             meth = np.transpose(meth)
             samp_meth = np.insert(samp_meth,0,meth,axis=0)
@@ -474,7 +488,160 @@ class DMRs:
         #close filehandle
         if report:
             fid.close()
-
+        
+        return(Qt_up, Qt_down)
+    
+    def annotate(self, gene_bed, cgi_bed, prom_def=[5000,1000]):
+        genes = pbt.BedTool(gene_bed)
+        #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
+        genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
+        cgis = pbt.BedTool(cgi_bed)
+        #cgis_no_dups = cgis.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
+        before = prom_def[0]
+        after = prom_def[1]
+        proms = gint.Gintervals(chr_names=self.chromosomes)
+        proms.calc_prom_coords(genes_no_dups, before, after)
+        tss = gcoord.Gcoordinates(chr_names=self.chromosomes, description="TSS positions")
+        tss.calc_tss(genes_no_dups)
+        # loop on chromosomes
+        for chrom in range(self.no_chromosomes):
+            print(f"chrom {self.chromosomes[chrom]}")
+            num_DMRs = self.cDMRs[chrom].no_DMRs
+            # add handling for no DMRs?
+            # get DMR regions
+            regions = self.get_regions(self.cDMRs[chrom])
+            
+            # generate an array of TSSs
+            # add handling of no tss?
+            itss = tss.coords[chrom]
+            itss = itss.astype(float)
+            prom_string = ""
+            for prom in range(len(proms.start[chrom])):
+                prom_string += f"\n{proms.chr_names[chrom]} {proms.start[chrom][prom]} {proms.end[chrom][prom]} {proms.iname[chrom][prom]} 0 {proms.strand[chrom][prom]}"
+            chrom_proms = pbt.BedTool(prom_string, from_string=True)
+            dmr_annot = []
+            #get genes in this chrom
+            genes_chrom = genes_no_dups.filter(lambda a: a.chrom == str(chrom+1)).saveas()
+            for dmr in range(num_DMRs):
+                annot = {}
+                region = regions[dmr]
+                ivl = pbt.BedTool(region, from_string=True)[0]  # get 1st element to make it an interval object
+                if cgis.any_hits(ivl):
+                    in_CGI = True
+                else:  
+                    in_CGI = False
+                
+                in_gene = {}
+                region_gene = region.replace("chr", "")
+                ivl_gene = pbt.BedTool(region_gene, from_string=True)[0]  # get 1st element to make it an interval object
+                gene_hits = genes.all_hits(ivl_gene)
+                if gene_hits:
+                    in_gene["present"] = True
+                    in_gene["name"] = []
+                    in_gene["strand"] = []
+                    for hit in gene_hits:
+                        if hit.name not in in_gene["name"]:
+                            in_gene["name"].append(hit.name)
+                            if hit.strand == "+":
+                                strand = 1
+                            elif hit.strand == "-":
+                                strand = 0
+                            else:
+                                strand = np.nan
+                            in_gene["strand"].append(strand)
+                else:
+                    in_gene["present"] = False
+                    in_gene["strand"] = np.nan
+                    in_gene["name"] = []
+                in_prom = {}
+                prom_hits = chrom_proms.all_hits(ivl)
+                if prom_hits:
+                    in_prom["present"] = True
+                    in_prom["name"] = []
+                    in_prom["strand"] = []
+                    for hit in prom_hits:
+                        if hit.name not in in_prom["name"]:
+                            in_prom["name"].append(hit.name)
+                            in_prom["strand"].append(hit.strand)
+                else:
+                    in_prom["present"] = False
+                    in_prom["strand"] = np.nan
+                    in_prom["name"] = []
+                upstream_TSS = {}
+                up_plus = self.cDMRs[chrom].gen_end[dmr] - itss
+                up_minus = itss - self.cDMRs[chrom].gen_start[dmr]
+                up_plus[np.where(up_plus < 0)] = np.nan
+                up_minus[np.where(up_minus < 0)] = np.nan
+                up_plus[np.where(tss.strand[chrom] == 0)] = np.nan
+                up_minus[np.where(tss.strand[chrom] == 1)] = np.nan
+                closest_plus = np.nanmin(up_plus)
+                idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(up_plus)
+                closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
+                if closest_plus < 0:
+                    closest_plus = 0
+                closest_minus = np.nanmin(up_minus)
+                idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(up_minus)
+                closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
+                if closest_minus < 0:
+                    closest_minus = 0
+                if closest_minus == closest_plus:
+                    upstream_TSS["dist"] = closest_plus
+                    upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
+                    upstream_TSS["strand"] = [1,0]
+                else:
+                    absmin = np.nanmin([closest_minus, closest_plus])
+                    if closest_minus == absmin:
+                        upstream_TSS["dist"] = closest_minus
+                        upstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
+                        upstream_TSS["strand"] = [0]
+                    else:
+                        upstream_TSS["dist"] = closest_plus
+                        upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
+                        upstream_TSS["strand"] = [1]
+                
+                downstream_TSS = {}
+                down_minus = self.cDMRs[chrom].gen_end[dmr] - itss
+                down_plus = itss - self.cDMRs[chrom].gen_start[dmr]
+                down_plus[np.where(down_plus < 0)] = np.nan
+                down_minus[np.where(down_minus < 0)] = np.nan
+                down_plus[np.where(tss.strand[chrom] == 0)] = np.nan
+                down_minus[np.where(tss.strand[chrom] == 1)] = np.nan
+                closest_plus = np.nanmin(down_plus)
+                idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(down_plus)
+                closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
+                if closest_plus < 0:
+                    closest_plus = 0
+                closest_minus = np.nanmin(down_minus)
+                idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(down_minus)
+                closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
+                if closest_minus < 0:
+                    closest_minus = 0
+                if closest_minus == closest_plus:
+                    downstream_TSS["dist"] = closest_plus
+                    downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
+                    downstream_TSS["strand"] = [1,0]
+                else:
+                    absmin = np.nanmin([closest_minus, closest_plus])
+                    if closest_minus == absmin:
+                        downstream_TSS["dist"] = closest_minus
+                        downstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
+                        downstream_TSS["strand"] = [0]
+                    else:
+                        downstream_TSS["dist"] = closest_plus
+                        downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
+                        downstream_TSS["strand"] = [1]
+                    
+                annot["in_CGI"] = in_CGI
+                annot["in_gene"] = copy.deepcopy(in_gene)
+                annot["in_prom"] = copy.deepcopy(in_prom)
+                annot["upstream_TSS"] = copy.deepcopy(upstream_TSS)
+                annot["downstream_TSS"] = copy.deepcopy(downstream_TSS)
+                
+                dmr_annot.append(copy.deepcopy(annot))
+            
+            self.cDMRs[chrom].annotation = (copy.deepcopy(dmr_annot))
+               
+            
 
 
 
