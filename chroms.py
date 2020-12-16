@@ -2,7 +2,15 @@
 
 import numpy as np
 class Chrom:
+    """Superclass with methods common to different sample objects
+    """
     def indexofchr(self, chr_name): #find index of chrom(s) by name (input and output are lists)
+        """Gives index of chromosome
+        
+        Input: chromosome name(s) as a list
+        
+        Output: index/indices of chromosomes (also as a list)
+        """
         result = []
         for chrom in chr_name:
             if chrom not in self.chr_names:
@@ -13,6 +21,12 @@ class Chrom:
         return result
 
     def get_methylation(self, chrom=""):
+        """gets the methylation vector for a specific chromosome.
+        
+        Input: chromomosome index or name of chromosome. If absent, methylation
+        from all chromosomes is returned.
+        Output: chromosome name(s) and corresponding methylation, each as a list (returned in a tuple).
+        """
         if isinstance(chrom, str): #chrom name entered
             index = self.chr_names.index(chrom) #get index of chrom by name
             result = (chrom, self.methylation[index])
