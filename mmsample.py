@@ -29,6 +29,10 @@ class Mmsample(Chrom):
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
     
     def parse_infile(self, infile):
+        """Parses mmsample object from a text file
+        
+        The text file is in the format created by the Matlab dumps script associated with the mmsample class.
+        """
         i = 0
         with open(infile, "rt") as mmfile:
             for line in mmfile:
@@ -58,12 +62,16 @@ class Mmsample(Chrom):
         self.no_chrs = len(self.coord_per_position) #reassign chrom num based on new info
 
     def scale(self):
+        """Converts all values to be between 0 and 1
+        """
         for i in range(0,len(self.methylation)):
             biggest = max([x for x in self.methylation[i] if ~np.isnan(x)]) #get biggest number in list (ignore string vals)
             if biggest > 1:
                 self.methylation[i] = [x/100 if ~np.isnan(x) else x for x in self.methylation[i]] #divide numeric vals by 100
 
     def merge(self, report=True):
+        """Merges pairs of consecutive CpG positions by averaging their values
+        """
         for ind in range(0,len(self.chr_names)):
             if self.coord_per_position[ind] == 1: #if coord_per_position has 1, meth vals are merged
                 if report:
@@ -73,6 +81,11 @@ class Mmsample(Chrom):
             self.coord_per_position[ind] = 1
 
     def region_methylation(self, region, gc): 
+        """Computes methylation in a region as a simple average of the values in all CpGs in the region
+        
+        Input: genomic region, gcoordinates object of CpG positions
+        Output: methylation value in the region
+        """
         region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
         chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
@@ -84,6 +97,11 @@ class Mmsample(Chrom):
         return meth
 
     def smooth(self, chrom, winsize):
+        """Provides smoothed methylation using a sliding window.
+        
+        Input: chromosome, window size.
+        Output: smothed vector, weights (as defined in algorith.docx)
+        """
         meth = self.get_methylation(chrom)[1] #get methylation for chrom
         MIN_VAR = 0.01**2 #1% error
         (smooth_vec, zero_for_nan) = t.nansmooth(meth, winsize, "same")
