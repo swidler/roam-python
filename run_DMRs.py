@@ -36,3 +36,4 @@ dms = d.DMRs()
 gene_file = "../../UCSC_Genes_sorted.txt"  # text file  sorted on the cmdline: sort -k1,1n -k2,2n -k3,3n fn>fn_sorted
 cgi_file = "../../UCSC_CGIs.txt"
 dms.annotate(gene_file, cgi_file)
+dms.dump_DMR()
