@@ -640,7 +640,36 @@ class DMRs:
                 dmr_annot.append(copy.deepcopy(annot))
             
             self.cDMRs[chrom].annotation = (copy.deepcopy(dmr_annot))
-               
+       
+    def dump_DMR(self):
+        time = datetime.datetime.now()
+        time = time.strftime("%d-%m-%Y_%H.%M")
+        fname = f"data/python_dumps/DMRs_{time}.txt"
+        with open(fname, "w") as fid:
+            fid.write(f"Samples:\n\t{self.samples}\n")
+            fid.write(f"Groups:\n\tAssignment: {self.groups['group_nums']}\n\tNaming: {self.groups['group_names']}\n")
+            fid.write(f"Species:\n\t{self.species}\n")
+            fid.write(f"Ancient samples:\n\t{self.is_ancient}\n")
+            fid.write(f"Reference:\n\t{self.reference}\n")
+            fid.write(f"Chromosomes:\n\t{self.chromosomes}\n")
+            fid.write(f"Algorithm:\n\t{self.algorithm}\n")
+            fid.write("cDMRs:\n")
+            for chrom in range(self.no_chromosomes):
+                fid.write(f"\tChrom {self.chromosomes[chrom]}:\n")
+                fid.write(f"\t\tNumber of DMRs: {self.cDMRs[chrom].no_DMRs}\n")
+                fid.write(f"\t\tCpG starts:\n\t\t\t{self.cDMRs[chrom].CpG_start}\n")
+                fid.write(f"\t\tCpG ends:\n\t\t\t{self.cDMRs[chrom].CpG_end}\n")
+                fid.write(f"\t\tNumber of CpGs:\n\t\t\t{self.cDMRs[chrom].no_CpGs}\n")
+                fid.write(f"\t\tGenomic starts:\n\t\t\t{self.cDMRs[chrom].gen_start}\n")
+                fid.write(f"\t\tGenomic ends:\n\t\t\t{self.cDMRs[chrom].gen_end}\n")
+                fid.write(f"\t\tNumber of bases:\n\t\t\t{self.cDMRs[chrom].no_bases}\n")
+                fid.write(f"\t\tMax Qts:\n\t\t\t{self.cDMRs[chrom].max_Qt}\n")
+                fid.write("\t\tMethylation:\n")
+                for meth in range(len(self.cDMRs[chrom].methylation)):
+                    fid.write(f"\t\t\t{self.cDMRs[chrom].methylation[meth]}\n")
+                fid.write(f"\t\tAnnotation:\n\t\t\t{self.cDMRs[chrom].annotation}\n")
+                
+            
             
 
 
