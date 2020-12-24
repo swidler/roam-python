@@ -28,7 +28,7 @@ def standardize_region(region):
     import re
     if isinstance(region, dict):
         return region
-    fields = re.split(" |:|-", region)
+    fields = re.split(" +|:+|-+", region)
     chrom = fields[0]
     start = fields[1]
     end = fields[2]
