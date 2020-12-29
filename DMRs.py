@@ -352,7 +352,6 @@ class DMRs:
         if not all(gSa+gSm):
             raise Exception("Groups may not be empty")
         #loop on chroms
-        #cdm = c.cDMRs(num=no_chr)
         cdm = [c.cDMR() for i in range(no_chr)]
         for chrom in range(no_chr):
             #report
