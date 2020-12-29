@@ -16,6 +16,16 @@ import glob
 import re
 
 class Amsample(Chrom):
+    """Ancient methylation sample class
+
+    This class inherits from Chroms superclass and has attributes name, abbrev, species, reference,
+    library, is_filtered, is_simulated, no_chrs, metadata, chr_names, coord_per_position, no_a, no_g, no_c, no_t,
+    g_to_a, c_to_t, diagnostics, p_filters, methylation, and d_rate. The last 5 are
+    dictionaries, while the previous 9 (metadata through c_to_t) are lists. no_chrs is determined based on the 
+    length of coord_per_position. 
+        
+    An amsample object is created (with empty defaults): ams = Amsample(). The attributes can then be populated.
+    """
     def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", library="", chr_names=[], coord_per_position=[], no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
         self.name = name
         self.abbrev = abbrev
@@ -44,6 +54,12 @@ class Amsample(Chrom):
 
     @staticmethod
     def find_indel(cig, seq, qual):
+        """Adjusts sequence and quality values based on CIGAR string
+        
+        Input: CIGAR, query sequence, query quality (all lists)
+        
+        Output: new values for query sequence and query quality (lists)
+        """
         types = {0:"M", 1:"I", 2:"D", 3:"N", 4:"S"}
         start = 0
         cig_vals = []
@@ -81,6 +97,9 @@ class Amsample(Chrom):
         return(seq_new, qual_new)
 
     def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names):
+        """Goes over bam files to extract data
+        
+        """
         corrupt_reads = 0
         low_mapq_reads = 0
         reads_long_cigar = 0
@@ -116,7 +135,7 @@ class Amsample(Chrom):
                 g_in_cpg[i+1] = 1
                 c_idx.append(i)
                 g_idx.append(i+1)
-        if asian_african:
+        if asian_african:  # this code untested
             mutations = [x[2] for x in asian_african if x[0] == "chr"+chrom_name]  # start coord, = 0-based point mutation pos
             to_remove = []
             for i in c_idx:
@@ -153,7 +172,7 @@ class Amsample(Chrom):
             if read.is_duplicate:  # new in python script--matlab didn't skip duplicates
                continue
             if len(cig) != 1:
-                (seq, qual) = self.find_indel(cig, seq, qual)  # self nec?
+                (seq, qual) = self.find_indel(cig, seq, qual)
             if pos + len(seq) > chr_lengths[chrom]:
                 print(f"Chrom {chrom_name} is {chr_lengths[chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
                 continue
@@ -217,17 +236,36 @@ class Amsample(Chrom):
         self.g_to_a[chrom] = g_to_a
         self.chr_names[chrom] = "chr"+chrom_names[chrom]
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, org=None, species=None, chr_format="num", chroms=list(range(23)), save_aligned=False, folder="", tot_chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, org=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+        """Converts bam files to Amsample objects
+        
+        Input: 
+            filename           name and full path of file (if there's only 1)
+            filedir            name of dir (for multiple files)
+            file_per_chrom     True if there is exactly one file for each chromosome
+            library            single or double
+            chr_lengths        list of chromosome lengths in the same order as the chromosomes are given
+            genome_seq         name of the file with the genome sequence
+            organism
+            species
+            chroms_list        list of chromosom indices (defaults to [0:23])
+            trim_ends          True to trim ends during processing, False if this has already been done
+            mapq_thresh        threshold for read quality
+            qual_thresh        threshold for read nucleotide quality
+            asian_african      for elephantid analysis, allows filtering mutation between Asian and African elephants
+        
+        Output: Amsample object, populated with data from bam file
+        """
         self.library = library
         self.species = species
-        self.chr_names = [None]*(max(tot_chroms)+1)
-        if len(tot_chroms) == len(chroms):
-            self.no_t = [[]]*(max(chroms)+1)
-            self.no_c = [[]]*(max(chroms)+1)
-            self.no_g = [[]]*(max(chroms)+1)
-            self.no_a = [[]]*(max(chroms)+1)
-            self.c_to_t = [[]]*(max(chroms)+1)
-            self.g_to_a = [[]]*(max(chroms)+1)
+        self.chr_names = [None]*(max(chroms)+1)
+        #if len(tot_chroms) == len(chroms):
+        self.no_t = [[]]*(max(chroms)+1)
+        self.no_c = [[]]*(max(chroms)+1)
+        self.no_g = [[]]*(max(chroms)+1)
+        self.no_a = [[]]*(max(chroms)+1)
+        self.c_to_t = [[]]*(max(chroms)+1)
+        self.g_to_a = [[]]*(max(chroms)+1)
         with gzip.open(genome_seq, "rt") as fas:
             records = list(SeqIO.parse(fas, "fasta"))
         if filedir:
@@ -238,10 +276,10 @@ class Amsample(Chrom):
         if file_per_chrom:
             for i in range(len(chrom_nums)):
                 file_ref[int(chrom_nums[i][0])-1] = filenames[i]
-            for chrom in tot_chroms:
+            for chrom in chroms:
                 bamfile = file_ref[chrom]  # take files in chrom order, regardless of filename order
                 bam = pysam.AlignmentFile(bamfile, "rb")
-                chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
+                chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
                 if self.chr_names[chrom]:
                     continue
                 chrom_name = chrom_names[chrom]
@@ -252,23 +290,28 @@ class Amsample(Chrom):
         elif filedir:
             for filename in filenames:
                 bam = pysam.AlignmentFile(filename, "rb")
-                chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
-                for chrom in tot_chroms:
+                chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
+                for chrom in chroms:
                     chrom_name = chrom_names[chrom]
                     self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
                 bam.close()        
         else:
             bam = pysam.AlignmentFile(filename, "rb")
-            chrom_names = bam.references[0:max(tot_chroms)+1]  # lists names of all chroms up to max present in num order
-            for chrom in tot_chroms:
+            chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
+            for chrom in chroms:
                 chrom_name = chrom_names[chrom]
                 self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
             bam.close()        
-        self.coord_per_position = [2]*len(tot_chroms)
-        self.no_chrs = len(tot_chroms)
+        self.coord_per_position = [2]*len(chroms)
+        self.no_chrs = len(chroms)
         #add object name
 
     def parse_infile(self, infile):
+        """Populate Amsample object from text file
+        
+        Input: empty Amsample object, file name
+        Output: populated Amsample object
+        """
         i = 0
         flag = 0 #to keep track of which set of chr lines up to in file
         j = 0
@@ -411,6 +454,11 @@ class Amsample(Chrom):
         self.no_chrs = len(self.coord_per_position)
 
     def get_base_no(self, chrom, base):
+        """Get relevant list from object
+        
+        Input: chromosome (can be name or index), base (a, g, c, t, ga)
+        Output: requested list for input chromosome
+        """
         if isinstance(chrom, str):
             chr_ind = self.indexofchr([chrom])[0]
         else:
@@ -428,6 +476,11 @@ class Amsample(Chrom):
         return result[chr_ind]
 
     def smooth(self, chrom, winsize):
+        """Smooths C and CT vectors
+        
+        Input: chromosome, window size
+        Output: smoothed vectors
+        """
         no_t = self.get_base_no(chrom, "t")
         no_c = self.get_base_no(chrom, "c")
         no_t = np.array(no_t) #convert to numpy array in order to add elementwise
@@ -439,6 +492,12 @@ class Amsample(Chrom):
         return(no_t, no_ct)
 
     def region_methylation(self, region, gc):
+        """Computes methylation in a specific region
+        
+        Input:  region   Genomic coordinates (chrom, start, end, delimited by :, -, or space(s))
+                gc       Gcoordinates object of CpG positions
+        Output: meth     methylation value in the region
+        """
         region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
         chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
@@ -454,6 +513,21 @@ class Amsample(Chrom):
         return meth
 
     def diagnose(self, fname=None, span=5, strict=True, tolerance=1e-3, compare=True, max_c_to_t=0.25, max_g_to_a=0.25, max_coverage=100, low_coverage=1):
+        """Computes basic statistics on each input chromosome, and recommends what thresholds to use when excluding 
+            PCR duplicates and true mutations.
+            
+        Input:  fname        name and path of output file
+                span         parameter for outlier removal in the array no_ct
+                strict       when True, applies a stricter threshold on no_ct
+                tolerance    tolerance of BMM model convergence
+                compare      when True, compares diagnose's procedure of outlier removal to that of simple thresholds
+                max_c_to_t   simple threshold, removing all positions where no_t/no_ct > max_c_to_t
+                max_g_to_a   simple threshold for double-stranded libraries, removing all positions where 
+                    no_a/no_ga > max_g_to_a. 
+                max_coverage simple threshold determining the threshold for removing PCR duplicates
+                low_coverage 
+        Output: Amsample object with updated diagnostics and p_filters fields
+        """
         if fname is None:
             fname = "data/logs/"+self.name+"_diagnostics.txt"
         
@@ -683,6 +757,11 @@ class Amsample(Chrom):
 
     @staticmethod
     def extend_removed(to_remove):
+        """If a CpG position is marked to be removed, both consecutive CpG positions are marked to be removed.
+        
+        Input:  positions to be removed
+        Output: modified list of positions to be removed
+        """
         odds = np.where(to_remove%2)
         evens = np.where(~to_remove%2)
         to_remove = list(to_remove) + list(to_remove[odds]-1) + list(to_remove[evens]+1)
@@ -690,6 +769,41 @@ class Amsample(Chrom):
         return to_remove
 
     def filter(self, max_c_to_t = None, min_t = 1, merge = True, fname = None, max_g_to_a = .25, max_a = 1, method = None, max_coverage = None, max_TsPerCoverage = None):
+        """Removes information from CpG sites that did not pass various quality control tests
+        
+        Input:    max_c_to_t         threshold used to identify sites with a true C->T mutation. All positions 
+                    where c_to_t >= max_c_to_t are removed. This parameter can be one of the following:
+                    (1) scalar, in which case it is used for all chromosomes, and all coverage levels.
+                    (2) vector over chromosomes, with a different threshold for each chromosome (and possibly for 
+                    each coverage level).
+                  min_t              the filter 'max_c_to_t' is applied only to positions where no_t > min_t.
+                  merge              whether to merge the two consecutive coordinates of every CpG position.
+                  fname              output (log) file name.
+                  max_g_to_a         a threshold used to identify sites with a true C->T mutation. Applicable only
+                    when the library field is 'single'. All positions where g_to_a >= max_g_to_a are removed. 
+                    A rule of thumb to determine it is to set max_g_to_a = 2 * (1/(coverage/2)), otherwise, 
+                    take the same value as 'max_c_to_t'. This parameter can be one of the following:
+                    (1) scalar, in which case it is used for all chromosomes, and all coverage levels.
+                    (2)vector over chromosomes, with a different threshold for each chromosome.
+                  max_a              all positions where no_a > max_a are removed. Applicable only when the 
+                    library field is 'single'.
+                  method             method used to remove true C->T mutations. It can be one of the following:
+                    (1) 'c_to_t' uses information from no_t and no_c only. Uses the parameter 'max_c_to_t' above.
+                    (2) 'g_to_a' uses information from no_a and no_g only. Uses the parameters 'max_g_to_a' and
+                    'max_a' above. Applicable only when the library field is 'single'.
+                    (3) 'both' combines both options, using information from no_t, no_c, no_a, and no_g. Uses the
+                    parameters 'max_c_to_t', 'max_g_to_a' and 'max_a' above. Applicable only when the
+                    library field is 'single'.
+                  max_coverage       a coverage threshold used to remove PCR duplicates. All positions for which
+                    no_c > max_coverage are removed. This parameter can be one of the following:
+                    (1) scalar, in which case it is used for all chromosomes.
+                    (2)vector over chromosomes, with a different threshold for each chromosome.
+                  max_TsPerCoverage  a threshold used to identify sites with a true C->T mutation. All
+                    positions with a certain coverage no_t+no_c=C, where no_t > max_TsPerCoverage(C) are removed.
+                    This parameter is an array over chromosomes, with an array of max_TsPerCoverage for each
+                    coverage level in each chromosome.
+        Output: Amsample object with removed sites replaced with NaNs
+        """
         #initialize
         no_chr = self.no_chrs
         if fname == None:
@@ -712,7 +826,7 @@ class Amsample(Chrom):
                 max_TsPerCoverage = self.p_filters["max_TsPerCoverage"] if self.p_filters["max_TsPerCoverage"] else .25
         if max_c_to_t is not None:
             is_c_to_t = True
-        #'max_tOct' and 'max_TsPerCoverage' cannot be used at the same time
+        #'max_c_to_t' and 'max_TsPerCoverage' cannot be used at the same time
         if is_c_to_t and is_ts_per_cov:
             print("Both 'max_TsPerCoverage' and 'max_c_to_t' were used in the input")
         #bring input parameters into standard form - max_coverage
@@ -847,6 +961,31 @@ class Amsample(Chrom):
         fid.close()
 
     def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1):
+        """Estimates deamination rate
+        
+        Input: method        the method used to perform the estimation. Can be one of:
+                 'reference' the preferred and most accurate method, which should be used when we have a vector of 
+                  beta-values as a reference.
+                 'global' should be used in cases we have no measured reference, and the estimation is based
+                  on the pre-assumption of the total level of methylation in the genome.
+                 'estref' should be used in cases we have no measured reference, and the estimation is based
+                  on estimating positions with the beta-values close to one.
+               global_meth   the estimated value of global genomic methylation, either as a fraction or as a
+                  percentage. Applicable for 'method'='global'.
+               min_cov       minimum coverage of sites that are used for the estimation.
+               ref           Mmsample object containing the beta-values of the reference. Applicable for 
+                  'method'='reference'.
+               min_beta      minimum beta value to take for the estimation. Applicable for 'method'='reference'.
+        Output: Amsample object with udpated 'd_rate' field. This field is a dictionary with keys:
+                  'rate', a dictionary that contains:
+                    'global' global deamination rate (computed from all chromosomes)
+                    'dglobal' STD of the global deamination rate (assuming binomial distribution)
+                    'local' local deamination rate, computed for each chromosome separately
+                    'dlocal' STD of the local deamination rate (assuming binomial distribution)
+                    'no_positions' in each chromosome, number of positions upon which deamination rate was computed
+                  and, based in the input, 'method', 'global_methylation', 'ref' (the name of the Mmsample object),
+                  'min_beta', and 'min'coverage'.
+        """
         ref_params = {}
         global_params = {}
         if global_meth > 1: #can be dec or %
@@ -942,6 +1081,21 @@ class Amsample(Chrom):
             self.d_rate = {"method":"estref", "rate":drate}
     
     def determine_winsize(self, chrom, method="prob", coverage=None, drate=None, min_meth=0.2, p0=0.01, k_inv=1/2.5, max_width=31):
+        """Estimates the optimal window size in cases that collecting data from a window is required.
+        
+        Input: chrom        index of chromosome
+               method       either 'prob' (for probability) or 'relerror' (for relative error).
+               coverage     effective coverage of the chromosome.
+               drate        demaination rate of the sample.
+               min_meth     minimum methylation level we want to detect.
+               p0           applicable if 'method'='prob'. It is the probability to get zero counts in the 
+                 window if the methylation is min_meth.
+               k_inv        applicable if 'method'='relerror'. It is one over the maximum relative error in
+                 estimating the methylation in a window whose true methylation is min_meth. It also means that the
+                 mean is far (k standard deviations) from zero.
+               max_width    maximum allowed width. Computed window is not allowed to be larger than 'max_width'.
+        Output: win_size    recommended window size, forced to be an odd number.
+        """
         if coverage == None:
             coverage = self.diagnostics["effective_coverage"][chrom]
         if drate == None:
@@ -972,6 +1126,25 @@ class Amsample(Chrom):
         return win_size
     
     def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="log", slope=None, intercept=[0], lcf=0.05, report=True):
+        """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
+        
+        Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
+                 chromosome. Otherwise, it can be a list with a single value (where the value is used for all 
+                 chromosomes) or a value for each chromosome.
+               winsize_alg     a dictionary with parameters required to determine window size, see parameters 
+               for determine_winsize.
+               function        to compute methylation as a function of the C->T ratio. Options are:
+                 'lin', where the function is: meth = slope * no_t / no_ct + intercept
+                 'log', where the function is: meth = tanh(slope * no_t / no_ct).
+               slope           a parameter used for the 'lin' and the 'log' functions. It can be a list with a 
+               single value (where the value is used for all chromosomes) or a value for each chromosome.
+               intercept       a parameter for used for the 'lin' function, and determines the intercept of the
+                 linear transformation. Can be a list with a single value (where the value is used for 
+                 all chromosomes) or a value for each chromosome.
+               lcf             low coverage factor.
+               report          a Boolean variable, determining whether to report output to screen.
+        Output: Amsample object with udpated methylation field.
+        """
         no_chr = self.no_chrs
         if slope == None:
             slope=[1/self.d_rate["rate"]["global"]]
@@ -1029,7 +1202,14 @@ class Amsample(Chrom):
         self.methylation = {"methylation":meth, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
     def simulate(self, degrad_rate, mms, report=True):
+        """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
+            assuming a methylation given by Mmsample object.
         
+        Input: degrad_rate    the deamination rate of the Amsample object.
+               mms            Mmsample object that contains the reference methylation.
+               report         True/False indicating whether to display updates.
+        Output: Amsample object with modified no_t and no_c values, based on simulation.
+        """
         #initialize
         self.name = self.name + "_(sim)"
         self.is_simulated = True
@@ -1052,6 +1232,13 @@ class Amsample(Chrom):
                 print("done")
 
     def dump(self, stage, chroms=None):  # currently, dump works only for sorted list of sequential chroms
+        """Dumps Amsample object to text file.
+        
+        Input: stage    name indicating which part of the process has been dumped, for use in file name.
+               chroms   indices of chromsomes to dump. Currently, dump works only for sorted 
+                 list of sequential chroms (starting from index 0).
+        Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
+        """
         aname = self.name
         fname = "data/python_dumps/" + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
