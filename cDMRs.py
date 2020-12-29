@@ -20,15 +20,3 @@ class cDMR:
 
     def __repr__(self): #defines print of object
         return "chromosome: %s\nCpG_start: %s\nCpG_end: %s\ngen_start: %s\ngen_end: %s\nno_bases: %s\nno_CpGs: %s\nmax_Qt: %s\nmethylation: %s\nannotation: %s\nno_DMRs: %s" % (self.chromosome, self.CpG_start, self.CpG_end, self.gen_start, self.gen_end, self.no_bases, self.no_CpGs, self.max_Qt, self.methylation, self.annotation, self.no_DMRs)
-
-class cDMRs:  # better as a method that returns a list of cDMR objects?
-    def __init__(self, num=1):
-        self.cDMRs = []
-        for i in range(num):
-            self.cDMRs.append(cDMR())
-
-    def __repr__(self):  # defines print of object
-        output = ""
-        for i in range(len(self.cDMRs)):
-            output += f"cDMR {i+1}:\n{self.cDMRs[i]}\n"
-        return output
