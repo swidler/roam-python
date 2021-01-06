@@ -11,6 +11,12 @@ import gcoordinates as gcoord
 import copy
 
 class DMRs:
+    """Differentially methylated region class
+    
+    This class has attributes samples (list), groups (dictionary), species, reference, chromosomes (list),
+    cDMRs (list), is_ancient (list), algorithm (list), and no_samples. no_samples is determined based on the 
+    length of samples.
+    """
     def __init__(self, samples=[], groups={}, species="", reference="", chromosomes=[], cDMRs=[], is_ancient=[], algorithm=[]):
         self.samples = samples
         self.groups = groups
@@ -28,6 +34,17 @@ class DMRs:
 
     @staticmethod
     def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
+        """Solves for m when all samples are ancient
+        
+        Input: max_iterations    maximum number of iterations
+               min_tol           convergence tolerance
+               pi                deamination rates of all samples (list)
+               tij               number of Ts in sample <i>, window <j>
+               nij               number of reads in sample <i>, window <j>
+        output: m        methylation vector
+                dm       standard error of methylation
+                m0       initial guess (mainly for debugging purposes)
+        """
         #computer useful magnitudes
         Tj = np.nansum(tij,0)
         no_samples = len(pi)
@@ -71,6 +88,18 @@ class DMRs:
     
     @staticmethod
     def findDMRs(idm, iQt, icoord, trunc2clean, imeth, min_bases, min_CpGs, min_Qt):
+        """Detects DMRs within the Q signals
+        
+        Input: idm            cDMR object for 1 chrom
+               iQt            the Q-vector
+               icoord         coordinates from Gcoordinates object
+               trunc2clean    index that maps truncated vectors (e.g. icoord[not_nans]) to the full version (e.g. icoord)
+               imeth          estimated methylation
+               min_bases      minimum length of a DMR (bases)
+               minCpGs        DMR must contain at least min_CpGs CpGs
+               min_Qt         DMR must have Qt >= min_Qt
+        Output updated idm
+        """
         # binarize {Qt}
         bQt = np.array(iQt)
         bQt[iQt>0] = 1
@@ -116,6 +145,15 @@ class DMRs:
 
     @staticmethod
     def get_region_meth(cdmr, no_samples, samples, samp_meth, coord):
+        """Finds methylation for each DMR in each sample
+        
+        Input: cdmr        cDMR object for 1 chrom
+               no_samples  number of samples
+               samples     list of sample (Amsample or Mmsample) objects
+               samp_meth   2 dimensional zero array of size no_samples by num DMRs in this chrom
+               coord       Gcoordinates object
+        Output: populated samp_meth array
+        """
         for dmr in range(cdmr.no_DMRs):
                 region = f"{cdmr.chromosome}:{cdmr.gen_start[dmr]}-{cdmr.gen_end[dmr]}"
                 reg_std = t.standardize_region(region)
@@ -125,6 +163,11 @@ class DMRs:
     
     @staticmethod
     def get_regions(cdmr):
+        """Gets all regions of DMRs in format usable by pybedtools
+        
+        Input: cdmr    cDMR object
+        Output: list of regons in proper format
+        """
         regions = []
         for dmr in range(cdmr.no_DMRs):
                 region = f"{cdmr.chromosome} {cdmr.gen_start[dmr]} {cdmr.gen_end[dmr]}"  # format for pybedtools
@@ -133,6 +176,43 @@ class DMRs:
         return(regions)    
 
     def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], fname="groupDMRs.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_meth=0, max_meth=1, min_Qt=0, min_CpGs=10, max_adj_dist=1000, k=2, min_finite=1, max_iterations=20, tol=1e-3, report=True, real=False, no_permutations=None):
+        """Detects DMRs between two groups of samples
+        
+        Input: samples            list of sample (Amsample or Mmsample) objects
+               sample_groups      list of sample group names
+               coord              Gcoordinates object with CpG coordinates
+               d_rate_in          deamination rates for ancient samples (if empty, taken from values in sample)
+               chroms             list of chromsome names
+               fname              output file name
+               win_size           window size for smoothing. If 'meth', it is taken as the value used to reconstruct 
+                   the methylation in each sample. If 'auto', a recommended value is computed for every chromosome
+                   of each sample. Otherwise, it can be a scalar (used for all chromosomes in all samples), a vector 
+                   over the samples (same window size is used for all chromosomes of each ancient individual, nan is
+                   substituted for each modern individual), or a 2d array with values per individual and chromosome
+               lcf                low coverage factor. If 'meth', it is taken as the value used in reconstructing the
+                   methylation of each sample
+               delta              minimum methylation difference between the two groups
+               min_bases          the minimum length of each DMR in bases--shorter DMRs are filtered out
+               min_meth           sets a lower bound to the methylation levels of the reference, such that in 
+                   every position ref_meth = max(ref_meth,ref_min_meth)
+               max_meth           sets an upper bound to the methylation levels of the reference, such that in 
+                   every position ref_meth = min(ref_meth,ref_max_meth)
+               min_Qt             DMRs with Qt < min_Qt are filtered out
+               min_CpGs           DMRs whose number of CpGs is less than min_CpGs are filtered out
+               max_adj_dist       max distance between adjacent CpGs within the same DMR. If the distance between
+                   consecutive CpG positions is larger than max_adj_dist, the algorithm sets Qt to 0
+               k                  minimum number of standard errors separating the groups
+               min_finite         an array of length no_groups stating the minimum number of ancient samples for 
+                   which we require data. If in a position there are not enough samples with data, a NaN is 
+                   substituted in this position. It can also be a fraction between 0 and 1, in which case it is 
+                   understood as the minimum fraction of the total number of ancient samples in the group
+               max_iterations     maximum number of iterations in the Newton-Raphson phase
+               tol                tolerance in the Newton-Raphson phase
+               report             True if reporting to the display is desired 
+               real               False if the analysis is run on simulations
+               no_permutations    the number of permutation in case of simulation
+        Output: modified DMR object, Qt_up, Qt_down
+        """
         no_samples = len(samples)
         is_ancient = [1 if type(x).__name__ == "Amsample" else 0 for x in samples]
         chromosomes = chroms if chroms else coord.chromosomes
@@ -491,6 +571,15 @@ class DMRs:
         return(Qt_up, Qt_down)
     
     def annotate(self, gene_bed, cgi_bed, prom_def=[5000,1000]):
+        """Retrieves important data about each DMR
+        
+        Input: gene_bed   bed file with gene data 
+               cgi_bed    bed file with CGI data
+               prom_def   promoter definition around TSS, a list of 2 values [before after], where before is the
+                   number of nucleotides into the intergenic region, and after is the number of nucleotides 
+                   into the gene
+        Output: cDMR object with updated annotation
+        """
         genes = pbt.BedTool(gene_bed)
         #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
         genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
@@ -641,6 +730,11 @@ class DMRs:
             self.cDMRs[chrom].annotation = (copy.deepcopy(dmr_annot))
        
     def dump_DMR(self):
+        """Dumps DMR object to text file.
+        
+        Input: DMR object
+        Output: text file in format DMRs_<time>.txt (directory currently hard-coded).
+        """
         time = datetime.datetime.now()
         time = time.strftime("%d-%m-%Y_%H.%M")
         fname = f"data/python_dumps/DMRs_{time}.txt"
