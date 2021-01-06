@@ -248,7 +248,7 @@ class Amsample(Chrom):
             genome_seq         name of the file with the genome sequence
             organism
             species
-            chroms_list        list of chromosom indices (defaults to [0:23])
+            chroms_list        list of chromosome indices (defaults to [0:23])
             trim_ends          True to trim ends during processing, False if this has already been done
             mapq_thresh        threshold for read quality
             qual_thresh        threshold for read nucleotide quality
