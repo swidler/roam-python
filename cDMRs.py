@@ -5,6 +5,14 @@ import numpy as np
 import copy
 
 class cDMR:
+    """Chromosome-specific DMRs
+    
+    This class has attributes chromosome (name), CpG_start, CpG_end, gen_start, gen_end, no_bases, no_CpGs, max_Qt, 
+    methylation, annotation, all of which are lists, other than the chromosome. no_DMRs is determined based on the length
+    of max_Qt.
+    
+    A cDMR object is created (with empty defaults): cdm = cDMR(). The attributes can then be populated.
+    """
     def __init__(self, chromosome="", CpG_start=[], CpG_end=[], gen_start=[], gen_end=[], no_bases=[], no_CpGs=[], max_Qt=[], methylation=[], annotation=[]):
         self.chromosome = chromosome
         self.CpG_start = copy.deepcopy(CpG_start)  # if these are just assigned (not copied), when creating 2 objects, these
