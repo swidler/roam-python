@@ -5,6 +5,13 @@ import numpy as np
 import pybedtools as pbt
 
 class Gintervals(Chrom):
+    """Genomic interval class
+    
+    This class has attributes name, description, species, reference, chr_names, start, end, strand, iname, 
+    metadata, metadata_name. The last 7 are lists. no_chrs is determined based on the length of chr_names.
+    
+    A Gintervals object is created (with empty defaults): g = Gintervals(). The attributes can then be populated.
+    """
     def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], start=[], end=[], strand=[], iname=[], metadata=[], metadata_name = []):
         self.name = name
         self.description = description
@@ -12,16 +19,10 @@ class Gintervals(Chrom):
         self.reference = reference
         self.chr_names = chr_names
         self.no_chrs = len(chr_names)
-        #for chrom in range(self.no_chrs):
         start.extend([[]]*self.no_chrs)
         end.extend([[]]*self.no_chrs)
         iname.extend([[]]*self.no_chrs)
         strand.extend([[]]*self.no_chrs)
-        #self.start = np.asarray(start)
-        #self.end = np.asarray(end)
-        #self.strand = np.asarray(strand)
-        #self.iname = np.asarray(iname)
-        #self.metadata = np.asarray(metadata)
         self.start = start
         self.end = end
         self.strand = strand
@@ -33,6 +34,14 @@ class Gintervals(Chrom):
         return "name: %s\ndescription: %s\nspecies: %s\nreference: %s\nmetadata: %s\nchr_names: %s\nstart: %s\nend: %s\nstrand: %s\niname: %s\nno_chrs: %s" % (self.name, self.description, self.species, self.reference, self.metadata, self.chr_names, self.start, self.end, self.strand, self.iname, self.no_chrs)
 
     def calc_prom_coords(self, genes, before, after):
+        """Given a Ginterval object with data on genes, this function computes promoter intervals, set as 
+        <before> nt before the TSS, to <after> nt after the TSS.
+        
+        Input: genes    gene data from gene bed file
+               before   number of nucleotides promoter is extended upstream to the TSS
+               after    number of nucleotides promoter is extended downstream to the TSS (into the gene)
+        Output: updated Ginterval object
+        """
         self.metadata_name.append("UCSC name")
         for chrom in range(self.no_chrs):
             starts = []
