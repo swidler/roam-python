@@ -3,8 +3,20 @@
 import numpy as np
 import pickle
 import scipy.stats as stats
-
+"""This module contains helper functions used in the RoAM process.
+"""
 def nanmerge(arr, operation):
+    """Merges the two adjacent positions of each CpG. The rules of merger are as follows:
+        (1) nan + nan = nan
+        (2) value + nan = value
+        (3) nan + value = value
+        (4) value + value = factor*(value+value)
+        The variable {factor} is 0.5 if {operation} is 'average', or 1 if {operation} is 'sum'.
+    
+    Input: arr        list with CpG positions for merging
+           operation  either "Average" or "sum
+    Output: merged list
+    """
     result = []
     if operation == "average":
         factor = 0.5
@@ -25,6 +37,12 @@ def nanmerge(arr, operation):
     return result
 
 def standardize_region(region):
+    """Takes a region delimited by any combination of spaces, colons, and dashes and standardizes its form into
+         a dictionary with keys chrom, start, and end. Commas are also removed from numbers.
+         
+    Input: region
+    Output: dictionary containing start, end, chrom.
+    """
     import re
     if isinstance(region, dict):
         return region
@@ -44,29 +62,63 @@ def standardize_region(region):
     return std_region
 
 def save_object(filename, obj):
+    """Pickles object for future use.
+    
+    Input: filename    path for output file
+           obj         object for picking
+    Output: pickled object at requested path
+    """
     outfile = open(filename, "wb") #open file for writing binaries
     pickle.dump(obj, outfile, -1) #serialize object using highest protocol
     outfile.close()
 
 def load_object(filename):
+    """Loads picked object.
+    
+    Input: filename    path of pickled object file
+    output: unpickled object
+    """
     infile = open(filename, "rb") #open file for reading binaries
     obj = pickle.load(infile)
     infile.close()
     return obj
 
 def nansmooth(vec, winsize, mode):
+    """Averages along a moving window ignoring NaNs.
+    
+    Input: vec       input list (methylation values)
+           winsize   window size for smoothing
+           mode      mode for convolve function
+    Output: res             smoothed array
+            zero_for_nan    number of non-Nans in each window
+    """
     tpl = np.ones(winsize)
     (nans, zero_for_nan) = get_zeros(vec, tpl, mode)
     res = do_conv(vec, nans, tpl, mode, zero_for_nan)
     return(res, zero_for_nan)
 
 def nanconv(vec, tpl, mode):
+    """Convolution ignoring NaNs.
+    
+    Input: vec    input list (methylation values)
+           tpl    template array (ones)
+           mode   mode for convolve function
+    Output: convoluted array
+    """
     (nans, zero_for_nan) = get_zeros(vec, tpl, mode)
     zero_for_nan = [1 if x>0 else 0 for x in zero_for_nan]
     res = do_conv(vec, nans, tpl, mode, zero_for_nan)
     return res
 
 def get_zeros(vec, tpl, mode):
+    """Produces an array with zeros where NaNs should be present in the output, and ones elsewhere
+    
+    Input: vec    input list (methylation values)
+           tpl    template array (ones)
+           mode   mode for convolve function
+    Output: nans            array with True where NaNs are in input list
+            zero_for_nan    convolution of modified array (with zeros for NaNs) with template
+    """
     vec = np.array(vec)
     vec_len = len(vec)
     mod_vec = np.ones(vec_len)
@@ -76,11 +128,26 @@ def get_zeros(vec, tpl, mode):
     return (nans, zero_for_nan)
 
 def do_conv(vec, nans, tpl, mode, zero_for_nan):
+    """Runs the convolve function
+    
+    Input: vec            input list (methylation values)
+           nans           array with True where NaNs are in input list
+           tpl            template array (ones)
+           mode           mode for convolve function
+           zero_for_nan   convolution of modified array (with zeros for NaNs) with template
+    Output: convoluted array
+    """
     vec = np.array(vec)
     vec[nans] = 0
     res = np.convolve(vec, tpl, mode)/zero_for_nan #raises divide by zero runtime warnings
     return res
 
+"""The following three functions are used to find the C+T percentiles
+
+Input: arr    array with C+T for each position
+       perc   requested percentiles (list)
+Output: percentile values (list)
+"""
 def quantile(x,q):
     n = len(x)
     y = np.sort(x)
@@ -94,6 +161,7 @@ def nan_prctile(arr,perc):
     return(prctile(no_nan, perc))
 
 def pop_dist(p,N):
+    """ internal function used by bmm"""
     no_dists = len(p)
     B = np.zeros((no_dists, N+1)) 
     vals = range(N+1)
@@ -102,11 +170,27 @@ def pop_dist(p,N):
     return B
 
 def log_likelihood(w,B,H):
+    """ internal function used by bmm"""
     mat_prod = np.matmul((B+np.spacing(1)).T,w)
     llike = np.matmul(H[0],np.log(mat_prod)) 
     return llike
 
 def bmm(H, p, w, tolerance, p_known):
+    """Carries out parameter estimation of binomial mixture model (BMM) using EM algorithm. The model is
+        Pr(y_i=k) = sum_k w_k Binom(k|N,p_k) and the algorithm estimates the parameters w_k and p_k.
+    
+    Input: H            histogram of the observed success counts
+           p            initial guess of the vector p (list)
+           w            initial guess of the vector w (list)
+           tolerance    convergence tolerance (of the loglikelihood)
+           p_known      a binary list whose length is the number of mixed distribution, that should be used in the case 
+            that some of the p values are known in advance. In this case, the known values should be used in p, and they
+            will be identified by those elements in p_known that are true (1)
+    Output: p        estimated vector p
+            w        estimated vector w
+            llike    vector of log-likelihood computed in each of the EM iterations. It can monitor the number of 
+            iterations and can be used to verify that the likelihood always increases. Typical values are 1e-3.
+    """
     if p_known:
         p_known = np.where(p_known)[0]
         p_val = np.array(p)[p_known]
@@ -156,6 +240,12 @@ def nan_eq_2d(list1, list2):
     print("lists are the same")
 
 def find_low_coverage_thresh(vec, factor=0.05):
+    """Finds a low-coverage threshold. Assumes that the cutoff should be taken as factor*nanmean(vec)
+    
+    Input: vec    array of values
+           factor parameter of the algorithm
+    Output: lct    the threshold
+    """
     lct= np.ceil(factor * np.nanmean(vec))
     return lct
 
