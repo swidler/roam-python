@@ -26,6 +26,12 @@ class Gcoordinates(Chrom):
         return "name: %s\ndescription: %s\nspecies: %s\nreference: %s\nmetadata: %s\nchr_names: %s\ncoords: %s\nstrand: %s\nno_chrs: %s\nmetadata_name: %s" % (self.name, self.description, self.species, self.reference, self.metadata, self.chr_names, self.coords, self.strand, self.no_chrs, self.metadata_name)
 
     def parse_infile(self, infile):
+        """Parses a Gcoordinates object from a text file.
+        
+        Input: self    empty Gcoordinates object
+               infile  input filename and path
+        Output: populated Gcoordinates object
+        """
         i = 0
         temp = []
         with open(infile, "rt") as gcfile:
@@ -52,6 +58,11 @@ class Gcoordinates(Chrom):
         self.no_chrs = len(self.coords) #reassign chrom num based on new info
 
     def calc_tss(self, genes):
+        """Computes Transcription Start Sites (TSSs)
+        
+        Input: genes    bed file with all genes (no duplicates)
+        Output: Gcoordinates object updated with TSS info
+        """
         self.metadata_name.append("UCSC_name")
         for chrom in range(self.no_chrs):
             tss = []
