@@ -1,21 +1,21 @@
 #!/usr/bin/python3
 
 import amsample as a
+import tools as t
 
 #create object
-#ams = a.Amsample(name="I1116", abbrev="1116")                                                                      
+ams = a.Amsample(name="I1116", abbrev="1116")                                                                      
 #ams = a.Amsample(name="Ust_Ishim", abbrev="Ust")                                                                   
-ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
+#ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
 #mat = a.Amsample()                                                                                                 
 #ams2 = a.Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])                                                                           
 
 #vars for bam_to_am
-#chr_lengths = [249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566]
+chr_lengths = [249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566]
 #ust_chr_lengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566, 16569]
 
 #create object from bam file
-#ams.bam_to_am(library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[15], tot_chroms=[15])
-#ams.bam_to_am(filename="../../I1116_chr8.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True, chroms=[7], tot_chroms=[7])
+ams.bam_to_am(filename="/slow/nomi/I1116_chr8.bam", library="double", chr_lengths=chr_lengths, genome_seq="/slow/nomi/hg19.fa.gz", species="Homo sapiens", trim_ends=True, chroms=[7])
 #ams.bam_to_am(filename="../../I1116.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True)
 #ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
 #ams.bam_to_am(filename="../../Alt_chr22.bam", library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[21], tot_chroms=[21])
@@ -24,7 +24,7 @@ ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
 
 #get object info from text file
 #ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")                                       
-ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag2_from_matlab.txt")                                       
+#ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag2_from_matlab.txt")                                       
 #ams.parse_infile("data/matlab_dumps/altai.txt")                                       
 #ams.parse_infile("../../u_1116.txt")                                                                                
 #ams.parse_infile("data/python_dumps/I1116_drate.txt")
@@ -49,7 +49,7 @@ ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag2_from_matlab.txt")
 
 #run various methods
 #ams.diagnose()                                                                                                      
-ams.filter()
+#ams.filter()
 #ams.estimate_drate(ref=mms)                                                                                         
 #ams.reconstruct_methylation()
 #ams.simulate(0.018598, mms) #rate comes from drate global in I1116_meth.txt
@@ -80,11 +80,11 @@ ams.filter()
 #print(ams2)
 
 #output file
-#outfile = "objects/U1116"
+outfile = "objects/U1116_8_2"
 #outfile = "objects/U1116_filtered_drate"                                                                            
 
 #save (pickle) object to output file
-#t.save_object(outfile, ams)                                                                            
+t.save_object(outfile, ams)                                                                            
 #t.save_object(outfile, ams)                                                                                         
 
 #roam stage
@@ -92,7 +92,7 @@ ams.filter()
 #stage = "drate"                                                                                                     
 #stage = "meth"                                                                                                      
 #stage = "sim_0"
-stage = "filt2_from_matlab"
+#stage = "filt2_from_matlab"
 
 #dump object to text file
-ams.dump(stage)
+#ams.dump(stage)
