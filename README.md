@@ -11,7 +11,7 @@ bam file with ancient genome
 
     examples:
 		Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
-		sf12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940
+		SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940
 		if there is no bai file, it can be created using samtools: samtools index <file>.bam  <file>.bam.bai
 		
 		
