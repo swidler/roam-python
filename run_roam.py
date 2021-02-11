@@ -1,8 +1,14 @@
 #!/usr/bin/python3
 
 import amsample as a
+import mmsample as m
 import tools as t
 
+#create Mmsample object
+mms = m.Mmsample()
+mms.parse_infile("bone5.txt")
+outfile = "objects/bone5"
+t.save_object(outfile, mms)
 #create object
 ams = a.Amsample(name="I1116", abbrev="1116")                                                                      
 #ams = a.Amsample(name="Ust_Ishim", abbrev="Ust")                                                                   
