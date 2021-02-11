@@ -2,14 +2,25 @@
 RoAM project translated into Python
 
 Required modules:
+
 numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, itertools, pybedtools
 
 Input files:
+
 bam file with ancient genome
-  example (Ust Ishim) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
+
+    examples:
+		Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
+		sf12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940
+		if there is no bai file, it can be created using samtools: samtools index <file>.bam  <file>.bam.bai
+		
+		
 genome assembly sequence file
-  hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
+
+    hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
+		
 modern sample
-  this is currently loaded from a text file
+
+    this is currently loaded from a text file
   
 
