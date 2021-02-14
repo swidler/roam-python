@@ -5,6 +5,8 @@ Required modules:
 
 numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, itertools, pybedtools
 
+Input files and other variables should be specified in config.py.
+
 Input files:
 
 bam file with ancient genome
