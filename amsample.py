@@ -236,7 +236,7 @@ class Amsample(Chrom):
         self.g_to_a[chrom] = g_to_a
         self.chr_names[chrom] = "chr"+chrom_names[chrom]
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, org=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
         
         Input: 
@@ -246,9 +246,8 @@ class Amsample(Chrom):
             library            single or double
             chr_lengths        list of chromosome lengths in the same order as the chromosomes are given
             genome_seq         name of the file with the genome sequence
-            organism
             species
-            chroms_list        list of chromosome indices (defaults to [0:23])
+            chroms             list of chromosome indices (defaults to [0:23])
             trim_ends          True to trim ends during processing, False if this has already been done
             mapq_thresh        threshold for read quality
             qual_thresh        threshold for read nucleotide quality
