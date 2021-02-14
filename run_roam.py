@@ -3,25 +3,31 @@
 import amsample as a
 import mmsample as m
 import tools as t
+from config import *
 
 #create Mmsample object
 mms = m.Mmsample()
 mms.parse_infile("bone5.txt")
-outfile = "objects/bone5"
-t.save_object(outfile, mms)
+mms_file = "objects/bone5"
+t.save_object(mms_file, mms)
+
 #create object
-ams = a.Amsample(name="I1116", abbrev="1116")                                                                      
+ams = a.Amsample(name=name, abbrev=abbrev)
+
+#ams = a.Amsample(name="I1116", abbrev="1116")                                                                      
 #ams = a.Amsample(name="Ust_Ishim", abbrev="Ust")                                                                   
 #ams = a.Amsample(name="Altai_Neanderthal", abbrev="Alt")
 #mat = a.Amsample()                                                                                                 
 #ams2 = a.Amsample(name="First", coord_per_position=[2,2,2,2,2,2,2], no_t=[1,2,3], chr_names=["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7"])                                                                           
 
 #vars for bam_to_am
-chr_lengths = [249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566]
+#chr_lengths = [249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566]
 #ust_chr_lengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566, 16569]
 
 #create object from bam file
-ams.bam_to_am(filename="/slow/nomi/I1116_chr8.bam", library="double", chr_lengths=chr_lengths, genome_seq="/slow/nomi/hg19.fa.gz", species="Homo sapiens", trim_ends=True, chroms=[7])
+ams.bam_to_am(filename=filename, library=library, chr_lengths=chr_lengths, genome_seq=genome_file, species=species, trim_ends=trim_ends, chroms=chroms, filedir=filedir, file_per_chrom=file_per_chrom)
+
+#ams.bam_to_am(filename="/slow/nomi/I1116_chr8.bam", library="double", chr_lengths=chr_lengths, genome_seq="/slow/nomi/hg19.fa.gz", species="Homo sapiens", trim_ends=True, chroms=[7])
 #ams.bam_to_am(filename="../../I1116.bam", library="double", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", trim_ends=True)
 #ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
 #ams.bam_to_am(filename="../../Alt_chr22.bam", library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens", chroms=[21], tot_chroms=[21])
@@ -29,6 +35,8 @@ ams.bam_to_am(filename="/slow/nomi/I1116_chr8.bam", library="double", chr_length
 #ams.bam_to_am(filedir="../../altai", file_per_chrom=True, library="single", chr_lengths=chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")                                                                              
 
 #get object info from text file
+#ams.parse_infile(text_infile)                                   
+    
 #ams.parse_infile("data/python_dumps/Altai_Neanderthal_bam.txt")                                       
 #ams.parse_infile("data/python_dumps/Altai_Neanderthal_diag2_from_matlab.txt")                                       
 #ams.parse_infile("data/matlab_dumps/altai.txt")                                       
@@ -37,14 +45,16 @@ ams.bam_to_am(filename="/slow/nomi/I1116_chr8.bam", library="double", chr_length
 #ams.parse_infile("data/python_dumps/I1116_meth.txt")                                                       
 
 #input file
+#infile = pickled_infile
+
 #infile = "objects/U1116"
 #infile = "objects/U1116_diag"
 #infile = "objects/U1116_filtered"                                                                                   
 #infile = "objects/bone_5"
 
 #load object from (pickled) input file
-#ams = t.load_object(infile)                                                                                         
-#mms = t.load_object(infile)
+#ams = t.load_object(pickled_infile)                                                                                         
+#mms = t.load_object(mms_file)
 
 #run with profiling
 #import cProfile                                                                                    
