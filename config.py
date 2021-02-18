@@ -8,12 +8,16 @@ species = "species_name"  # eg Homo sapiens
 chroms = list(range(23))  # list of chrom indices
 trim_ends = False  # if this has already been done (change to True to trim ends during processing)
 file_per_chrom = False  # change to True for dir with one file per chrom
+output_stage = "stage_name"  # use this for naming text output file when running process in stages
 
 # input files
 filedir = "mult_file_dir"  # the dir for multiple files, or None
-filename = "path_to_bam_file"  # the path for the bam file
+filename = "path_to_bam_file"  # the path for the bam file (if files in filedir, above, filename = None)
 genome_file = "path_to_seq_file"  # the path for the assembly file, eg hg19.fa.gz
 text_infile = "path_to_object_textfile"  # the path for the object saved in text format
 pickle_infile = "path_to_pickled_object"  # the path for the pickled object
+modern_infile = "bone5.txt"
 
 # output
+modern_object = "objects/bone5"
+output_object = "object_dir/filename"
