@@ -7,8 +7,8 @@ from config import *
 
 #create Mmsample object
 mms = m.Mmsample()
-mms.parse_infile("bone5.txt")
-mms_file = "objects/bone5"
+mms.parse_infile(modern_infile)
+mms_file = modern_object
 t.save_object(mms_file, mms)
 
 #create object
@@ -96,14 +96,14 @@ ams.bam_to_am(filename=filename, library=library, chr_lengths=chr_lengths, genom
 #print(ams2)
 
 #output file
-outfile = "objects/U1116_8_2"
+outfile = output_object
 #outfile = "objects/U1116_filtered_drate"                                                                            
 
 #save (pickle) object to output file
-t.save_object(outfile, ams)                                                                            
-#t.save_object(outfile, ams)                                                                                         
+t.save_object(outfile, ams)                                                                                        
 
 #roam stage
+stage = output_stage
 #stage = "bam"
 #stage = "drate"                                                                                                     
 #stage = "meth"                                                                                                      
