@@ -21,3 +21,4 @@ modern_infile = "bone5.txt"
 # output
 modern_object = "objects/bone5"
 output_object = "object_dir/filename"
+outdir = "dir_for_textfiles"
