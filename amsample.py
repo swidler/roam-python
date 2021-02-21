@@ -14,6 +14,7 @@ import gzip
 import datetime
 import glob
 import re
+from config import *
 
 class Amsample(Chrom):
     """Ancient methylation sample class
@@ -1239,7 +1240,7 @@ class Amsample(Chrom):
         Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
         """
         aname = self.name
-        fname = "data/python_dumps/" + aname + "_" + stage + ".txt"
+        fname = outdir + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\n")
             fid.write(f"Library: {self.library}\n\n")
