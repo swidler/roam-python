@@ -529,7 +529,7 @@ class Amsample(Chrom):
         Output: Amsample object with updated diagnostics and p_filters fields
         """
         if fname is None:
-            fname = "data/logs/"+self.name+"_diagnostics.txt"
+            fname = logdir+self.name+"_diagnostics.txt"
         
         #initialize
         no_chrs = self.no_chrs
@@ -807,7 +807,7 @@ class Amsample(Chrom):
         #initialize
         no_chr = self.no_chrs
         if fname == None:
-            fname = "data/logs/"+self.name+"_filter.txt"
+            fname = logdir+self.name+"_filter.txt"
         is_c_to_t = False
         is_ts_per_cov = False
         if max_coverage == None:
