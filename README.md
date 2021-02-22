@@ -9,7 +9,7 @@ Input files and other variables should be specified in config.py.
 
 Input files:
 
-bam file with ancient genome
+bam file with ancient genome and corresponding bai file
 
     examples:
 		Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
