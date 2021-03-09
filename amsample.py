@@ -15,6 +15,7 @@ import datetime
 import glob
 import re
 from config import *
+import sys
 
 class Amsample(Chrom):
     """Ancient methylation sample class
@@ -97,7 +98,7 @@ class Amsample(Chrom):
         qual_new = [x for y in qual_new for x in y]  # flatten list
         return(seq_new, qual_new)
 
-    def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names):
+    def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, bam_chrom):
         """Goes over bam files to extract data
         
         """
@@ -121,6 +122,8 @@ class Amsample(Chrom):
             #write aligned reads to file?
         for record in records:  # these are from the genome fasta file
             num, seq = record.id, str(record.seq)
+            if num == "chrM":
+                num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
             if num == "chr"+chrom_name:
                 seq = seq.upper()  # change all letters to uppercase
                 c_in_genome = [1 if x == "C" else 0 for x in seq]
@@ -235,7 +238,8 @@ class Amsample(Chrom):
         self.no_t[chrom] = chr_t
         self.c_to_t[chrom] = c_to_t
         self.g_to_a[chrom] = g_to_a
-        self.chr_names[chrom] = "chr"+chrom_names[chrom]
+        
+        self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
 
     def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
@@ -248,7 +252,7 @@ class Amsample(Chrom):
             chr_lengths        list of chromosome lengths in the same order as the chromosomes are given
             genome_seq         name of the file with the genome sequence
             species
-            chroms             list of chromosome indices (defaults to [0:23])
+            chroms             list of chromosomes (defaults to chroms 1-22, X, Y)
             trim_ends          True to trim ends during processing, False if this has already been done
             mapq_thresh        threshold for read quality
             qual_thresh        threshold for read nucleotide quality
@@ -258,49 +262,105 @@ class Amsample(Chrom):
         """
         self.library = library
         self.species = species
-        self.chr_names = [None]*(max(chroms)+1)
-        #if len(tot_chroms) == len(chroms):
-        self.no_t = [[]]*(max(chroms)+1)
-        self.no_c = [[]]*(max(chroms)+1)
-        self.no_g = [[]]*(max(chroms)+1)
-        self.no_a = [[]]*(max(chroms)+1)
-        self.c_to_t = [[]]*(max(chroms)+1)
-        self.g_to_a = [[]]*(max(chroms)+1)
+        #self.chr_names = [None]*(max(chroms)+1)
+        #self.no_t = [[]]*(max(chroms)+1)
+        #self.no_c = [[]]*(max(chroms)+1)
+        #self.no_g = [[]]*(max(chroms)+1)
+        #self.no_a = [[]]*(max(chroms)+1)
+        #self.c_to_t = [[]]*(max(chroms)+1)
+        #self.g_to_a = [[]]*(max(chroms)+1)
+        self.chr_names = [None]*(len(chroms))
+        self.no_t = [[]]*(len(chroms))
+        self.no_c = [[]]*(len(chroms))
+        self.no_g = [[]]*(len(chroms))
+        self.no_a = [[]]*(len(chroms))
+        self.c_to_t = [[]]*(len(chroms))
+        self.g_to_a = [[]]*(len(chroms))
         with gzip.open(genome_seq, "rt") as fas:
             records = list(SeqIO.parse(fas, "fasta"))
         if filedir:
             filenames = glob.glob(filedir+"/*.bam")
             if file_per_chrom:
-                chrom_nums = [re.findall("\d+", x) for x in filenames]  # filenames need to have chrom nums, x should be 23
+                chrom_names = [x.split("_")[-1].split(".")[0] for x in filenames]  # filename format: <your label>_chr<chrom>.bam
                 file_ref = {}
         if file_per_chrom:
-            for i in range(len(chrom_nums)):
-                file_ref[int(chrom_nums[i][0])-1] = filenames[i]
+            #for i in range(len(chrom_nums)):
+            for i in range(len(chrom_names)):
+                file_ref[chrom_names[i]] = filenames[i]
+                #file_ref[int(chrom_nums[i][0])-1] = filenames[i]
+            #chrom_index = []
+            #input_index = {}
+            i = 0
             for chrom in chroms:
-                bamfile = file_ref[chrom]  # take files in chrom order, regardless of filename order
+                try:
+                    bamfile = file_ref[chrom]  # take files in chrom order, regardless of filename order
+                except:
+                    print(f"No bam file for chromosome {chrom}. Please make sure chromosomes in list match filenames.")
+                    sys.exit(1)
                 bam = pysam.AlignmentFile(bamfile, "rb")
-                chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
-                if self.chr_names[chrom]:
+                all_chroms = bam.references
+                chrom_key = t.build_chr_key(all_chroms)
+                try:
+                    chrom_num = chrom_key[chrom]
+                    #input_num = 
+                    #chrom_index.append(chrom_key[chrom])
+                    #input_index[chrom_key[chrom]] = i
+                except KeyError:
+                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
+                    sys.exit(1)
+                #chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
+                chrom_names = bam.references[0:chrom_num+1]  # lists names of all chroms up to max present in num order
+                if self.chr_names[i]:
                     continue
-                chrom_name = chrom_names[chrom]
+                chrom_name = chrom_names[chrom_num]
                 if bam.count(chrom_name) == 0:
                     continue
-                self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+                chrom_pos = i
+                self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
                 bam.close()
-        elif filedir:
+                i += 1
+        elif filedir:  # this code not yet tested
             for filename in filenames:
                 bam = pysam.AlignmentFile(filename, "rb")
-                chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
+                all_chroms = bam.references
+                chrom_key = t.build_chr_key(all_chroms)
+                chrom_index = []
+                input_index = {}
+                i = 0
                 for chrom in chroms:
+                    try:
+                        chrom_index.append(chrom_key[chrom])
+                        input_index[chrom_key[chrom]] = i
+                    except KeyError:
+                        print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
+                        sys.exit(1)
+                    i += 1
+                chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
+                for chrom in chrom_index:
                     chrom_name = chrom_names[chrom]
-                    self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+                    chrom_pos = input_index[chrom]
+                    self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
                 bam.close()        
         else:
             bam = pysam.AlignmentFile(filename, "rb")
-            chrom_names = bam.references[0:max(chroms)+1]  # lists names of all chroms up to max present in num order
+            all_chroms = bam.references
+            chrom_key = t.build_chr_key(all_chroms)
+            chrom_index = []
+            input_index = {}
+            i = 0
             for chrom in chroms:
+                try:
+                    chrom_index.append(chrom_key[chrom])
+                    input_index[chrom_key[chrom]] = i
+                except KeyError:
+                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
+                    sys.exit(1)
+                i += 1
+            chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
+            for chrom in chrom_index:
                 chrom_name = chrom_names[chrom]
-                self.process_bam(bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names)
+                chrom_pos = input_index[chrom]
+                self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
             bam.close()        
         self.coord_per_position = [2]*len(chroms)
         self.no_chrs = len(chroms)
@@ -1036,7 +1096,11 @@ class Amsample(Chrom):
         
         #loop on chromosomes
         for chrom in range(self.no_chrs):
-            
+            if re.search("[Mm]",self.chr_names[chrom]):
+                continue
+            if self.chr_names[chrom] not in ref.chr_names:
+                print(f"Chromosome {self.chr_names[chrom]} is not in reference sample")
+                continue
             #report
             print(f"Estimating deamination rate in {self.chr_names[chrom]}")
             
@@ -1070,7 +1134,7 @@ class Amsample(Chrom):
         
         #evaluate global degradation rate
         drate["global"] = factor * tot_t/tot_ct
-        drate["dglobal"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/sum(drate["no_positions"]))
+        drate["dglobal"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/np.nansum(drate["no_positions"]))
 
         #plug vals into object
         if method == "reference":
@@ -1231,12 +1295,11 @@ class Amsample(Chrom):
             if report:
                 print("done")
 
-    def dump(self, stage, chroms=None):  # currently, dump works only for sorted list of sequential chroms
+    def dump(self, stage, chroms=None):
         """Dumps Amsample object to text file.
         
         Input: stage    name indicating which part of the process has been dumped, for use in file name.
-               chroms   indices of chromsomes to dump. Currently, dump works only for sorted 
-                 list of sequential chroms (starting from index 0).
+               chroms   indices of chromsomes to dump. 
         Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
         """
         aname = self.name
@@ -1255,7 +1318,7 @@ class Amsample(Chrom):
                 elif key == "max_TsPerCoverage":
                     fid.write("\tmax_TsPerCoverage:\n")
                     for chrom in range(self.no_chrs):
-                        max_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
+                        max_t = [int(x) if ~np.isnan(x) and ~np.isinf(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
                         fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
                 elif key == "max_g_to_a":
                     fid.write(f"\tmax_g_to_a: {' '.join(map(str, self.p_filters['max_g_to_a']))}\n")
