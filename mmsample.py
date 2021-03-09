@@ -3,6 +3,7 @@
 import tools as t
 import numpy as np
 from chroms import Chrom
+from config import *
 
 class Mmsample(Chrom):
     """Modern methylation sample class
@@ -115,6 +116,9 @@ class Mmsample(Chrom):
         variance[variance<MIN_VAR] = MIN_VAR #raises invalid value (for nan) runtime warnings 
         weights = zero_for_nan/variance
         return (smooth_vec, weights)
+    
+    def create_mms_from_file(self):
+        self.parse_infile(modern_infile)
 
 
 if __name__ == "__main__":
