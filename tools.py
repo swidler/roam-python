@@ -3,6 +3,7 @@
 import numpy as np
 import pickle
 import scipy.stats as stats
+import re
 """This module contains helper functions used in the RoAM process.
 """
 def nanmerge(arr, operation):
@@ -248,6 +249,38 @@ def find_low_coverage_thresh(vec, factor=0.05):
     """
     lct= np.ceil(factor * np.nanmean(vec))
     return lct
+
+def build_chr_key(all_chroms):
+    """Builds index of chromosomes in bam list, including name variants
+    
+    Input: list of chromosomes in bam file
+    Output: dict keyed by chrom names (and variants) with index as value
+    """
+    chr_key = {}
+    for chrom in all_chroms:
+        if "chr" in chrom:
+            chr_key[chrom] = all_chroms.index(chrom)
+            num = chrom[3:]
+            chr_key[num] = all_chroms.index(chrom)
+            num = chrom[3:]
+            dig = re.search("^\d+", num)
+            if not dig:
+                chr_key[num.upper()] = all_chroms.index(chrom)
+                chr_key[num.lower()] = all_chroms.index(chrom)
+                chr_key[num.capitalize()] = all_chroms.index(chrom)
+        else:
+            chr_key[chrom] = all_chroms.index(chrom)
+            chr_key["chr"+chrom] = all_chroms.index(chrom)
+            dig = re.search("^\d+", chrom)
+            if not dig:
+                chr_key[chrom.lower()] = all_chroms.index(chrom)
+                chr_key[chrom.upper()] = all_chroms.index(chrom)
+                chr_key[chrom.capitalize()] = all_chroms.index(chrom)
+                chr_key["chr"+chrom.lower()] = all_chroms.index(chrom)
+                chr_key["chr"+chrom.upper()] = all_chroms.index(chrom)
+                chr_key["chr"+chrom.capitalize()] = all_chroms.index(chrom)
+    return chr_key
+
 
 
 if __name__ == "__main__":
