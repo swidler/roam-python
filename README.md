@@ -26,6 +26,7 @@ modern sample
     this is currently loaded from a text file
     
 Running the script
+
     To run RoAM, start by editing the variables in the config.py file. These include input and output filenames, sample name, 
     a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. 
     The stages are "bam", "diagnose", "filter", "drate", and "meth".
