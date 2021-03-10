@@ -262,13 +262,6 @@ class Amsample(Chrom):
         """
         self.library = library
         self.species = species
-        #self.chr_names = [None]*(max(chroms)+1)
-        #self.no_t = [[]]*(max(chroms)+1)
-        #self.no_c = [[]]*(max(chroms)+1)
-        #self.no_g = [[]]*(max(chroms)+1)
-        #self.no_a = [[]]*(max(chroms)+1)
-        #self.c_to_t = [[]]*(max(chroms)+1)
-        #self.g_to_a = [[]]*(max(chroms)+1)
         self.chr_names = [None]*(len(chroms))
         self.no_t = [[]]*(len(chroms))
         self.no_c = [[]]*(len(chroms))
@@ -284,12 +277,8 @@ class Amsample(Chrom):
                 chrom_names = [x.split("_")[-1].split(".")[0] for x in filenames]  # filename format: <your label>_chr<chrom>.bam
                 file_ref = {}
         if file_per_chrom:
-            #for i in range(len(chrom_nums)):
             for i in range(len(chrom_names)):
                 file_ref[chrom_names[i]] = filenames[i]
-                #file_ref[int(chrom_nums[i][0])-1] = filenames[i]
-            #chrom_index = []
-            #input_index = {}
             i = 0
             for chrom in chroms:
                 try:
@@ -302,13 +291,9 @@ class Amsample(Chrom):
                 chrom_key = t.build_chr_key(all_chroms)
                 try:
                     chrom_num = chrom_key[chrom]
-                    #input_num = 
-                    #chrom_index.append(chrom_key[chrom])
-                    #input_index[chrom_key[chrom]] = i
                 except KeyError:
                     print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
                     sys.exit(1)
-                #chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
                 chrom_names = bam.references[0:chrom_num+1]  # lists names of all chroms up to max present in num order
                 if self.chr_names[i]:
                     continue
@@ -414,7 +399,6 @@ class Amsample(Chrom):
                         ts = fields[1].split()
                         ts = [int(x) if x.isdigit() else np.nan for x in ts] #convert all numbers to int, leave NaN alone
                         self.p_filters["max_TsPerCoverage"].append(ts)
-                        #self.chr_names.append(fields[0])
                     elif fields[0] == "max_aOga" or fields[0] == "max_g_to_a":
                         flag = 1 #after first set of chr lines
                         aga = fields[1].split()
@@ -431,7 +415,6 @@ class Amsample(Chrom):
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
                         self.coord_per_position = coord
                     elif fields[0] == "Deamination rate":
-                        #self.d_rate["rate"] = {"local":[], "dlocal":[], "no_positions":[]}
                         self.d_rate["rate"] = {}
                     elif fields[0] == "Reference":
                         self.d_rate["ref"] = fields[1]
@@ -479,12 +462,10 @@ class Amsample(Chrom):
                         self.no_t.append(no_t)
                     elif fields[0] == "aOga" or fields[0] == "g_to_a":
                         g_to_a = fields[1].split()
-                        #g_to_a = [int(x) if x.isdigit() else np.nan for x in g_to_a] #convert all numbers to int, leave NaN alone
                         g_to_a = [float(x) for x in g_to_a] #convert all numbers to float
                         self.g_to_a.append(g_to_a)
                     elif fields[0] == "tOct" or fields[0] == "c_to_t":
                         c_to_t = fields[1].split()
-                        #c_to_t = [int(x) if x.isdigit() else np.nan for x in c_to_t] #convert all numbers to int, leave NaN alone
                         c_to_t = [float(x) for x in c_to_t] #convert all numbers to float
                         self.c_to_t.append(c_to_t)
                     elif fields[0] == "Reconstructed methylation":
@@ -923,7 +904,6 @@ class Amsample(Chrom):
             vec = [min_t if x < min_t else x for x in vec]
             vec[0:min_t-1] = range(1,min_t) #min_t for a given coverage can't be more than the coverage
             max_TsPerCoverage[chrom] = vec
-        #f_ams = copy.deepcopy(self) #copy object. copy incredible slow. nec? ie does it matter if ams is changed?
         f_ams = self #don't need to worry abt overwriting, since output has diff filename
         f_ams.p_filters["method"] = method
         f_ams.p_filters["max_coverage"] = max_coverage
@@ -972,11 +952,9 @@ class Amsample(Chrom):
                     to_remove = np.unique(list(to_remove)+list(more_to_remove))
                     no_removed = len(to_remove) - no_removed
                     fid.write(f"\t{no_removed:,d} (extended) positions ")
-                    #fid.write(f"were removed as No_Ts > {int(max_TsPerCoverage[chrom][cover-1])}\n")
                     fid.write(f"were removed as No_Ts > {max_t_int[cover-1]}\n")
             #remove more positions if data on A's and G's is available
             if method != "c_to_t":
-                #more_to_remove = np.where((no_a<=max_a[chrom] and g_to_a>=max_g_to_a[chrom]) or no_a>max_a[chrom])[0]
                 more_to_remove = np.union1d(np.intersect1d(np.where(no_a<=max_a[chrom]), np.where(g_to_a>=max_g_to_a[chrom])), np.where(no_a>max_a[chrom]))
                 more_to_remove = self.extend_removed(more_to_remove)
                 no_removed = len(to_remove)
@@ -1365,10 +1343,8 @@ class Amsample(Chrom):
                 no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]]
                 fid.write(f"No_Ts: {' '.join(map(str, no_t))}\n")
                 if len(self.g_to_a) != 0:
-                    #g_to_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.g_to_a[chrom]]
                     g_to_a = [float(x) for x in self.g_to_a[chrom]]
                     fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
-                #c_to_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.c_to_t[chrom]]
                 if self.c_to_t:  # single stranded from matlab doesn't have
                     c_to_t = [float(x) for x in self.c_to_t[chrom]]
                     fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
@@ -1385,7 +1361,6 @@ class Amsample(Chrom):
                 elif key == "methylation":
                     #for chrom in range(self.no_chrs):
                     for chrom in range(len(self.methylation["methylation"])):
-                #meth = [round(x, 6) if ~np.isnan(x) else "NaN" for x in self.methylation["methylation"][chrom]]
                         meth = self.methylation["methylation"][chrom]
                         fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
             
