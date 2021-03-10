@@ -3,7 +3,7 @@ RoAM project translated into Python
 
 Required modules:
 
-numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle,itertools, pybedtools
+numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools
 
 Input files and other variables should be specified in config.py.
 
@@ -24,5 +24,11 @@ genome assembly sequence file
 modern sample
 
     this is currently loaded from a text file
+    
+To run RoAM, start by editing the variables in the config.py file. These include input and output filenames, sample name, 
+	a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. When done, 
+	run the run_roam.py script.
   
+Warnings
 
+    When running run_roam.py, there will be warnings about invalid values and divide by zeros. They can be safely ignored.
