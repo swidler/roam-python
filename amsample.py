@@ -21,7 +21,7 @@ class Amsample(Chrom):
     """Ancient methylation sample class
 
     This class inherits from Chroms superclass and has attributes name, abbrev, species, reference,
-    library, is_filtered, is_simulated, no_chrs, metadata, chr_names, coord_per_position, no_a, no_g, no_c, no_t,
+    library, is_simulated, no_chrs, metadata, chr_names, coord_per_position, no_a, no_g, no_c, no_t,
     g_to_a, c_to_t, diagnostics, p_filters, methylation, and d_rate. The last 5 are
     dictionaries, while the previous 9 (metadata through c_to_t) are lists. no_chrs is determined based on the 
     length of coord_per_position. 
@@ -368,7 +368,7 @@ class Amsample(Chrom):
                 fields = line.split(":")
                 if len(fields) > 1:
                     fields[1] = fields[1].lstrip() #remove leading space
-                if i < 5: #first 5 lines are headers
+                if i < 6: #first 6 lines are headers
                     if fields[0] == "Name":
                         self.name = fields[1]
                     elif fields[0] == "Abbreviation":
@@ -379,13 +379,20 @@ class Amsample(Chrom):
                         self.reference = fields[1]
                     elif fields[0] == "Library":
                         self.library = fields[1]
+                    elif fields[0] == "Chromosomes":
+                        self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
                 elif i == 6: #filtered line
-                    if "not" in line:
+                    if "False" in line:
                         self.is_filtered = False
-                        flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
+                        #flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     else:
                         self.is_filtered = True
-                elif i > 6:
+                elif i == 7: #p filters line
+                    if "False" in line:
+                        flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
+                    #else:
+                        #self.is_filtered = True
+                elif i > 7:
                     if fields[0] == "Method":
                         self.p_filters["method"] = fields[1]
                         flag = 0  # fix for newer files with diagnostics for unfiltered
@@ -409,15 +416,20 @@ class Amsample(Chrom):
                         max_a = [int(x) if x.isdigit() else np.nan for x in max_a] #convert all numbers to int, leave NaN alone
                         self.p_filters["max_a"] = max_a
                     elif "simulated" in fields[0]:
-                        self.is_simulated = False if "not" in fields[0] else True
+                        self.is_simulated = False if "False" in fields[1] else True
                     elif fields[0] == "Coordinates per position":
                         coord = fields[1].split()
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
                         self.coord_per_position = coord
                     elif fields[0] == "Deamination rate":
-                        self.d_rate["rate"] = {}
+                        if "True" in fields[1]:
+                            self.d_rate["rate"] = {}
+                        else:
+                            continue
                     elif fields[0] == "Reference":
                         self.d_rate["ref"] = fields[1]
+                    elif fields[0] == "Method":
+                        self.d_rate["method"] = fields[1]
                     elif fields[0] == "min_beta":
                         self.d_rate["min_beta"] = float(fields[1])
                     elif fields[0] == "min_coverage":
@@ -443,32 +455,39 @@ class Amsample(Chrom):
                         eff_cov = [float(x) for x in eff_cov] #convert all numbers to float (NaN is float)
                         self.diagnostics["effective_coverage"] = eff_cov
                     elif "chr" in fields[0] and flag == 1: #chr lines in all files
-                        self.chr_names.append(fields[0])
-                    elif fields[0] == "No_As":
-                        no_a = fields[1].split()
+                        #self.chr_names.append(fields[0])
+                        continue
+                    elif fields[0] == "No_As" and "True" in fields[1]:
+                        line = next(amfile)
+                        no_a = line.split()
                         no_a = [int(x) if x.isdigit() else np.nan for x in no_a] #convert all numbers to int, leave NaN alone
                         self.no_a.append(no_a)
-                    elif fields[0] == "No_Cs":
-                        no_c = fields[1].split()
+                    elif fields[0] == "No_Cs" and "True" in fields[1]:
+                        line = next(amfile)
+                        no_c = line.split()
                         no_c = [int(x) if x.isdigit() else np.nan for x in no_c] #convert all numbers to int, leave NaN alone
                         self.no_c.append(no_c)
-                    elif fields[0] == "No_Gs":
-                        no_g = fields[1].split()
+                    elif fields[0] == "No_Gs" and "True" in fields[1]:
+                        line = next(amfile)
+                        no_g = line.split()
                         no_g = [int(x) if x.isdigit() else np.nan for x in no_g] #convert all numbers to int, leave NaN alone
                         self.no_g.append(no_g)
-                    elif fields[0] == "No_Ts":
-                        no_t = fields[1].split()
+                    elif fields[0] == "No_Ts" and "True" in fields[1]:
+                        line = next(amfile)
+                        no_t = line.split()
                         no_t = [int(x) if x.isdigit() else np.nan for x in no_t] #convert all numbers to int, leave NaN alone
                         self.no_t.append(no_t)
-                    elif fields[0] == "aOga" or fields[0] == "g_to_a":
-                        g_to_a = fields[1].split()
+                    elif (fields[0] == "aOga" or fields[0] == "g_to_a") and "True" in fields[1]:
+                        line = next(amfile)
+                        g_to_a = line.split()
                         g_to_a = [float(x) for x in g_to_a] #convert all numbers to float
                         self.g_to_a.append(g_to_a)
-                    elif fields[0] == "tOct" or fields[0] == "c_to_t":
-                        c_to_t = fields[1].split()
+                    elif (fields[0] == "tOct" or fields[0] == "c_to_t") and "True" in fields[1]:
+                        line = next(amfile)
+                        c_to_t = line.split()
                         c_to_t = [float(x) for x in c_to_t] #convert all numbers to float
                         self.c_to_t.append(c_to_t)
-                    elif fields[0] == "Reconstructed methylation":
+                    elif fields[0] == "Reconstructed methylation" and fields[1] == "True":
                         self.methylation["methylation"] = []
                         flag = 2 #done with second set of chr lines
                     elif fields[0] == "win_size":
@@ -1054,8 +1073,8 @@ class Amsample(Chrom):
             print(f"\tmin_coverage: {meth_params['min_coverage']:d}")
         
         #sanity check
-        if not self.is_filtered:
-            raise Exception(f"{self.name} is not filtered")
+        #if not self.is_filtered:
+        #    raise Exception(f"{self.name} is not filtered")
         if not all(x == 1 for x in self.coord_per_position):
             raise Exception(f"{self.name} is not merged")
         
@@ -1281,12 +1300,20 @@ class Amsample(Chrom):
         Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
         """
         aname = self.name
+        aname = re.sub("\s", "_", aname)
         fname = outdir + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\n")
-            fid.write(f"Library: {self.library}\n\n")
-            filt = "" if self.is_filtered else "not "
-            fid.write(f"This sample is {filt}filtered\n")
+            fid.write(f"Library: {self.library}\n")
+            fid.write(f"Chromosomes: {self.chr_names}\n")
+            #filt = "" if self.is_filtered else "not "
+            #fid.write(f"This sample is {filt}filtered\n")
+            fid.write(f"Is filtered: {self.is_filtered}\n")
+            fid.write("P filters: ")
+            if self.p_filters:
+                fid.write("True\n")
+            else:
+                fid.write("False\n")
             for key in self.p_filters.keys():
                 if key == "method":
                     fid.write(f"\tMethod: {self.p_filters['method']}\n")
@@ -1303,13 +1330,20 @@ class Amsample(Chrom):
                 elif key == "max_a":
                     max_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_a']]
                     fid.write(f"\tmax_No_As: {' '.join(map(str, max_a))}\n")
-            sim = "" if self.is_simulated else "not "
-            fid.write(f"This sample is {sim}simulated\n")
+            #sim = "" if self.is_simulated else "not "
+            #fid.write(f"This sample is {sim}simulated\n")
+            fid.write(f"Is simulated: {self.is_simulated}\n")
             fid.write(f"Coordinates per position: {' '.join(map(str, self.coord_per_position))}\n")
-            fid.write("Deamination rate:\n")
+            fid.write("Deamination rate: ")
+            if self.d_rate:
+                fid.write("True\n")
+            else:
+                fid.write("False\n")
             for key in self.d_rate.keys():
                 if key == "ref":
                     fid.write(f"\tReference: {self.d_rate['ref']}\n")
+                elif key == "method":
+                    fid.write(f"\tMethod: {self.d_rate['method']}\n")
                 elif key == "min_beta":
                     fid.write(f"\tmin_beta: {int(self.d_rate['min_beta'])}\n")
                 elif key == "min_coverage":
@@ -1326,29 +1360,44 @@ class Amsample(Chrom):
                             fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
                         elif subkey == "no_positions":
                             fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+            fid.write("Diagnostics: ")
+            if self.diagnostics:
+                fid.write("True\n")
+            else:
+                fid.write("False\n")
             for key in self.diagnostics.keys():
                 if key == "effective_coverage":
-                    fid.write(f"Effective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
+                    fid.write(f"\tEffective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
             if not chroms:
                 chroms = range(self.no_chrs)
             for chrom in chroms:
-                fid.write(f"\n{self.chr_names[chrom]}:\n")
-                no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]]
-                fid.write(f"No_As: {' '.join(map(str, no_a))}\n")
-                no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]]
-                fid.write(f"No_Cs: {' '.join(map(str, no_c))}\n")
-                if self.no_g:  # single stranded from matlab doesn't have
-                    no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]]
-                    fid.write(f"No_Gs: {' '.join(map(str, no_g))}\n")
-                no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]]
-                fid.write(f"No_Ts: {' '.join(map(str, no_t))}\n")
-                if len(self.g_to_a) != 0:
-                    g_to_a = [float(x) for x in self.g_to_a[chrom]]
-                    fid.write(f"g_to_a: {' '.join(map(str, g_to_a))}\n")
-                if self.c_to_t:  # single stranded from matlab doesn't have
-                    c_to_t = [float(x) for x in self.c_to_t[chrom]]
-                    fid.write(f"c_to_t: {' '.join(map(str, c_to_t))}\n")
-            fid.write("Reconstructed methylation:\n")
+                fid.write(f"{self.chr_names[chrom]}:\n")
+                no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]] if self.no_a else 0
+                val = f"True\n{' '.join(map(str, no_a))}" if no_a else "False"
+                fid.write(f"No_As: {val}\n")
+                no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]] if self.no_c else 0
+                val = f"True\n{' '.join(map(str, no_c))}" if no_c else "False"
+                fid.write(f"No_Cs: {val}\n")
+                #if self.no_g:  # single stranded from matlab doesn't have
+                no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]] if self.no_g else 0
+                val = f"True\n{' '.join(map(str, no_g))}" if no_g else "False"
+                fid.write(f"No_Gs: {val}\n")
+                no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]] if self.no_t else 0
+                val = f"True\n{' '.join(map(str, no_t))}" if no_t else "False"
+                fid.write(f"No_Ts: {val}\n")
+                #if len(self.g_to_a) != 0:
+                g_to_a = [float(x) for x in self.g_to_a[chrom]] if self.g_to_a else 0
+                val = f"True\n{' '.join(map(str, g_to_a))}" if g_to_a else "False"
+                fid.write(f"g_to_a: {val}\n")
+                #if self.c_to_t:  # single stranded from matlab doesn't have
+                c_to_t = [float(x) for x in self.c_to_t[chrom]] if self.c_to_t else 0
+                val = f"True\n{' '.join(map(str, c_to_t))}" if c_to_t else "False"
+                fid.write(f"c_to_t: {val}\n")
+            fid.write("Reconstructed methylation: ")
+            if self.methylation:
+                fid.write("True\n")
+            else:
+                fid.write("False\n")
             for key in self.methylation.keys():
                 if key == "win_size":
                     fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
