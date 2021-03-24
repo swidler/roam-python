@@ -494,6 +494,8 @@ class Amsample(Chrom):
                         win = fields[1].split()
                         win = [int(x) if x.isdigit() else np.nan for x in win] #convert all numbers to int, leave NaN alone
                         self.methylation["win_size"] = win
+                    elif fields[0] == "algorithm":
+                        self.methylation["algorithm"] = fields[1]
                     elif fields[0] == "slope":
                         slope = fields[1].split()
                         slope = [float(x) for x in slope] #convert all numbers to float (NaN is float)
@@ -1195,6 +1197,7 @@ class Amsample(Chrom):
                winsize_alg     a dictionary with parameters required to determine window size, see parameters 
                for determine_winsize.
                function        to compute methylation as a function of the C->T ratio. Options are:
+                 'histogram', where the function is computed by histogram matching to a reference methylome.
                  'lin', where the function is: meth = slope * no_t / no_ct + intercept
                  'log', where the function is: meth = tanh(slope * no_t / no_ct).
                slope           a parameter used for the 'lin' and the 'log' functions. It can be a list with a 
@@ -1260,7 +1263,7 @@ class Amsample(Chrom):
             if report:
                 print(f"Average methylation: {np.nanmean(methi):.2f}")
             meth.append(methi)
-        self.methylation = {"methylation":meth, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
+        self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
     def simulate(self, degrad_rate, mms, report=True):
         """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
@@ -1401,6 +1404,8 @@ class Amsample(Chrom):
             for key in self.methylation.keys():
                 if key == "win_size":
                     fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
+                elif key == "algorithm":
+                    fid.write(f"\talgorithm: {self.methylation['algorithm']}\n")
                 elif key == "slope":
                     fid.write(f"\tslope: {' '.join(map(str, self.methylation['slope']))}\n")
                 elif key == "intercept":
