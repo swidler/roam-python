@@ -19,19 +19,22 @@ else:
     #get object info from text file
     ams.parse_infile(text_infile)                                   
     # eg: ams.parse_infile("data/python_dumps/ust_ishim_bam.txt")                                       
-
+mm_flag = 0
 for stage in stages:
     if stage == "diagnose":
         ams.diagnose()
     elif stage == "filter":
         ams.filter()
-    elif stage == "drate":
-        #create Mmsample object
-        mms = m.Mmsample()
-        mms.create_mms_from_file()
-        ams.estimate_drate(ref=mms)
-    elif stage == "meth":
-        ams.reconstruct_methylation()
+    elif stage == "drate" or stage == "meth":
+        if not mm_flag:
+            #create Mmsample object
+            mms = m.Mmsample()
+            mms.create_mms_from_file()
+            mm_flag += 1
+        if stage == "drate":
+            ams.estimate_drate(ref=mms)
+        elif stage == "meth":
+            ams.reconstruct_methylation(ref=mms)
 
 
 #dump object to text file
