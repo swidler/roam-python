@@ -393,7 +393,7 @@ class Amsample(Chrom):
                     #else:
                         #self.is_filtered = True
                 elif i > 7:
-                    if fields[0] == "Method":
+                    if fields[0] == "Method" and i == 8:
                         self.p_filters["method"] = fields[1]
                         flag = 0  # fix for newer files with diagnostics for unfiltered
                     elif fields[0] == "max_coverage":
@@ -1188,7 +1188,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="log", slope=None, intercept=[0], lcf=0.05, report=True):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, report=True):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1205,6 +1205,7 @@ class Amsample(Chrom):
                intercept       a parameter for used for the 'lin' function, and determines the intercept of the
                  linear transformation. Can be a list with a single value (where the value is used for 
                  all chromosomes) or a value for each chromosome.
+               ref             Mmsample object containing the beta-values of the reference.
                lcf             low coverage factor.
                report          a Boolean variable, determining whether to report output to screen.
         Output: Amsample object with udpated methylation field.
@@ -1247,19 +1248,64 @@ class Amsample(Chrom):
             if self.chr_names:
                 print(f"Computing methylation in {self.chr_names[chrom]}")
             else:
-                print(f"Computing methylation in chrom #{chrom+1}")
+                print(f"Computing methylation in chrom #{chrom+1}")  # does this work with partial chrom list?
             #get smoothed No_Ts and No_CTs
             (no_t, no_ct) = self.smooth(chrom, int(win_size[chrom]))
             #remove regions with particularly low coverage
             lct = t.find_low_coverage_thresh(no_ct, lcf)
             no_ct = [np.nan if x < lct else x for x in no_ct]
             #compute methylation
-            if function == "log":
-                tmp_exp = np.exp(2*slope[chrom]*no_t/no_ct)
-                methi = 2*tmp_exp/(tmp_exp+1)-1
-            else:
-                methi = slope[chrom]*no_t/no_ct+intercept[chrom]
-                methi = min(max(methi,0),1) #keep between 0 and 1 (nans untouched)
+            c_to_t = no_t/no_ct
+            ref.merge()
+            if function == "histogram":
+                # hard-coded parameters
+                ref_bins = 100
+                sig_bins = 1000
+                # use only finite elements
+                idx_finite = np.where(np.isfinite(c_to_t))
+                sig = [c_to_t[x] for x in idx_finite[0]]
+                #sig = c_to_t[idx_finite]  # !!
+                # x-axis for reference and signal
+                ref_edges = np.linspace(0,1,ref_bins+1)
+                sig_edges = np.linspace(0,max(sig),sig_bins+1)
+                ref_binwidth = ref_edges[1] - ref_edges[0]
+                # smooth the reference
+                vec = ref.smooth(None,win_size[chrom],name=self.chr_names[chrom])[0]
+                vec = [vec[x] for x in idx_finite[0]]
+                # generate histograms
+                hist = np.histogram(vec, bins=ref_edges)[0]
+                N = np.sum(hist)
+                c = np.cumsum(hist)
+                N_ref = c/N
+                hist = np.histogram(sig, bins=sig_edges)[0]
+                N = np.sum(hist)
+                c = np.cumsum(hist)
+                N_sig = c/N
+                # generate the mapping
+                hmap = np.zeros(sig_bins)
+                for i in range(sig_bins):
+                    # find closest value on the CDF
+                    imin = np.argmin(abs(N_ref - N_sig[i]))
+                    hmap[i] = ref_edges[imin] + 0.5*ref_binwidth
+                # make the range precisely [0,1]
+                hmap = (hmap - hmap[0]) / np.ptp(hmap)
+                # apply the mapping
+                sig1 = np.digitize(sig,sig_edges)
+                sig1[np.where(sig1 == len(sig_edges))] = len(sig_edges) - 1
+                methi = np.empty(len(c_to_t))
+                methi[:] = np.nan
+                tmp = [hmap[x-1] for x in sig1]
+                d = dict(zip(idx_finite[0], tmp))
+                for i in idx_finite[0]:
+                    methi[i] = d[i]
+                            
+            elif function == "log":
+                #tmp_exp = np.exp(2*slope[chrom]*c_to_t)
+                #methi = 2*tmp_exp/(tmp_exp+1)-1
+                methi = np.tanh(slope[chrom]*c_to_t)
+            elif function == "lin":
+                methi = slope[chrom]*c_to_t+intercept[chrom]
+                methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
             if report:
                 print(f"Average methylation: {np.nanmean(methi):.2f}")
             meth.append(methi)
