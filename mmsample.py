@@ -99,12 +99,14 @@ class Mmsample(Chrom):
         meth = np.nanmean(meth[1][cpg_start:cpg_end+1]) #compute average methylation
         return meth
 
-    def smooth(self, chrom, winsize):
+    def smooth(self, chrom, winsize, name=None):
         """Provides smoothed methylation using a sliding window.
         
         Input: chromosome, window size.
         Output: smothed vector, weights (as defined in algorith.docx)
         """
+        if chrom == None:  # to account for partial chrom lists, send name rather than index
+            chrom = self.indexofchr([name])[0]  # get chrom index
         meth = self.get_methylation(chrom)[1] #get methylation for chrom
         MIN_VAR = 0.01**2 #1% error
         (smooth_vec, zero_for_nan) = t.nansmooth(meth, winsize, "same")
