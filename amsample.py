@@ -49,7 +49,7 @@ class Amsample(Chrom):
         self.methylation = copy.deepcopy(methylation)
         self.d_rate = copy.deepcopy(d_rate)
         self.metadata = copy.deepcopy(metadata)
-        self.no_chrs = len(coord_per_position)
+        self.no_chrs = len(chr_names)
 
     def __repr__(self): #defines print of object
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nlibrary: %s\nchr_names: %s\ncoord_per_position: %s\nno_a: %s\nno_c: %s\nno_g: %s\nno_t: %s\ng_to_a: %s \nc_to_t: %s\ndiagnostics: %s\np_filters: %s\nis_filtered: %s\nis_simulated: %s\nmethylation: %s\nd_rate: %s\nmetadata: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.library, self.chr_names, self.coord_per_position, self.no_a, self.no_c, self.no_g, self.no_t, self.g_to_a, self.c_to_t, self.diagnostics, self.p_filters, self.is_filtered, self.is_simulated, self.methylation, self.d_rate, self.metadata, self.no_chrs)
