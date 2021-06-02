@@ -268,7 +268,7 @@ class DMRs:
                 win_size = np.nan * np.ones((no_samples, no_chr))
                 for samp in range(no_samples):
                     if is_ancient[samp]:
-                        indices = samples[samp].indexofchr(chromosomes)
+                        indices = samples[samp].index(chromosomes)
                         smp = samples[samp].methylation["win_size"]
                         win_size[samp,] = [smp[x] for x in indices]
                     else:
@@ -301,7 +301,7 @@ class DMRs:
             for samp in range(no_samples):
                 if is_ancient[samp]:
                     for chrom in range(no_chr):
-                        chr_ind = samples[samp].indexofchrom(chromosomes[chrom]) #enough just to use chrom?
+                        chr_ind = samples[samp].index(chromosomes[chrom]) #enough just to use chrom?
                         win_size[samp, chrom] = samples[samp].determine_winsize(chr_ind, **winsize_algorithm)
             win_size[np.array(is_ancient)==0,] = win_modern
         #self.win_size = win_size
@@ -399,7 +399,7 @@ class DMRs:
         Qt_up = [None]*no_chr
         Qt_down = [None]*no_chr
         for chrom in range(no_chr):
-            Qt_up[chrom] = [np.nan] * len(coord.coords[coord.indexofchr([chromosomes[chrom]])[0]])
+            Qt_up[chrom] = [np.nan] * len(coord.coords[coord.index([chromosomes[chrom]])[0]])
             Qt_down[chrom] = Qt_up[chrom]
         samp_names = [None]*no_samples
         species = [None]*no_samples
@@ -442,7 +442,7 @@ class DMRs:
             #sample_chrom_idx is the index of the current chrom in each sample
             sample_chrom_idx = np.zeros(no_samples)
             for samp in range(no_samples):
-                sample_chrom_idx[samp] = samples[samp].indexofchr([chromosomes[chrom]])[0]
+                sample_chrom_idx[samp] = samples[samp].index([chromosomes[chrom]])[0]
             #get number of positions along the chrom
             no_pos = len(coord.coords[chrom])
             #loop on groups
@@ -501,7 +501,7 @@ class DMRs:
             not_nans = np.isfinite(lt_up)
             lt_up = lt_up[not_nans]
             lt_down = lt_down[not_nans]
-            coordi = coord.coords[coord.indexofchr([chromosomes[chrom]])][0]
+            coordi = coord.coords[coord.index([chromosomes[chrom]])][0]
             coordi = coordi[not_nans]
             methi = meth[:,not_nans]
             num_finite_pos = len(coordi)
