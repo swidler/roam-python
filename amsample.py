@@ -522,7 +522,7 @@ class Amsample(Chrom):
         Output: requested list for input chromosome
         """
         if isinstance(chrom, str):
-            chr_ind = self.indexofchr([chrom])[0]
+            chr_ind = self.index([chrom])[0]
         else:
             chr_ind = chrom
         if base == "a":
@@ -562,11 +562,11 @@ class Amsample(Chrom):
         """
         region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
-        chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
+        chr_ind = gc.index([chrom])[0] #find index of region chrom in gc object
 
         cpg_start = np.where(gc.coords[chr_ind] >= region["start"])[0][0] #get index of first
         cpg_end = np.where(gc.coords[chr_ind] <= region["end"])[0][-1]    #and last coords in region
-        chr_ind = self.indexofchr([chrom])[0] #find index of chrom in ams object
+        chr_ind = self.index([chrom])[0] #find index of chrom in ams object
         no_t = np.nansum(self.no_t[chr_ind][cpg_start:cpg_end+1])
         no_ct = no_t + np.nansum(self.no_c[chr_ind][cpg_start:cpg_end+1])
         meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
