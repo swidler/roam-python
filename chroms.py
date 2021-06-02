@@ -4,7 +4,7 @@ import numpy as np
 class Chrom:
     """Superclass with methods common to different sample objects
     """
-    def indexofchr(self, chr_name): #find index of chrom(s) by name (input and output are lists)
+    def index(self, chr_name): #find index of chrom(s) by name (input and output are lists)
         """Gives index of chromosome
         
         Input: chromosome name(s) as a list
