@@ -16,7 +16,7 @@ class Mmsample(Chrom):
     Methods:
     """
     
-    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[]):
+    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[], coverage=[]):
         self.name = name
         self.abbrev = abbrev
         self.species = species
@@ -26,7 +26,8 @@ class Mmsample(Chrom):
         self.chr_names = chr_names
         self.coord_per_position = coord_per_position
         self.methylation = methylation
-        self.no_chrs = len(coord_per_position) 
+        self.coverage = coverage
+        self.no_chrs = len(chr_names) 
 
     def __repr__(self): #defines print of object
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
@@ -81,6 +82,7 @@ class Mmsample(Chrom):
                     print(f"{self.chr_names[ind]} is already merged")
                 continue
             self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
+            self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
             self.coord_per_position[ind] = 1
 
     def region_methylation(self, region, gc): 
@@ -91,7 +93,7 @@ class Mmsample(Chrom):
         """
         region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
-        chr_ind = gc.indexofchr([chrom])[0] #find index of region chrom in gc object
+        chr_ind = gc.index([chrom])[0] #find index of region chrom in gc object
         
         cpg_start = np.where(gc.coords[chr_ind] >= region["start"])[0][0] #get index of first
         cpg_end = np.where(gc.coords[chr_ind] <= region["end"])[0][-1]    #and last coords in region
@@ -103,10 +105,10 @@ class Mmsample(Chrom):
         """Provides smoothed methylation using a sliding window.
         
         Input: chromosome, window size.
-        Output: smothed vector, weights (as defined in algorith.docx)
+        Output: smoothed vector, weights (as defined in algorithm.docx)
         """
         if chrom == None:  # to account for partial chrom lists, send name rather than index
-            chrom = self.indexofchr([name])[0]  # get chrom index
+            chrom = self.index([name])[0]  # get chrom index
         meth = self.get_methylation(chrom)[1] #get methylation for chrom
         MIN_VAR = 0.01**2 #1% error
         (smooth_vec, zero_for_nan) = t.nansmooth(meth, winsize, "same")
@@ -121,6 +123,26 @@ class Mmsample(Chrom):
     
     def create_mms_from_file(self):
         self.parse_infile(modern_infile)
+        
+    def to_m(self, chroms=None):
+        """Transforms methylation beta-values to M-values.
+        
+        Input: list of chromosome names (or indices?). If none sent, uses all chromosomes from object.
+        Output: list containing M values for each chromosome
+        """
+        if chroms == None:
+            chroms = self.chr_names
+        chr_ind = self.index(chroms)
+        # make sure object is merged and scaled
+        if self.coord_per_position[0] == 2:
+            self = self.merge()
+        self.scale()
+        # loop on chromosomes
+        M = []
+        for chrom in chr_ind:
+            vec = self.methylation[chrom]
+            M.append(np.log(vec/(1-vec)))  # might cause divide by 0 warning
+        return M
 
 
 if __name__ == "__main__":
@@ -131,7 +153,7 @@ if __name__ == "__main__":
     mms.parse_infile("/mnt/x/bone_5_short.txt")
     print(mms)
     chr = ["chr4", "chr1", "chr7"]
-    ind = mms.indexofchr(chr)
+    ind = mms.index(chr)
     print(f"{chr} is at index {ind}")
     mms.scale()
     print(mms)
