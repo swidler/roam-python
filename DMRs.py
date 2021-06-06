@@ -175,7 +175,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], fname="groupDMRs.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_meth=0, max_meth=1, min_Qt=0, min_CpGs=10, max_adj_dist=1000, k=2, min_finite=1, max_iterations=20, tol=1e-3, report=True, real=False, no_permutations=None):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], fname="groupDMRs.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_meth=0, max_meth=1, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -201,7 +201,6 @@ class DMRs:
                min_CpGs           DMRs whose number of CpGs is less than min_CpGs are filtered out
                max_adj_dist       max distance between adjacent CpGs within the same DMR. If the distance between
                    consecutive CpG positions is larger than max_adj_dist, the algorithm sets Qt to 0
-               k                  minimum number of standard errors separating the groups
                min_finite         an array of length no_groups stating the minimum number of ancient samples for 
                    which we require data. If in a position there are not enough samples with data, a NaN is 
                    substituted in this position. It can also be a fraction between 0 and 1, in which case it is 
@@ -209,8 +208,6 @@ class DMRs:
                max_iterations     maximum number of iterations in the Newton-Raphson phase
                tol                tolerance in the Newton-Raphson phase
                report             True if reporting to the display is desired 
-               real               False if the analysis is run on simulations
-               no_permutations    the number of permutation in case of simulation
         Output: modified DMR object, Qt_up, Qt_down
         """
         no_samples = len(samples)
@@ -241,12 +238,6 @@ class DMRs:
                 raise Exception(f"Length of d_rate ({len(d_rate_in)}) does not match number of ancient samples ({sum(is_ancient)})")
         #no_groups = len(groups)
         #min_finite = np.ones(no_groups)
-        #self.real = real
-        if real == False:
-            is_sim = True
-            no_simulations = no_permutations
-        else:
-            is_sim = False
         #guarantee methylation values are in the range [0,1]
         if min_meth > 1:
             min_meth = 0.01 * min_meth
@@ -372,8 +363,6 @@ class DMRs:
             #write params of job
             #delta
             fid.write(f"delta = {delta:.2f}\n\t[used to compute the lt statistics]\n")
-            #k
-            fid.write(f"k = {k:.1f}\n\t[used to compute the lt statistics]\n")
             #min_bases
             fid.write(f"min_bases = {min_bases}\n\t[minimum length of a DMR (bases). Shorter DMRs are filtered out]\n")
             #max_adj_dist
