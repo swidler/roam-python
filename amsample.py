@@ -1177,7 +1177,7 @@ class Amsample(Chrom):
         if method == "prob":
             win_size = np.ceil(np.log(param)/np.log(1-p)/coverage)
         else:
-            win_size = ceil((1-p)/coverage/p/param**2)
+            win_size = np.ceil((1-p)/coverage/p/param**2)
 
         #narrow window if too wide
         win_size = min(win_size, max_width)
@@ -1195,7 +1195,7 @@ class Amsample(Chrom):
                  chromosome. Otherwise, it can be a list with a single value (where the value is used for all 
                  chromosomes) or a value for each chromosome.
                winsize_alg     a dictionary with parameters required to determine window size, see parameters 
-               for determine_winsize.
+                 for determine_winsize.
                function        to compute methylation as a function of the C->T ratio. Options are:
                  'histogram', where the function is computed by histogram matching to a reference methylome.
                  'lin', where the function is: meth = slope * no_t / no_ct + intercept
@@ -1234,11 +1234,11 @@ class Amsample(Chrom):
                 win_size[chrom] = self.determine_winsize(chrom, **winsize_alg)
         win_size = [int(x) for x in win_size]
 
-        #bring parameters into standard formt - slope
+        #bring parameters into standard format - slope
         if len(slope) == 1:
             slope = slope * np.ones(no_chr)
 
-        #bring parameters into standard formt - intercept
+        #bring parameters into standard format - intercept
         if len(intercept) == 1:
             intercept = intercept * np.ones(no_chr)
         intercept = [int(x) for x in intercept]
