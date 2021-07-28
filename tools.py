@@ -14,9 +14,10 @@ def nanmerge(arr, operation):
         (3) nan + value = value
         (4) value + value = factor*(value+value)
         The variable {factor} is 0.5 if {operation} is 'average', or 1 if {operation} is 'sum'.
+        In the case of "max", merge just takes the larger value of the 2 positions.
     
     Input: arr        list with CpG positions for merging
-           operation  either "Average" or "sum
+           operation  can be "average", "sum" or "max"
     Output: merged list
     """
     result = []
