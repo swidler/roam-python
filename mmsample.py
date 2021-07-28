@@ -26,9 +26,14 @@ class Mmsample(Chrom):
         self.chr_names = chr_names
         self.coord_per_position = coord_per_position
         self.methylation = methylation
-        self.coverage = coverage
         self.no_chrs = len(chr_names) 
-
+        if coverage:
+            self.coverage = coverage
+        else:
+            self.coverage = [[] for x in range(no_chrs)]
+            
+        
+        
     def __repr__(self): #defines print of object
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
     
