@@ -1003,8 +1003,12 @@ class Amsample(Chrom):
                         print(f"Chromosome #{chrom} had already gone through merger")
                 else:
                     f_ams.coord_per_position[chrom] = 1
-                    no_t = t.nanmerge(no_t, "sum")
-                    no_c = t.nanmerge(no_c, "sum")
+                    if f_ams.library == "double":
+                        operation = "max"
+                    else:
+                        operation = "sum"
+                    no_t = t.nanmerge(no_t, operation)
+                    no_c = t.nanmerge(no_c, operation)
             #substitute into f_ams
             f_ams.no_t[chrom] = no_t
             f_ams.no_c[chrom] = no_c
