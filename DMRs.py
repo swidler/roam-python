@@ -726,9 +726,16 @@ class DMRs:
         return dmp
         
     def permutstat(self, dmp):
-        """
+        """Computes statistics of permuation test on detected DMRs.
         
-        
+        Input: dmp    a list of DMRs objects, holding the results of the permutations
+        Output: pstat    dictionary with fields:
+                            no_oDMRs: number of observed DMRs in each chromosome.
+                            no_pDMRs: number of DMRs in each permutation and each chromosome.
+                            chrom_fdr: FDR for each chromosome.
+                            tot_fdr: total FDR over the entire genome.
+                            chrom_pval: p-value for each chromosome.
+                            tot_pval: total p-value over the entire genome.
         """
         # initialize
         pstat = {}
