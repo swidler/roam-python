@@ -26,13 +26,7 @@ class Mmsample(Chrom):
         self.chr_names = chr_names
         self.coord_per_position = coord_per_position
         self.methylation = methylation
-        self.no_chrs = len(chr_names) 
-        if coverage:
-            self.coverage = coverage
-        else:
-            self.coverage = [[] for x in range(no_chrs)]
-            
-        
+        self.no_chrs = len(chr_names)   
         
     def __repr__(self): #defines print of object
         return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
@@ -86,9 +80,11 @@ class Mmsample(Chrom):
                 if report:
                     print(f"{self.chr_names[ind]} is already merged")
                 continue
-            self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
-            self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
-            self.coord_per_position[ind] = 1
+        if not self.coverage:
+            self.coverage = [None for x in range(self.no_chrs)] 
+        self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
+        self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
+        self.coord_per_position[ind] = 1
 
     def region_methylation(self, region, gc): 
         """Computes methylation in a region as a simple average of the values in all CpGs in the region
