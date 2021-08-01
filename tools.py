@@ -29,7 +29,7 @@ def nanmerge(arr, operation):
         for i in range(0,len(arr),2):
             take_me = max(arr[i],arr[i+1])
             result.append(take_me)
-            return result
+        return result
     for i in range(0,len(arr),2):
         if np.isnan(arr[i]):
             if np.isnan(arr[i+1]):
