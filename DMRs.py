@@ -793,15 +793,15 @@ class DMRs:
             
             
     
-    def dump_DMR(self):
+    def dump_DMR(self, num=1):
         """Dumps DMR object to text file.
         
-        Input: DMR object
+        Input: DMR object, iterator
         Output: text file in format DMRs_<time>.txt (directory currently hard-coded).
         """
         time = datetime.datetime.now()
         time = time.strftime("%d-%m-%Y_%H.%M")
-        fname = f"data/python_dumps/DMRs_{time}.txt"
+        fname = f"data/python_dumps/DMRs_{time}.{num}.txt"
         with open(fname, "w") as fid:
             fid.write(f"Samples:\n\t{self.samples}\n")
             fid.write(f"Groups:\n\tAssignment: {self.groups['group_nums']}\n\tNaming: {self.groups['group_names']}\n")
