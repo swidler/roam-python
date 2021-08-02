@@ -183,7 +183,6 @@ class DMRs:
         if type(lcf) == str and lcf == "meth":
             is_meth_lcf = True
             lcf = np.zeros(no_samples) #should these be nan?
-        #win_modern = 11
         d_rate = np.zeros(no_samples)
         d_rate[:] = np.nan
         if d_rate_in:
@@ -191,13 +190,6 @@ class DMRs:
                 d_rate = d_rate_in  # these are now identical--does this matter?
             else:
                 raise Exception(f"Length of d_rate ({len(d_rate_in)}) does not match number of ancient samples ({sum(is_ancient)})")
-        #no_groups = len(groups)
-        #min_finite = np.ones(no_groups)
-        #guarantee methylation values are in the range [0,1]
-        #if min_meth > 1:
-        #    min_meth = 0.01 * min_meth
-        #if max_meth > 1:
-        #    max_meth = 0.01 * max_meth
         #substitute default drates
         for samp in range(no_samples):
             if np.isnan(d_rate[samp]):
@@ -224,7 +216,7 @@ class DMRs:
                     if not win_size%2: #win_size is even
                         win_size += 1 #make it odd
                     win_size = win_size * np.ones((no_samples, no_chr))
-                    #win_size[np.array(is_ancient)==0,] = win_modern
+                    
                 #same W for all chromosomes of an individual
                 elif win_size.ndim ==1:
                     for samp in range(no_samples):
@@ -232,7 +224,7 @@ class DMRs:
                             if not win_size[samp]%2: #win_size is even
                                win_size[samp] += 1 #make it odd
                     win_size = np.transpose([win_size]) * np.ones(no_chr)
-                    #win_size[np.array(is_ancient)==0,] = win_modern
+                    
                 #different W for each chromosome and individual
                 else:
                     for samp in range(no_samples):
@@ -240,16 +232,14 @@ class DMRs:
                             if ~np.isnan(win_size[samp, chrom]):
                                 if not win_size[samp, chrom]%2: #win_size is even
                                     win_size[samp, chrom] += 1 #make it odd
-                    #win_size[np.array(is_ancient)==0,] = win_modern
+                    
         else:
             win_size = np.zeros(no_samples, no_chr)
             for samp in range(no_samples):
                 for chrom in range(no_chr):
                     chr_ind = samples[samp].index(chromosomes[chrom]) #enough just to use chrom?
-                    #win_size[samp, chrom] = samples[samp].determine_winsize(chr_ind, **winsize_alg)  # should be using shared?
                     win_size[samp, chrom] = t.determine_shared_winsize(samples, chr_ind, **winsize_alg)  # TEST
-            #win_size[np.array(is_ancient)==0,] = win_modern
-        #self.win_size = win_size
+            
         #group samples by type (eg farmer, hunter-gatherer)
         sample_names = [samples[x].name for x in range(len(samples))]
         types = dict(zip(sample_names, sample_groups))
@@ -322,9 +312,6 @@ class DMRs:
             fid.write(f"min_CpGs = {min_CpGs}\n\t[a DMR must contain at least min_CpGs CpGs]\n")
             #max_adj_dist
             fid.write(f"max_adj_dist = {max_adj_dist}\n\t[max distance between adjacent CpGs within the same DMR (bases)]\n")
-            #min_meth and max_meth
-            #fid.write(f"min_meth = {min_meth:.2f}\n\t[lower bound to methylation levels of the reference, ref_meth = max(ref_meth, min_meth)]\n")
-            #fid.write(f"max_meth = {max_meth:.2f}\n\t[upper bound to methylation levels of the reference, ref_meth = min(ref_meth, max_meth)]\n")
             #min_finite
             fid.write(f"min_finite = {min_finite}\n\t[minimum number of ancient samples per group for which we require data]\n")
             #lcf
@@ -336,11 +323,9 @@ class DMRs:
             #match_histogram
             mat = f"on (reference = {ref.name})" if match_histogram else "off"
             fid.write(f"histogram matching = {mat}\n\t[histogram matching of the reconstructed methylation]\n\n")
-            #fid.close()
+            
         #initializations
         no_chr = len(chromosomes)
-        #iSa = [x for x,y in enumerate(is_ancient) if y == 1]
-        #iSm = [x for x,y in enumerate(is_ancient) if y == 0]
         iS = list(range(no_samples))
         Qt_up = [None]*no_chr
         Qt_down = [None]*no_chr
@@ -356,26 +341,15 @@ class DMRs:
             if samples[samp_ind].reference != genome_ref:
                 raise Exception(f"Sample {samples[samp_ind].name} does not use {genome_ref}")
         self.samples = samp_names
-        #self.is_ancient = is_ancient
         self.chromosomes = chromosomes
         self.species = species
         self.reference = genome_ref
         #split samples between groups
         if no_groups != 2:
             raise Exception("Currently, the algorithm works only on 2 groups")
-        #giSa = [None]*no_groups
-        #giSm = [None]*no_groups
-        #gSa = np.zeros(no_groups)
-        #gSm = np.zeros(no_groups)
         giS = [None]*no_groups
         for grp in range(no_groups):
-            #giSa[grp] = list(set(iSa) & set(positions[grp]))
-            #giSm[grp] = list(set(iSm) & set(positions[grp]))
             giS[grp] = positions[grp]
-            #gSa[grp] = len(giSa[grp])
-            #gSm[grp] = len(giSm[grp])
-        #if not all(gSa+gSm):
-         #   raise Exception("Groups may not be empty")
         #loop on chroms
         cdm = [c.cDMR() for i in range(no_chr)]
         for chrom in range(no_chr):
@@ -383,63 +357,12 @@ class DMRs:
             if report:
                 print(f"Processing chromosome {chromosomes[chrom]}")
                 fid.write(f"Processing chromosome {chromosomes[chrom]}\n")
-            #find matching chroms in diff samples
-            #sample_chrom_idx is the index of the current chrom in each sample
-            #sample_chrom_idx = np.zeros(no_samples)
-            #for samp in range(no_samples):
-            #    sample_chrom_idx[samp] = samples[samp].index([chromosomes[chrom]])[0]
             #get number of positions along the chrom
-            #no_pos = len(coord.coords[chrom])
             no_pos = len(coord.coords[coord.index([chromosomes[chrom]])[0]])  # in case of diff chrom order
             #loop on groups
             meth = np.zeros((no_groups, no_pos))  # methylation
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
-            for grp in range(no_groups):
-                """
-                #for ancient--compute tij and nij
-                tij = np.zeros((int(gSa[grp]), no_pos))
-                nij = np.zeros((int(gSa[grp]), no_pos))
-                for samp in range(int(gSa[grp])):
-                    samp_id = giSa[grp][samp]
-                    [tij[samp], nij[samp]] = samples[samp_id].smooth(int(sample_chrom_idx[samp_id]), int(win_size[samp_id,chrom]))
-                    #nij[samp] = win_size[samp_id,chrom]
-                    #remove regions with very low coverage
-                    lct = t.find_low_coverage_thresh(nij[samp], lcf[samp])
-                    nij[samp][nij[samp]<lct] = np.nan
-                #for modern--compute mij_bar and wij
-                mij_bar = np.zeros((int(gSm[grp]), no_pos))
-                wij = np.zeros((int(gSm[grp]), no_pos))
-                for samp in range(int(gSm[grp])):
-                    samp_id = giSm[grp][samp]
-                    [mij_bar[samp], wij[samp]] = samples[samp_id].smooth(int(sample_chrom_idx[samp_id]), int(win_size[samp_id,chrom]))
-                    #wij[samp] = win_size[samp_id,chrom]
-                #estimate methylation
-                if gSa[grp] > 0:
-                    #ancient samples
-                    [ma, dma, m0] = self.ancient_Newton_Raphson(max_iterations, tol, d_rate[giSa[grp]],tij,nij)
-                if gSm[grp] > 0:
-                    #modern samples
-                    Wj = np.nansum(wij,0)
-                    mm = sum(wij * mij_bar, 1)/Wj
-                    dmm = np.sqrt(1/Wj)
-                #compute final estimator
-                if gSm[grp] * gSa[grp] > 0:
-                    #both modern and ancient
-                    meth[grp] = (gSm[grp]*mm + gSa[grp]*ma) / (gSm[grp] + gSa[grp])
-                    meth_err[grp] = 1/(gSm[grp] + gSa[grp]) * np.sqrt(gSm[grp]**2 * dmm**2 + gSa[grp]**2 * dma**2)
-                elif gSa[grp] > 0:
-                    #only ancient samples
-                    meth[grp] = ma
-                    meth_err[grp] = dma
-                else:
-                    #only modern samples
-                    meth[grp] = mm
-                    meth_err[grp] = dmm
-                #substitute nans when there are too many nans in orig data
-                finit = np.isfinite(tij) & np.isfinite(nij)
-                finit = finit.sum(axis=0)  # this does not work for 1d array
-                meth[grp, finit<min_finite[grp]] = np.nan  # any chance this will work?
-             """   
+            for grp in range(no_groups):   
                 [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref)
                 meth[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                 meth_err[grp,:] = dma[0]  # ditto
@@ -718,8 +641,6 @@ class DMRs:
             print(f"{line}\n{sep}")
             groups = random.sample(groups_base, len(groups_base))
             min_finite = min_finite_base[:]
-            #if groups[0] != groups_base[0]:
-            #        min_finite.reverse()  # always list of 2. if 1st doesn't match, reverse gives 2nd
             num = str(permutation+1).zfill(int(num_width))
             fname = f"p{num}_groupDMRs.txt"
             dmp[permutation].groupDMRs(samples=samples, sample_groups=groups, coord=coord, fname=fname, chroms=self.chromosomes, win_size=alg["win_size"], lcf=alg["lcf"], delta=alg["delta"], min_bases=alg["min_bases"], min_Qt=alg["min_Qt"], min_CpGs=alg["min_CpGs"], max_adj_dist=alg["max_adj_dist"], min_finite=min_finite, max_iterations=alg["max_iterations"], tol=alg["tol"], match_histogram=alg["match_histogram"], ref=alg["ref"])
