@@ -353,8 +353,8 @@ def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
     nshape = nij.shape
     tij = tij.flatten("F")  # flatten to find nans
     nij = nij.flatten("F")
-    nan_t = [x for x,y in enumerate(tij) if np.isnan(y)]  # find nans
-    nan_n = [x for x,y in enumerate(nij) if np.isnan(y)]
+    nan_t = np.where(np.isnan(tij))[0]  # find nans
+    nan_n = np.where(np.isnan(nij))[0]
     idx = sorted(list(set(nan_t).union(set(nan_n))))  # find union of nans
     tij[idx] = 0  # replace nans
     nij[idx] = 0
