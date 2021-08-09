@@ -114,8 +114,8 @@ def nanconv(vec, tpl, mode):
     Output: convoluted array
     """
     (nans, zero_for_nan) = get_zeros(vec, tpl, mode)
-    zero_for_nan = [1 if x>0 else 0 for x in zero_for_nan]
-    res = do_conv(vec, nans, tpl, mode, zero_for_nan)
+    zeros = zero_for_nan>0
+    res = do_conv(vec, nans, tpl, mode, zeros)
     return res
 
 def get_zeros(vec, tpl, mode):
