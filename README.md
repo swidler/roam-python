@@ -15,7 +15,11 @@ bam file with ancient genome and corresponding bai file
 		Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
 		SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940
 		If there is no bai file, it can be created using samtools: samtools index <file>.bam  <file>.bam.bai
-		
+		(In later versions of samtools, don't specify output file name.)
+
+To index all bam files in a directory, use the indexing script:
+
+		./create_bai.sh <directory>/*.bam
 		
 genome assembly sequence file
 
