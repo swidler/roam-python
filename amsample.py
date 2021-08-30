@@ -304,28 +304,6 @@ class Amsample(Chrom):
                 self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
                 bam.close()
                 i += 1
-        elif filedir:  # this code not yet tested
-            for filename in filenames:
-                bam = pysam.AlignmentFile(filename, "rb")
-                all_chroms = bam.references
-                chrom_key = t.build_chr_key(all_chroms)
-                chrom_index = []
-                input_index = {}
-                i = 0
-                for chrom in chroms:
-                    try:
-                        chrom_index.append(chrom_key[chrom])
-                        input_index[chrom_key[chrom]] = i
-                    except KeyError:
-                        print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
-                        sys.exit(1)
-                    i += 1
-                chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
-                for chrom in chrom_index:
-                    chrom_name = chrom_names[chrom]
-                    chrom_pos = input_index[chrom]
-                    self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
-                bam.close()        
         else:
             bam = pysam.AlignmentFile(filename, "rb")
             all_chroms = bam.references
@@ -553,14 +531,15 @@ class Amsample(Chrom):
         no_ct = t.nanconv(no_ct, tpl, "same")
         return(no_t, no_ct)
 
-    def region_methylation(self, region, gc):
+    def region_methylation(self, region, gc, standardize=True):
         """Computes methylation in a specific region
         
         Input:  region   Genomic coordinates (chrom, start, end, delimited by :, -, or space(s))
                 gc       Gcoordinates object of CpG positions
         Output: meth     methylation value in the region
         """
-        region = t.standardize_region(region) #take region input and change to dictionary
+        if standardize:
+            region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
         chr_ind = gc.index([chrom])[0] #find index of region chrom in gc object
 
