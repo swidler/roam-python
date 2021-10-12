@@ -376,8 +376,8 @@ def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
         for samp in range(no_samples):
             dldm = dldm - (nij[samp] - tij[samp]) * pi[samp] / (1 - m_prev * pi[samp])
             d2ldm2 = d2ldm2 - (nij[samp] - tij[samp]) * pi[samp]**2 / (1 - m_prev * pi[samp])**2
-        m = m_prev - dldm/d2ldm2
-        tol = max(abs(m-m_prev)/m_prev)
+        m = m_prev - np.nan_to_num(dldm/d2ldm2)
+        tol = np.nanmax(abs(m-m_prev)/m_prev)
         iteration += 1
     #compute estimaton of the variance
     I = Tj/m**2
