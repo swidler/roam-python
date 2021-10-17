@@ -27,7 +27,8 @@ genome assembly sequence file
 		
 modern sample
 
-    this is currently loaded from a text file
+    This is currently loaded from a text file:
+    Download bone5.zip from http://carmelab.huji.ac.il/data.html and unzip into script directory.
     
 Running the script
 
