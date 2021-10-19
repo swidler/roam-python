@@ -23,12 +23,12 @@ class Amsample(Chrom):
     This class inherits from Chroms superclass and has attributes name, abbrev, species, reference,
     library, is_simulated, no_chrs, metadata, chr_names, coord_per_position, no_a, no_g, no_c, no_t,
     g_to_a, c_to_t, diagnostics, p_filters, methylation, and d_rate. The last 5 are
-    dictionaries, while the previous 9 (metadata through c_to_t) are lists. no_chrs is determined based on the 
-    length of coord_per_position. 
+    dictionaries, while 8 of the previous 9 (metadata through c_to_t, excluding coord_per_position) are lists. 
+    no_chrs is determined based on the length of chr_names. 
         
     An amsample object is created (with empty defaults): ams = Amsample(). The attributes can then be populated.
     """
-    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", library="", chr_names=[], coord_per_position=[], no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
+    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", library="", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
         self.name = name
         self.abbrev = abbrev
         self.species = species
@@ -325,7 +325,7 @@ class Amsample(Chrom):
                 chrom_pos = input_index[chrom]
                 self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
             bam.close()        
-        self.coord_per_position = [2]*len(chroms)
+        self.coord_per_position = "2"
         self.no_chrs = len(chroms)
         #add object name
 
@@ -398,7 +398,7 @@ class Amsample(Chrom):
                     elif fields[0] == "Coordinates per position":
                         coord = fields[1].split()
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
-                        self.coord_per_position = coord
+                        self.coord_per_position = coord[0]
                     elif fields[0] == "Deamination rate":
                         if "True" in fields[1]:
                             self.d_rate["rate"] = {}
@@ -491,7 +491,7 @@ class Amsample(Chrom):
                         meth = [float(x) for x in meth] #convert all numbers to float (NaN is float)
                         self.methylation["methylation"].append(meth)
                 i += 1
-        self.no_chrs = len(self.coord_per_position)
+        self.no_chrs = len(self.chr_names)
 
     def get_base_no(self, chrom, base):
         """Get relevant list from object
@@ -932,9 +932,9 @@ class Amsample(Chrom):
                 g_to_a = self.g_to_a[chrom]
             no_pos = len(no_t)
             print("\tNumber of CpG positions ", end="")
-            print(f"({self.coord_per_position[chrom]} coordinates per position): {no_pos:,d}")
+            print(f"({self.coord_per_position} coordinates per position): {no_pos:,d}")
             fid.write("\tNumber of CpG positions ")
-            fid.write(f"({self.coord_per_position[chrom]} coordinates per position): {no_pos:,d}\n")
+            fid.write(f"({self.coord_per_position} coordinates per position): {no_pos:,d}\n")
             #remove positions whose coverage is too high
             to_remove = np.where(no_ct>max_coverage[chrom])[0]
             no_removed = len(to_remove)
@@ -975,13 +975,13 @@ class Amsample(Chrom):
             no_c = no_ct - no_t #does this behave? (should be elementwise subtraction)
             #merge positions
             if merge:
-                if f_ams.coord_per_position[chrom] == 1: #test on single coord per pos 
+                if f_ams.coord_per_position == "1": #test on single coord per pos 
                     if f_ams.chr_names:
                         print(f"{f_ams.chr_names[chrom]} had already gone through merger")
                     else:
                         print(f"Chromosome #{chrom} had already gone through merger")
                 else:
-                    f_ams.coord_per_position[chrom] = 1
+                    f_ams.coord_per_position = "1"
                     if f_ams.library == "double":
                         operation = "max"
                     else:
@@ -1060,7 +1060,7 @@ class Amsample(Chrom):
         #sanity check
         #if not self.is_filtered:
         #    raise Exception(f"{self.name} is not filtered")
-        if not all(x == 1 for x in self.coord_per_position):
+        if self.coord_per_position != "1":
             raise Exception(f"{self.name} is not merged")
         
         #verify reference is merged and scaled
@@ -1365,7 +1365,7 @@ class Amsample(Chrom):
             #sim = "" if self.is_simulated else "not "
             #fid.write(f"This sample is {sim}simulated\n")
             fid.write(f"Is simulated: {self.is_simulated}\n")
-            fid.write(f"Coordinates per position: {' '.join(map(str, self.coord_per_position))}\n")
+            fid.write(f"Coordinates per position: {self.coord_per_position}\n")
             fid.write("Deamination rate: ")
             if self.d_rate:
                 fid.write("True\n")
