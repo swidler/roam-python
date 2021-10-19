@@ -9,14 +9,14 @@ class Mmsample(Chrom):
     """Modern methylation sample class
 
     This class inherits from Chroms superclass and has attributes name, abbrev, reference,
-    method, no_chrs, metadata, chr_names, coord_per_position, and methylation. The last 4 are
-    lists. no_chrs is determined based on the length of coord_per_position. An mmsample object is 
+    method, no_chrs, metadata, chr_names, coord_per_position, and methylation. metadata, chr_names, and methylation are
+    lists. no_chrs is determined based on the length of chr_names. An mmsample object is 
     created (with empty defaults): mms = Mmsample(). The attributes can then be populated.
     
     Methods:
     """
     
-    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position=[], methylation=[], coverage=[]):
+    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position="", methylation=[], coverage=[]):
         self.name = name
         self.abbrev = abbrev
         self.species = species
@@ -54,8 +54,9 @@ class Mmsample(Chrom):
                     elif fields[0] == "Method":
                         self.method = fields[1]
                     elif fields[0] == "Coordinates per position":
-                        self.coord_per_position = fields[1].split(" ")
-                        self.coord_per_position = [int(x) for x in self.coord_per_position]
+                        coord = fields[1].split(" ")
+                        coord = [int(x) for x in coord]
+                        self.coord_per_position = coord[0]
                 elif i > 6: #7th line is blank, rest are chroms
                     chrom = fields[0]
                     meth = fields[1].split(" ")
@@ -63,7 +64,11 @@ class Mmsample(Chrom):
                     self.chr_names.append(chrom)
                     self.methylation.append(meth)
                 i += 1
-        self.no_chrs = len(self.coord_per_position) #reassign chrom num based on new info
+        self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
+    
+    def bismark_to_mm(self, bisfile):
+        for line in bisfile:
+            #do something
 
     def scale(self):
         """Converts all values to be between 0 and 1
@@ -77,7 +82,7 @@ class Mmsample(Chrom):
         """Merges pairs of consecutive CpG positions by averaging their values
         """
         for ind in range(0,len(self.chr_names)):
-            if self.coord_per_position[ind] == 1: #if coord_per_position has 1, meth vals are merged
+            if self.coord_per_position == "1": #if coord_per_position has 1, meth vals are merged
                 if report:
                     print(f"{self.chr_names[ind]} is already merged")
                 continue
@@ -85,7 +90,7 @@ class Mmsample(Chrom):
                 self.coverage = [[] for x in range(self.no_chrs)] 
             self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
             self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
-            self.coord_per_position[ind] = 1
+            self.coord_per_position = "1"
 
     def region_methylation(self, region, gc): 
         """Computes methylation in a region as a simple average of the values in all CpGs in the region
@@ -123,8 +128,11 @@ class Mmsample(Chrom):
         weights = zero_for_nan/variance
         return (smooth_vec, weights)
     
-    def create_mms_from_file(self):
+    def create_mms_from_text_file(self):
         self.parse_infile(modern_infile)
+        
+    #def create_mms_from_bismark_file(self):
+        #self.bismark_to_mm(bisfile)
         
     def to_m(self, chroms=None):
         """Transforms methylation beta-values to M-values.
@@ -136,7 +144,7 @@ class Mmsample(Chrom):
             chroms = self.chr_names
         chr_ind = self.index(chroms)
         # make sure object is merged and scaled
-        if self.coord_per_position[0] == 2:
+        if self.coord_per_position == "2":
             self = self.merge()
         self.scale()
         # loop on chromosomes
@@ -150,7 +158,7 @@ class Mmsample(Chrom):
 if __name__ == "__main__":
     mms = Mmsample()
     print(mms)
-    #mms2 = Mmsample(name="First Attempt", abbrev="one", coord_per_position=[2,2,2,2,2])
+    #mms2 = Mmsample(name="First Attempt", abbrev="one", coord_per_position="2")
     #print(mms2)
     mms.parse_infile("/mnt/x/bone_5_short.txt")
     print(mms)
