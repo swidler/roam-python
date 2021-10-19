@@ -32,7 +32,7 @@ def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
             if not mm_flag:
                 #create Mmsample object
                 mms = m.Mmsample()
-                mms.create_mms_from_file()
+                mms.create_mms_from_text_file()
                 mm_flag += 1
             if stage == "drate":
                 ams.estimate_drate(ref=mms)
