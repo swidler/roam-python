@@ -27,8 +27,15 @@ genome assembly sequence file
 		
 modern sample
 
-    This is currently loaded from a text file:
+    This can be loaded from a text file:
     Download bone5.zip from http://carmelab.huji.ac.il/data.html and unzip into script directory.
+    Alternatively, use a Bismark result file in the BedGraph or Cov format and specify in the config file.
+
+CpG coordinates
+	
+	cpg_coords.P is a pickled object containing the coordinates of all CpGs in the genome.
+	Download the CpG coordinate file from http://carmelab.huji.ac.il/data.html and unzip into 
+	objects subdirectory of script directory.
     
 Running the script
 
