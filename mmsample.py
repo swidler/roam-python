@@ -4,6 +4,7 @@ import tools as t
 import numpy as np
 from chroms import Chrom
 from config import *
+import sys
 
 class Mmsample(Chrom):
     """Modern methylation sample class
@@ -66,9 +67,169 @@ class Mmsample(Chrom):
                 i += 1
         self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
     
-    def bismark_to_mm(self, bisfile):
-        for line in bisfile:
-            #do something
+    def bismark_to_mm(self, bisfile, gc_object):
+        """Converts Bismark result file (.cov or .bedGraph) into mmsample object
+        
+        Input: empty Mmsample object, Bismark file name, gcoordinates object (reference)
+        Output: populated Mmsample object
+        """
+        gc = t.load_object(gc_object)
+        if bisfile.endswith(".cov"):
+            file_type = "cov"
+        elif bisfile.endswith(".bedGraph"):
+            file_type = "bed"
+        else:
+            print("File for modern sample must be either .bedGraph or .cov")
+            sys.exit(1)
+        self.name = mod_name
+        self.abbrev = mod_abbrev
+        self.species = mod_spec
+        self.reference = mod_ref
+        self.method = mod_method
+        chr_lengths = [len(x) for x in gc.coords]
+        chr_names = {}
+        coord_map = []
+        for chrom in range(len(gc.coords)):  # create map of coords keyed by coord, with index as value
+            d = dict(enumerate(gc.coords[chrom]))
+            dr = {v: k for k, v in d.items()}
+            coord_map.append(dr)
+        with open(bisfile, "rt") as mmfile:
+            first = mmfile.readline().rstrip()
+            second = mmfile.readline().rstrip()
+            third = mmfile.readline().rstrip()
+        one = first
+        two = second
+        if "track" in one:
+            one = second
+            two = third
+        fields1 = one.split("\t")
+        fields2 = two.split("\t")
+        if int(fields1[1])+1 == int(fields2[1]):  # start in first two consecutive
+            coord_per_pos = "2"
+        else:
+            coord_per_pos = "1"
+        self.coord_per_position = coord_per_pos
+        meth = []
+        cov = []
+        if coord_per_pos == "1":
+            for chrom in chr_lengths:
+                meth.append(np.empty(chrom))  # build list of nan arrays corresponding
+                meth[-1].fill(np.nan)         # to chrom lengths for methylation and for coverage
+                if file_type == "cov":
+                    cov.append(np.empty(chrom))
+                    cov[-1].fill(np.nan)
+        else:
+            for chrom in chr_lengths:
+                meth.append(np.empty(chrom*2))  # build list of nan arrays corresponding
+                meth[-1].fill(np.nan)         # to twice chrom lengths for methylation and for coverage
+                if file_type == "cov":
+                    cov.append(np.empty(chrom*2))
+                    cov[-1].fill(np.nan)
+        with open(bisfile, "rt") as mmfile:
+            save_line = None
+            unmatched_counter = np.zeros(gc.no_chrs)
+            matched_counter = np.zeros(gc.no_chrs)
+            if coord_per_pos == "2":
+                while True:
+                    if save_line:
+                        line1 = save_line
+                        line2 = mmfile.readline()
+                    else:
+                        line1 = mmfile.readline()
+                        line2 = mmfile.readline()
+                    if not line1: 
+                        break
+                    if "track" in line1:
+                        line1 = line2
+                        line2 = mmfile.readline()
+                    elif "track" in line2:
+                        line2 = mmfile.readline()
+                    line1 = line1.rstrip("\n") #remove line feeds
+                    fields1 = line1.split("\t")
+                    line2 = line2.rstrip("\n") #remove line feeds
+                    fields2 = line2.split("\t")
+                    chr_name1 = fields1[0]
+                    chr_name2 = fields2[0]
+                    chr_ind = gc.index([chr_name1])[0]
+                    if np.isnan(chr_ind):
+                        continue
+                    chr_names[chr_name1] = chr_ind
+                    start1 = int(fields1[1])
+                    start2 = int(fields2[1])
+                    if start1 + 1 != start2 or not line2 or chr_name1 != chr_name2:
+                        single_flag = True
+                        if line2:
+                            save_line = line2
+                    else:
+                        single_flag = False
+                        save_line = None
+                    if file_type == "bed":  # bedGraph coords are zero-based
+                        start1 += 1
+                    if single_flag:
+                        coord_pos = None
+                        try:
+                            i = coord_map[chr_ind][start1]  # get index of first start pos in gc
+                            coord_pos = "first"
+                        except KeyError:
+                            try:
+                                i = coord_map[chr_ind][start1-1]  # try prev pos--is this 2nd cpg coord?
+                                coord_pos = "second"
+                            except KeyError:
+                                unmatched_counter[chr_ind] += 1
+                        except TypeError:
+                            print(f"line is {line1}")
+                        if coord_pos == "first":
+                            matched_counter[chr_ind] += 1
+                            meth[chr_ind][i*2] = fields1[3]
+                            if file_type == "cov":
+                                tot_cov1 = int(fields1[4]) + int(fields1[5])
+                                cov[chr_ind][i*2] = tot_cov1
+                        elif coord_pos == "second":
+                            matched_counter[chr_ind] += 1
+                            meth[chr_ind][i*2+1] = fields1[3]
+                            if file_type == "cov":
+                                tot_cov1 = int(fields1[4]) + int(fields1[5])
+                                cov[chr_ind][i*2+1] = tot_cov1
+                    else:
+                        try:
+                            i = coord_map[chr_ind][start1]  # get index of first start pos in gc
+                        except:
+                            unmatched_counter[chr_ind] += 1
+                        matched_counter[chr_ind] += 1
+                        meth[chr_ind][i*2] = fields1[3]
+                        meth[chr_ind][i*2+1] = fields2[3]
+                        if file_type == "cov":
+                            tot_cov1 = int(fields1[4]) + int(fields1[5])
+                            tot_cov2 = int(fields2[4]) + int(fields2[5])
+                            cov[chr_ind][i*2] = tot_cov1
+                            cov[chr_ind][i*2+1] = tot_cov2
+            else:  # not yet tested
+                for line in mmfile:
+                    if "track" in line:
+                        continue
+                    line = line.rstrip("\n") #remove line feeds
+                    fields = line.split("\t")
+                    chr_name = fields[0]
+                    chr_ind = gc.index([chr_name])[0]
+                    chr_names[chr_name] = chr_ind
+                    start = int(fields[1])
+                    if file_type == "bed":  # bedGraph coords are zero-based
+                        start += 1
+                    try:
+                        i = coord_map[chr_ind][start]  # get index of first start pos in gc
+                    except:
+                        unmatched_counter[chr_ind] += 1
+                    matched_counter[chr_ind] += 1
+                    meth[chr_ind][i] = fields[3]
+                    if file_type == "cov":
+                        tot_cov = int(fields[4]) + int(fields[5])
+                        cov[chr_ind][i] = tot_cov
+                     
+        print(f"found {unmatched_counter} unmatched positions and {matched_counter} matched positions") 
+        print(f"proportion matched: {matched_counter/chr_lengths}")   
+        self.chr_names = list(chr_names.keys())            
+        self.methylation = meth
+        self.coverage = cov        
 
     def scale(self):
         """Converts all values to be between 0 and 1
@@ -131,8 +292,8 @@ class Mmsample(Chrom):
     def create_mms_from_text_file(self):
         self.parse_infile(modern_infile)
         
-    #def create_mms_from_bismark_file(self):
-        #self.bismark_to_mm(bisfile)
+    def create_mms_from_bismark_file(self):
+        self.bismark_to_mm(bismark_infile, gc_object)
         
     def to_m(self, chroms=None):
         """Transforms methylation beta-values to M-values.
@@ -153,6 +314,30 @@ class Mmsample(Chrom):
             vec = self.methylation[chrom]
             M.append(np.log(vec/(1-vec)))  # might cause divide by 0 warning
         return M
+    
+    def dump(self, desc):
+        """Dumps Mmsample object to text file.
+        
+        Input: desc    description for use in file name.
+        Output: text file in format <object_name>_<desc>.txt (directory currently hard-coded).
+        """
+        mname = self.name
+        mname = re.sub("\s", "_", mname)
+        fname = outdir + mname + "_" + desc + ".txt"
+        with open(fname, "w") as fid:
+            fid.write(f"Name: {mname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\nMethod: {self.method}\n")
+            fid.write(f"Coordinates per position: {self.coord_per_position}\n")
+            fid.write(f"Chromosomes: {self.chr_names}\n")
+            fid.write("Methylation:\n")
+            for chrom in range(len(self.methylation)):
+                meth = self.methylation[chrom]
+                fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
+            fid.write("Coverage:\n")
+            for chrom in range(len(self.coverage)):
+                cov = self.coverage[chrom]
+                fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, cov))}\n")
+            
+        
 
 
 if __name__ == "__main__":
