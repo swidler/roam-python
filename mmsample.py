@@ -5,6 +5,7 @@ import numpy as np
 from chroms import Chrom
 from config import *
 import sys
+import re
 
 class Mmsample(Chrom):
     """Modern methylation sample class
@@ -191,18 +192,21 @@ class Mmsample(Chrom):
                                 tot_cov1 = int(fields1[4]) + int(fields1[5])
                                 cov[chr_ind][i*2+1] = tot_cov1
                     else:
+                        success = False
                         try:
                             i = coord_map[chr_ind][start1]  # get index of first start pos in gc
+                            success = True
                         except:
                             unmatched_counter[chr_ind] += 1
-                        matched_counter[chr_ind] += 1
-                        meth[chr_ind][i*2] = fields1[3]
-                        meth[chr_ind][i*2+1] = fields2[3]
-                        if file_type == "cov":
-                            tot_cov1 = int(fields1[4]) + int(fields1[5])
-                            tot_cov2 = int(fields2[4]) + int(fields2[5])
-                            cov[chr_ind][i*2] = tot_cov1
-                            cov[chr_ind][i*2+1] = tot_cov2
+                        if success:
+                            matched_counter[chr_ind] += 1
+                            meth[chr_ind][i*2] = fields1[3]
+                            meth[chr_ind][i*2+1] = fields2[3]
+                            if file_type == "cov":
+                                tot_cov1 = int(fields1[4]) + int(fields1[5])
+                                tot_cov2 = int(fields2[4]) + int(fields2[5])
+                                cov[chr_ind][i*2] = tot_cov1
+                                cov[chr_ind][i*2+1] = tot_cov2
             else:  # not yet tested
                 for line in mmfile:
                     if "track" in line:
