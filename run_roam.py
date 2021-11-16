@@ -32,7 +32,7 @@ def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
             if not mm_flag:
                 #create Mmsample object
                 mms = m.Mmsample()
-                if bismark_infile:
+                if cfg.bismark_infile:
                     mms.create_mms_from_bismark_file()
                 else:
                     mms.create_mms_from_text_file()
