@@ -459,6 +459,7 @@ class Amsample(Chrom):
                         line = next(amfile)
                         g_to_a = line.split()
                         g_to_a = [float(x) for x in g_to_a] #convert all numbers to float
+                        g_to_a = np.array(g_to_a)
                         self.g_to_a.append(g_to_a)
                     elif (fields[0] == "tOct" or fields[0] == "c_to_t") and "True" in fields[1]:
                         line = next(amfile)
@@ -609,7 +610,7 @@ class Amsample(Chrom):
             if self.library == "single": #test this function on single stranded data
                 no_a = self.no_a[chrom]
                 g_to_a = self.g_to_a[chrom]
-                if not g_to_a:
+                if len(g_to_a) <= 0:  # check that len <= 0 instead
                     no_g = self.no_g[chrom]
                     no_g = np.array(no_g, dtype="float") #convert to numpy array in order to add elementwise
                     no_a = np.array(no_a)
