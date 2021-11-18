@@ -610,7 +610,7 @@ class Amsample(Chrom):
             if self.library == "single": #test this function on single stranded data
                 no_a = self.no_a[chrom]
                 g_to_a = self.g_to_a[chrom]
-                if len(g_to_a) <= 0:  # check that len <= 0 instead
+                if len(g_to_a) == 0:  
                     no_g = self.no_g[chrom]
                     no_g = np.array(no_g, dtype="float") #convert to numpy array in order to add elementwise
                     no_a = np.array(no_a)
