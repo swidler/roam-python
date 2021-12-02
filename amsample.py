@@ -1061,7 +1061,7 @@ class Amsample(Chrom):
         #sanity check
         #if not self.is_filtered:
         #    raise Exception(f"{self.name} is not filtered")
-        if self.coord_per_position != "1":
+        if self.coord_per_position != "1" and self.coord_per_position != 1:  # handle string and int (to cover both old and new objects)
             raise Exception(f"{self.name} is not merged")
         
         #verify reference is merged and scaled
