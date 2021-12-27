@@ -255,7 +255,7 @@ class Mmsample(Chrom):
                 self.coverage = [[] for x in range(self.no_chrs)] 
             self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
             self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
-            self.coord_per_position = "1"
+        self.coord_per_position = "1"
 
     def region_methylation(self, region, gc): 
         """Computes methylation in a region as a simple average of the values in all CpGs in the region
