@@ -637,7 +637,7 @@ class Amsample(Chrom):
             nz_ct = np.copy(no_ct) #copy array
             for x in nt_zeros:
                 nz_ct[x] = np.nan
-            #N = plt.hist(nz_ct,bins=range(int(thresh)))
+            #N = plt.hist(nz_ct,bins=range(int(thresh)), label="coverage")
             more_to_remove = []
             if strict:
                 print("in strict loop") #handle later
@@ -653,7 +653,8 @@ class Amsample(Chrom):
             else:
                 xlabel = f"Chromosome #{chrom+1}"
             #plt.xlabel(xlabel)
-            #plt.show()
+            #plt.show(block=False)
+            #plt.draw()
 
             #remove outliers
             to_remove = [to_remove, more_to_remove] #more_to_remove gets vals in skipped strict loop
@@ -772,7 +773,8 @@ class Amsample(Chrom):
             ylabel = "%removed(coverage)/total(coverage)"
             #plt.ylabel(ylabel)
             #plt.grid(True)
-            #plt.show()
+            #plt.show(block=False)
+            #plt.draw()
 
             #plot ratio of removed to total
             tot = sum(no_pos_tot)
@@ -982,7 +984,7 @@ class Amsample(Chrom):
                     else:
                         print(f"Chromosome #{chrom} had already gone through merger")
                 else:
-                    f_ams.coord_per_position = "1"
+                    #f_ams.coord_per_position = "1"
                     if f_ams.library == "double":
                         operation = "max"
                     else:
@@ -998,6 +1000,8 @@ class Amsample(Chrom):
             if f_ams.g_to_a: f_ams.g_to_a[chrom] = []
             if f_ams.c_to_t: f_ams.c_to_t[chrom] = []
             tot_removed = tot_removed + no_removed
+        if merge and f_ams.coord_per_position != "1":
+            f_ams.coord_per_position = "1"
         f_ams.is_filtered = True
         print(f"In total {tot_removed:,d} positions were removed")
         #close file
