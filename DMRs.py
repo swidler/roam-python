@@ -66,7 +66,7 @@ class DMRs:
             
             # find the precise extent of the DMR
             maxQt = max(iQt[start:end])
-            CpGs_inDMR = int(np.where(iQt[start:end]==maxQt)[0]) +1  # to get number of elements, rather than index
+            CpGs_inDMR = int(np.where(iQt[start:end]==maxQt)[0][-1]) +1  # to get number of elements, rather than index
             
             # compute the true beginning and end of the DMR in the vectors
             # (remember that iQt has an extra first value and is longer by one)
@@ -104,10 +104,17 @@ class DMRs:
         Output: populated samp_meth array
         """
         for dmr in range(cdmr.no_DMRs):
-                region = f"{cdmr.chromosome}:{cdmr.gen_start[dmr]}-{cdmr.gen_end[dmr]}"
-                reg_std = t.standardize_region(region)
+                #region = f"{cdmr.chromosome}:{cdmr.gen_start[dmr]}-{cdmr.gen_end[dmr]}"
+                region = {
+                    "chrom":cdmr.chromosome,
+                    "start":cdmr.gen_start[dmr],
+                    "end":cdmr.gen_end[dmr]
+                    }
+                #reg_std = t.standardize_region(region)
+                #import cProfile
                 for samp in range(no_samples):
-                    samp_meth[samp,dmr] = samples[samp].region_methylation(reg_std, coord)
+                    samp_meth[samp,dmr] = samples[samp].region_methylation(region, coord, standardize=False)
+                    #cProfile.runctx("samp_meth[samp,dmr] = samples[samp].region_methylation(region, coord)", globals=globals(), locals=locals(), filename="data/logs/regmeth_in_profile")
         return(samp_meth)    
     
     @staticmethod
@@ -423,6 +430,8 @@ class DMRs:
             cdm[chrom].chromosome = chromosomes[chrom]
             # compute methylation in each sample
             samp_meth = np.zeros((len(samples),cdm[chrom].no_DMRs))
+            #import cProfile
+            #cProfile.runctx("samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)", globals=globals(), locals=locals(), filename="data/logs/regmeth_profile")
             samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)
             meth = np.array(cdm[chrom].methylation)
             meth = np.transpose(meth)
