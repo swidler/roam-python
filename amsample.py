@@ -3,7 +3,7 @@
 import tools as t
 import numpy as np
 import math
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import matplotlib.mlab as mlab
 import scipy.stats as stats
 import copy
@@ -16,6 +16,7 @@ import glob
 import re
 from config import *
 import sys
+
 
 class Amsample(Chrom):
     """Ancient methylation sample class
@@ -575,6 +576,7 @@ class Amsample(Chrom):
         
         #initialize
         no_chrs = self.no_chrs
+        #no_chrs = 3
         eff_coverage = np.zeros(no_chrs)
         coverage_threshold = np.zeros(no_chrs)
         c_to_t_threshold = [None] * no_chrs #set number of elements to add later by chrom index (use append instead?)
@@ -584,7 +586,7 @@ class Amsample(Chrom):
         no_rows = math.floor(math.sqrt(no_chrs))
         if no_rows:
             no_cols = math.ceil(no_chrs/no_rows)
-        #fig_coverage = plt.figure("coverage") #if we decide to plot figures, find faster utility
+        #fig_coverage = plt.figure("coverage") 
         #fig_coverage.suptitle(self.name)
         #fig_perc_removed_per_coverage = plt.figure("removed_per_coverage");
         #fig_perc_removed_per_coverage.suptitle(self.name)
@@ -592,6 +594,9 @@ class Amsample(Chrom):
         #fig_perc_removed.suptitle(self.name)
         
         #Loop on chromosomes
+        time = datetime.datetime.now()
+        time = time.strftime("%d-%m-%Y_%H_%M")
+            
         for chrom in range(no_chrs):
             #report
             if self.chr_names:
@@ -637,25 +642,30 @@ class Amsample(Chrom):
             nz_ct = np.copy(no_ct) #copy array
             for x in nt_zeros:
                 nz_ct[x] = np.nan
-            #N = plt.hist(nz_ct,bins=range(int(thresh)), label="coverage")
+            
             more_to_remove = []
             if strict:
                 print("in strict loop") #handle later
             coverage_threshold[chrom] = thresh
             
             #plot the coverage
-            #plt.figure("coverage")
-            #plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
-            #plt.bar(len(N[0]), N[0])
-            #plt.plot([thresh, thresh], list(plt.gca().get_ylim()), "k")
+            plt.figure("coverage", figsize=[15, 10]) #plots chr1 in sep window
+            plt.suptitle(self.name)
+            plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num ##plots rest of chroms in 1 window, chr labeling off by 1
+            
             if self.chr_names:
                 xlabel = self.chr_names[chrom]
             else:
                 xlabel = f"Chromosome #{chrom+1}"
-            #plt.xlabel(xlabel)
-            #plt.show(block=False)
-            #plt.draw()
-
+            
+            plt.xlabel(xlabel)
+            N = plt.hist(nz_ct,bins=range(int(thresh)), label="coverage") #creates plots for coverage
+            #plt.bar(len(N[0]), N[0])
+            plt.plot([thresh, thresh], list(plt.gca().get_ylim()), "k")
+            plt.subplots_adjust(wspace=.5, hspace=.5)
+            pic_file = picdir + self.name + "_cov_" + time
+            plt.savefig(pic_file)
+        
             #remove outliers
             to_remove = [to_remove, more_to_remove] #more_to_remove gets vals in skipped strict loop
             for x in to_remove:
@@ -758,38 +768,46 @@ class Amsample(Chrom):
                     no_ct[x] = np.nan #assumes 1d array
                 for x in more_to_remove:
                     no_t[x] = np.nan
+            
             c_to_t_threshold[chrom] = th_c2g
 
             #plot ratio of removed to total per coverage
             quotient = no_pos_removed/no_pos_tot*100
-            #plt.figure("removed_per_coverage")
-            #plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
-            #plt.plot(chr_cov,quotient,"bp")
+            plt.figure("removed_per_coverage", figsize=[15, 10])
+            plt.subplot(no_rows,no_cols,chrom+1) #chrom num, not index num
+            plt.plot(chr_cov,quotient,"b.")
             if self.chr_names:
                 xlabel = self.chr_names[chrom]
             else:
                 xlabel = f"Chromosome #{chrom+1}"
-            #plt.xlabel(xlabel)
-            ylabel = "%removed(coverage)/total(coverage)"
-            #plt.ylabel(ylabel)
-            #plt.grid(True)
-            #plt.show(block=False)
-            #plt.draw()
+            plt.xlabel(xlabel, fontsize=9)
+            ylabel = "%removed(coverage)/\ntotal(coverage)"
+            plt.ylabel(ylabel, fontsize=9)
+            plt.grid(True)
+            plt.subplots_adjust(wspace=.5, hspace=.5)
+            pic_file = picdir + self.name + "_rpc_" + time
+            plt.savefig(pic_file)
 
             #plot ratio of removed to total
             tot = sum(no_pos_tot)
-            #plt.figure("removed")
-            #plt.subplot(no_rows,no_cols,chrom+1)
-            #plt.plot(chr_cov,no_pos_removed/tot*100,"bp")
+            plt.figure("removed", figsize=[15, 10])
+            plt.subplot(no_rows,no_cols,chrom+1)
+            plt.plot(chr_cov,no_pos_removed/tot*100,"b.")
             if self.chr_names:
                 xlabel = self.chr_names[chrom]
             else:
                 xlabel = f"Chromosome #{chrom+1}"
-            #plt.xlabel(xlabel)
-            ylabel = "%removed(coverage)/total(coverage)"
-            #plt.ylabel(ylabel)
-            #plt.grid(True)
+            plt.xlabel(xlabel)
+            ylabel = "%removed(coverage)/total"
+            plt.ylabel(ylabel)
+            plt.grid(True)
+            plt.subplots_adjust(wspace=.5, hspace=.5)
+            pic_file = picdir + self.name + "_rem_" + time
+            plt.savefig(pic_file, bbox_inches="tight")
+            
         #plt.show()
+        
+        
 
         fid.close()
         self.diagnostics["effective_coverage"] = eff_coverage
