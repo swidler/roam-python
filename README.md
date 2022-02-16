@@ -3,7 +3,7 @@ RoAM project translated into Python
 
 Required modules:
 
-numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools
+numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, matplotlib
 
 Input files and other variables should be specified in config.py.
 
@@ -45,7 +45,8 @@ Running the script
     The first stage, bam, is the conversion of bam file(s) to Amsample object. It is a prerequisite to the other stages.
     It can be run by itself or with the other stages, but need not be run more than once.
     The diagnose stage computes basic statistics on each input chromosome, and recommends what thresholds to use when 
-    excluding PCR duplicates and true mutations.
+    excluding PCR duplicates and true mutations. It also generates various plots for sanity checks. These are stored as 
+    .png files in the directory specified in the config.py file.
     The next step is filter, which removes information from CpG sites that did not pass various quality control tests.
     Next, drate, estimates the deamination rate.
     The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
