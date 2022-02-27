@@ -710,16 +710,13 @@ class DMRs:
         return(tot_DMRs, no_DMRs)
     
     @staticmethod   
-    def dump_pstat(pstat):
+    def dump_pstat(pstat, fname):
         """Dumps pstat data to text file
         
         Input: pstat dictionary
         Output: text file in format pstat_<time>.txt
         """
         
-        time = datetime.datetime.now()
-        time = time.strftime("%d-%m-%Y_%H.%M")
-        fname = f"data/python_dumps/pstat_{time}.txt"
         with open(fname, "w") as fid:
             fid.write(f"Num pDMRs per chrom: {pstat['no_pDMRs']}\n")
             fid.write(f"Num observed DMRs: {pstat['no_oDMRs']}\n")
@@ -730,15 +727,12 @@ class DMRs:
             
             
     
-    def dump_DMR(self, num=1):
+    def dump_DMR(self, fname):
         """Dumps DMR object to text file.
         
         Input: DMR object, iterator
         Output: text file in format DMRs_<time>.txt (directory currently hard-coded).
         """
-        time = datetime.datetime.now()
-        time = time.strftime("%d-%m-%Y_%H.%M")
-        fname = f"data/python_dumps/DMRs_{time}.{num}.txt"
         with open(fname, "w") as fid:
             fid.write(f"Samples: {self.samples}\n")
             fid.write(f"Group Assignment: {self.groups['group_nums']}\nGroup Naming: {self.groups['group_names']}\n")
@@ -786,7 +780,7 @@ class DMRs:
      #           line = line.rstrip("\n") #remove trailing line feeds
       #          line = line.lstrip("\t") #remove leading tabs
       #          fields = line.split(":")  
-    def plotmethylation(self, chr_name, DMR_idx):
+    def plotmethylation(self, chr_name, DMR_idx, fname):
         """Creates a scatter plot of methylation by group
         
         Input: chromosome name and index of DMR of interest
@@ -821,7 +815,8 @@ class DMRs:
                 plt.vlines(gs[x],0,1)
             plt.text(0.5*(gs[x-1]+gs[x]), 1.03, self.groups["group_names"][x-1], ha="center")
             plt.hlines(meth_groups[x-1], gs[x-1], gs[x], linestyles="dotted", linewidths=1)
-        plt.show()
+        #plt.show()
+        plt.savefig(fname)
         
         
 
