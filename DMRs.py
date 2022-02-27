@@ -11,7 +11,7 @@ import gcoordinates as gcoord
 import copy
 import math
 import random
-from dask.array.random import permutation
+import matplotlib.pyplot as plt
 
 class DMRs:
     """Differentially methylated region class
@@ -740,31 +740,90 @@ class DMRs:
         time = time.strftime("%d-%m-%Y_%H.%M")
         fname = f"data/python_dumps/DMRs_{time}.{num}.txt"
         with open(fname, "w") as fid:
-            fid.write(f"Samples:\n\t{self.samples}\n")
-            fid.write(f"Groups:\n\tAssignment: {self.groups['group_nums']}\n\tNaming: {self.groups['group_names']}\n")
-            fid.write(f"Species:\n\t{self.species}\n")
-            fid.write(f"Ancient samples:\n\t{self.is_ancient}\n")
-            fid.write(f"Reference:\n\t{self.reference}\n")
-            fid.write(f"Chromosomes:\n\t{self.chromosomes}\n")
-            fid.write(f"Algorithm:\n\t{self.algorithm}\n")
+            fid.write(f"Samples: {self.samples}\n")
+            fid.write(f"Group Assignment: {self.groups['group_nums']}\nGroup Naming: {self.groups['group_names']}\n")
+            fid.write(f"Species: {self.species}\n")
+            fid.write(f"Ancient samples: {self.is_ancient}\n")
+            fid.write(f"Reference: {self.reference}\n")
+            fid.write(f"Chromosomes: {self.chromosomes}\n")
+            #fid.write(f"Algorithm: {self.algorithm}\n")
+            i = 0
+            for key in self.algorithm:
+                if key == "win_size":
+                    fid.write(f"\twin_size:\n")
+                    for sample in self.algorithm[key]:
+                        s_name = self.samples[i]
+                        fid.write(f"\t\t{s_name}: {sample}\n")
+                        i += 1
+                else:
+                    fid.write(f"\t{key}: {self.algorithm[key]}\n")
             fid.write("cDMRs:\n")
             for chrom in range(self.no_chromosomes):
                 fid.write(f"\tChrom {self.chromosomes[chrom]}:\n")
                 fid.write(f"\t\tNumber of DMRs: {self.cDMRs[chrom].no_DMRs}\n")
-                fid.write(f"\t\tCpG starts:\n\t\t\t{self.cDMRs[chrom].CpG_start}\n")
-                fid.write(f"\t\tCpG ends:\n\t\t\t{self.cDMRs[chrom].CpG_end}\n")
-                fid.write(f"\t\tNumber of CpGs:\n\t\t\t{self.cDMRs[chrom].no_CpGs}\n")
-                fid.write(f"\t\tGenomic starts:\n\t\t\t{self.cDMRs[chrom].gen_start}\n")
-                fid.write(f"\t\tGenomic ends:\n\t\t\t{self.cDMRs[chrom].gen_end}\n")
-                fid.write(f"\t\tNumber of bases:\n\t\t\t{self.cDMRs[chrom].no_bases}\n")
-                fid.write(f"\t\tMax Qts:\n\t\t\t{self.cDMRs[chrom].max_Qt}\n")
-                fid.write("\t\tMethylation:\n")
+                fid.write(f"\t\tCpG starts: {self.cDMRs[chrom].CpG_start}\n")
+                fid.write(f"\t\tCpG ends: {self.cDMRs[chrom].CpG_end}\n")
+                fid.write(f"\t\tNumber of CpGs: {self.cDMRs[chrom].no_CpGs}\n")
+                fid.write(f"\t\tGenomic starts: {self.cDMRs[chrom].gen_start}\n")
+                fid.write(f"\t\tGenomic ends: {self.cDMRs[chrom].gen_end}\n")
+                fid.write(f"\t\tNumber of bases: {self.cDMRs[chrom].no_bases}\n")
+                fid.write(f"\t\tMax Qts: {self.cDMRs[chrom].max_Qt}\n")
+                fid.write("\t\tMethylation: ")
                 for meth in range(len(self.cDMRs[chrom].methylation)):
-                    fid.write(f"\t\t\t{self.cDMRs[chrom].methylation[meth]}\n")
-                fid.write(f"\t\tAnnotation:\n\t\t\t{self.cDMRs[chrom].annotation}\n")
+                    fid.write(f"{self.cDMRs[chrom].methylation[meth]}\n")
+                fid.write(f"\t\tAnnotation: {self.cDMRs[chrom].annotation}\n")
                 
             
-            
+    #def parse_infile(self, infile):
+     #   """Populate DMR object from text file
+     #   
+     #   Input: empty DMR object, file name
+     #   Output: populated DMR object
+      #  """      
+        
+     #   with open(infile, "rt") as dmrfile:
+     #       for line in dmrfile:
+     #           line = line.rstrip("\n") #remove trailing line feeds
+      #          line = line.lstrip("\t") #remove leading tabs
+      #          fields = line.split(":")  
+    def plotmethylation(self, chr_name, DMR_idx):
+        """Creates a scatter plot of methylation by group
+        
+        Input: chromosome name and index of DMR of interest
+        Output: png file of scatter plot
+        """
+        
+        # get chrom index by name
+        chrom = self.chromosomes.index(chr_name)
+        
+        # reorder samples by groups
+        pos_flat = [x for y in self.groups["positions"] for x in y]
+        samp_by_grp = [self.samples[x] for x in pos_flat]
+        
+        # get methylation values
+        meth_groups = self.cDMRs[chrom].methylation[range(self.groups["no_groups"])]
+        meth_groups = meth_groups[:, DMR_idx]
+        meth_samples = self.cDMRs[chrom].methylation[:, DMR_idx][-self.no_samples:]
+        meth_samples = [meth_samples[x] for x in pos_flat]
+        
+        # scatter plot
+        plt.scatter(range(self.no_samples), meth_samples)
+        plt.xlim(-0.5, self.no_samples-0.5)
+        plt.ylim(0,1)
+        plt.xticks(ticks=range(self.no_samples), labels=samp_by_grp, rotation=90)
+        plt.ylabel("Methylation")
+        
+        # beautify
+        gs = np.cumsum(np.array([len(x) for x in self.groups["positions"]]))
+        gs = -0.5 + np.insert(gs, 0, 0)
+        for x in range(1,len(gs)):
+            if x < len(gs)-1:
+                plt.vlines(gs[x],0,1)
+            plt.text(0.5*(gs[x-1]+gs[x]), 1.03, self.groups["group_names"][x-1], ha="center")
+            plt.hlines(meth_groups[x-1], gs[x-1], gs[x], linestyles="dotted", linewidths=1)
+        plt.show()
+        
+        
 
 
 
