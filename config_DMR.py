@@ -2,7 +2,7 @@
 object_dir = "directory for pickled objects"
 # eg object_dir = "objects/"
 dump_dir = "directory for output txt files and pics"
-# eg dump_dir = "data/python_dumps/"
+# eg dump_dir = "data/python_dumps/DMR/"
 
 # files
 gc_object = object_dir + "cpg_coords.P"  # CpG file
