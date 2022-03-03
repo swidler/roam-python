@@ -550,7 +550,10 @@ class Amsample(Chrom):
         chr_ind = self.index([chrom])[0] #find index of chrom in ams object
         no_t = np.nansum(self.no_t[chr_ind][cpg_start:cpg_end+1])
         no_ct = no_t + np.nansum(self.no_c[chr_ind][cpg_start:cpg_end+1])
-        meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
+        if self.methylation:
+            meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
+        else:  # used for DMRs (pooled_methylation) for samples that are pre-reconstruct_methylation
+            meth = no_t/(no_ct * self.d_rate["rate"]["global"])  # slope = 1/global drate, ignore intercept
         if not np.isnan(meth):
             meth = min(max(meth,0),1)
         return meth
