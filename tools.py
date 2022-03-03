@@ -305,22 +305,22 @@ def determine_shared_winsize(samples, chrom, coverage=[], drate=[], min_meth=0.2
         if len(coverage) != no_samples:
             print(f"inserted coverage vector (length {len(coverage)}) does not match the number of samples ({no_samples}).")
             print("Ignoring user input.")
-            coverage = np.nan*np.ones(no_samples)
-            for samp in range(no_samples):
-                chr_num = samples[samp].index([chrom])[0]
-                coverage[samp] = samples[samp].diagnostics["effective_coverage"][chr_num]
+            #coverage = np.nan*np.ones(no_samples)
+        for samp in range(no_samples):
+            chr_num = samples[samp].chr_names.index(chrom)
+            coverage[samp] = samples[samp].diagnostics["effective_coverage"][chr_num]
         #else:
         if len(drate) != no_samples:
             print(f"inserted drate vector (length {len(drate)}) does not match the number of samples ({no_samples}).")
             print("Ignoring user input.")
-            drate = np.nan*np.ones(no_samples)
-            for samp in range(no_samples):
-                drate[samp] = samples[samp].d_rate["rate"]["global"]
+            #drate = np.nan*np.ones(no_samples)
+        for samp in range(no_samples):
+            drate[samp] = samples[samp].d_rate["rate"]["global"]
         if min_meth>1:
             min_meth = 0.01 * min_meth
         
         #compute the window size
-        cvg = sum(coverage)  # np.sum?
+        cvg = sum(coverage)
         drate = max(drate)
         p = min_meth * drate
         win_size = np.ceil(np.log(p0)/np.log(1-p)/cvg)
