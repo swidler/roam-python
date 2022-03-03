@@ -32,6 +32,9 @@ samples = ["1116","1496","2520","4873","4875","4877","4878","4914","5077","5233"
 group_names = ["Farmers","Farmers","Farmers","HGs","HGs","HGs","HGs","HGs","Farmers","HGs","HGs","HGs"]
 delta = 0.15
 min_CpGs = 40
+min_finite = [0.8,0.8]
+win_size = "meth"  # for pre-methylation-stage samples (eg DMR), change to "auto"
+lcf = "meth"  # for pre-methylation-stage samples (eg DMR), change to value (eg 0.05)
 
 # permute vars
 num_permutations = 10
