@@ -12,6 +12,7 @@ import copy
 import math
 import random
 import matplotlib.pyplot as plt
+from builtins import isinstance
 
 class DMRs:
     """Differentially methylated region class
@@ -139,8 +140,8 @@ class DMRs:
                coord              Gcoordinates object with CpG coordinates
                d_rate_in          deamination rates for ancient samples (if empty, taken from values in sample)
                chroms             list of chromsome names
-               winsize_alg     a dictionary with parameters required to determine window size, see parameters 
-                 for determine_winsize.
+               winsize_alg        a dictionary with parameters required to determine window size, see parameters 
+                 for determine_shared_winsize.
                fname              output file name
                win_size           window size for smoothing. If 'meth', it is taken as the value used to reconstruct 
                    the methylation in each sample. If 'auto', a recommended value is computed for every chromosome
@@ -190,6 +191,11 @@ class DMRs:
         if type(lcf) == str and lcf == "meth":
             is_meth_lcf = True
             lcf = np.zeros(no_samples) #should these be nan?
+        elif isinstance(lcf, (int, float)):  # pre-methylation
+            lcf_in = lcf
+            lcf = np.zeros(no_samples)
+            for samp in range(no_samples):
+                lcf[samp] = lcf_in
         d_rate = np.zeros(no_samples)
         d_rate[:] = np.nan
         if d_rate_in:
@@ -241,11 +247,16 @@ class DMRs:
                                     win_size[samp, chrom] += 1 #make it odd
                     
         else:
-            win_size = np.zeros(no_samples, no_chr)
+            win_size = np.zeros((no_samples, no_chr))
+            coverage = np.nan*np.ones(no_samples)
+            drate = np.nan*np.ones(no_samples)
+            winsize_alg["coverage"] = coverage
+            winsize_alg["drate"] = drate
             for samp in range(no_samples):
                 for chrom in range(no_chr):
-                    chr_ind = samples[samp].index(chromosomes[chrom]) #enough just to use chrom?
-                    win_size[samp, chrom] = t.determine_shared_winsize(samples, chr_ind, **winsize_alg)  # TEST
+                    chr_ind = samples[samp].chr_names.index(chromosomes[chrom]) #enough just to use chrom? this doesn't assume same order
+                    chr_name = chromosomes[chr_ind] 
+                    win_size[samp, chrom] = t.determine_shared_winsize(samples, chr_name, **winsize_alg) 
             
         #group samples by type (eg farmer, hunter-gatherer)
         sample_names = [samples[x].name for x in range(len(samples))]
