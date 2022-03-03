@@ -12,7 +12,6 @@ import copy
 import math
 import random
 import matplotlib.pyplot as plt
-from builtins import isinstance
 
 class DMRs:
     """Differentially methylated region class
