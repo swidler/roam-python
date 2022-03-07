@@ -14,7 +14,7 @@ import gzip
 import datetime
 import glob
 import re
-from config import *
+from config_testing import *
 import sys
 
 
@@ -99,7 +99,7 @@ class Amsample(Chrom):
         qual_new = [x for y in qual_new for x in y]  # flatten list
         return(seq_new, qual_new)
 
-    def process_bam(self, bam, chrom_name, chrom, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, bam_chrom):
+    def process_bam(self, bam, chrom_name, chrom, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, bam_chrom):
         """Goes over bam files to extract data
         
         """
@@ -120,42 +120,9 @@ class Amsample(Chrom):
         tot_c_minus = np.zeros(chr_lengths[chrom])
         tot_t_plus = np.zeros(chr_lengths[chrom])
         tot_t_minus = np.zeros(chr_lengths[chrom])
-            #write aligned reads to file?
-        for record in records:  # these are from the genome fasta file
-            num, seq = record.id, str(record.seq)
-            if num == "chrM":
-                num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
-            if num == "chr"+chrom_name:
-                seq = seq.upper()  # change all letters to uppercase
-                c_in_genome = [1 if x == "C" else 0 for x in seq]
-                c_in_genome[-1] = 0  # c in last pos can't be cpg
-                g_in_genome = [1 if x == "G" else 0 for x in seq]
-        c_in_cpg = np.zeros(chr_lengths[chrom])
-        g_in_cpg = np.zeros(chr_lengths[chrom])
-        c_idx = []
-        g_idx = []
-        for i in range(len(c_in_genome)):
-            if c_in_genome[i] and g_in_genome[i+1]:
-                c_in_cpg[i] = 1
-                g_in_cpg[i+1] = 1
-                c_idx.append(i)
-                g_idx.append(i+1)
-        if asian_african:  # this code untested
-            mutations = [x[2] for x in asian_african if x[0] == "chr"+chrom_name]  # start coord, = 0-based point mutation pos
-            to_remove = []
-            for i in c_idx:
-                if i in mutations:
-                    to_remove.append(i)
-                    to_remove.append(i+1)
-            for i in g_idx:
-                if i in mutations:
-                    to_remove.append(i)
-                    to_remove.append(i-1)
-            for i in to_remove:
-                c_in_cpg[i] = 2
-                g_in_cpg[i] = 2
-        cpg_plus = [x for x,y in enumerate(c_in_cpg) if y == 1]
-        cpg_minus = [x for x,y in enumerate(g_in_cpg) if y == 1]
+        cpg_chrom = chrom_name
+        cpg_plus = gc.coords[chrom]-1
+        cpg_minus = gc.coords[chrom]
         for read in chrom_bam:
             if read.is_unmapped:
                 print(f"Read {read.qname} on chrom {chrom_name} is unampped. Skipping.")
@@ -242,7 +209,7 @@ class Amsample(Chrom):
         
         self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, genome_seq=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, asian_african=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
         
         Input: 
@@ -251,13 +218,11 @@ class Amsample(Chrom):
             file_per_chrom     True if there is exactly one file for each chromosome
             library            single or double
             chr_lengths        list of chromosome lengths in the same order as the chromosomes are given
-            genome_seq         name of the file with the genome sequence
             species
             chroms             list of chromosomes (defaults to chroms 1-22, X, Y)
             trim_ends          True to trim ends during processing, False if this has already been done
             mapq_thresh        threshold for read quality
             qual_thresh        threshold for read nucleotide quality
-            asian_african      for elephantid analysis, allows filtering mutation between Asian and African elephants
         
         Output: Amsample object, populated with data from bam file
         """
@@ -270,8 +235,9 @@ class Amsample(Chrom):
         self.no_a = [[]]*(len(chroms))
         self.c_to_t = [[]]*(len(chroms))
         self.g_to_a = [[]]*(len(chroms))
-        with gzip.open(genome_seq, "rt") as fas:
-            records = list(SeqIO.parse(fas, "fasta"))
+        
+        gc = t.load_object(gc_object)  # load CpG gcoordinates object
+        
         if filedir:
             filenames = glob.glob(filedir+"/*.bam")
             if file_per_chrom:
@@ -302,7 +268,7 @@ class Amsample(Chrom):
                 if bam.count(chrom_name) == 0:
                     continue
                 chrom_pos = i
-                self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
+                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
                 bam.close()
                 i += 1
         else:
@@ -324,11 +290,48 @@ class Amsample(Chrom):
             for chrom in chrom_index:
                 chrom_name = chrom_names[chrom]
                 chrom_pos = input_index[chrom]
-                self.process_bam(bam, chrom_name, chrom_pos, records, library, trim_ends, asian_african, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
+                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
             bam.close()        
         self.coord_per_position = "2"
         self.no_chrs = len(chroms)
         #add object name
+    
+    @staticmethod    
+    def create_cpg_file():  # need to turn this into a gcoordinates object
+        """Builds pickled CpG for reference genome
+        
+        Output: pickled file in format <ref_genome_name>_cpgs in object dir
+        """
+        outfile = object_dir + mod_ref + "_cpgs"
+        with gzip.open(genome_file, "rt") as fas:
+            records = list(SeqIO.parse(fas, "fasta"))
+        chromosome_cpgs = {}
+        for chrom_name in chroms:
+            chrom = chroms.index(chrom_name)
+            for record in records:  # these are from the genome fasta file
+                num, seq = record.id, str(record.seq)
+                if num == "chrM":
+                    num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
+                if num == "chr"+chrom_name or num == chrom_name:
+                    seq = seq.upper()  # change all letters to uppercase
+                    c_in_genome = [1 if x == "C" else 0 for x in seq]
+                    c_in_genome[-1] = 0  # c in last pos can't be cpg
+                    g_in_genome = [1 if x == "G" else 0 for x in seq]
+            c_in_cpg = np.zeros(chr_lengths[chrom])
+            g_in_cpg = np.zeros(chr_lengths[chrom])
+            c_idx = []
+            g_idx = []
+            for i in range(len(c_in_genome)):
+                if c_in_genome[i] and g_in_genome[i+1]:
+                    c_in_cpg[i] = 1
+                    g_in_cpg[i+1] = 1
+                    c_idx.append(i)
+                    g_idx.append(i+1)
+            cpg_plus = [x for x,y in enumerate(c_in_cpg) if y == 1]
+            cpg_minus = [x for x,y in enumerate(g_in_cpg) if y == 1]
+            cpg_vals = [cpg_plus, cpg_minus]
+            chromosome_cpgs[chrom_name] = cpg_vals
+        t.save_object(outfile, chromosome_cpgs)
 
     def parse_infile(self, infile):
         """Populate Amsample object from text file
