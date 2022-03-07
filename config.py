@@ -25,6 +25,8 @@ stages = ["bam", "diagnose", "filter", "drate", "meth"]  # stages of process. Ch
 #  specify the text file name in the text_infile var, below.
 
 # input files
+object_dir = "dir for saved objects and data structures"
+# eg object_dir = "objects/"
 filedir = "mult_file_dir"  # the dir for multiple files, or None
 
 filename = "path_to_bam_file"  # the path for the bam file (if files in filedir, above, filename = None)
@@ -36,7 +38,7 @@ text_infile = "path_to_object_textfile"  # the path for the object saved in text
 modern_infile = "bone5.txt"  # sample text file for modern genome
 bismark_infile = "Bismark file"  # this file is a .cov or .bedGraph (or None if using sample text file)
 # eg: bismark_infile = "sample5.bedGraph"
-gc_object = "objects/cpg_coords.P"  # CpG file
+gc_object = object_dir + "cpg_coords.P"  # CpG file
 mod_name = "Bone 5"  # sample (individual) name for modern genome
 mod_abbrev = "Bone5"  # sample abbreviation
 mod_spec = "Homo sapiens"  # sample species
