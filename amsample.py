@@ -14,7 +14,7 @@ import gzip
 import datetime
 import glob
 import re
-from config_testing import *
+from config import *
 import sys
 
 
