@@ -4,7 +4,7 @@ import amsample as a
 import mmsample as m
 import tools as t
 #from config import *
-import config as cfg
+import config_testing as cfg
 import glob
 
 def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
@@ -15,9 +15,9 @@ def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
     stage = cfg.stages[0]
     if stage == "bam":
        #populate object from bam file
-       ams.bam_to_am(filename=filename, library=cfg.library, chr_lengths=cfg.chr_lengths, genome_seq=cfg.genome_file, species=cfg.species, trim_ends=cfg.trim_ends, chroms=cfg.chroms, filedir=cfg.filedir, file_per_chrom=cfg.file_per_chrom)
+       ams.bam_to_am(filename=filename, library=cfg.library, chr_lengths=cfg.chr_lengths, species=cfg.species, trim_ends=cfg.trim_ends, chroms=cfg.chroms, filedir=cfg.filedir, file_per_chrom=cfg.file_per_chrom)
        # eg: ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
-       stages = cfg.stages[1:]  # remove bam stage from list
+       cfg.stages = cfg.stages[1:]  # remove bam stage from list
     else:
         #get object info from text file
         ams.parse_infile(cfg.text_infile)                                   
