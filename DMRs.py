@@ -828,6 +828,16 @@ class DMRs:
         #plt.show()
         plt.savefig(fname)
         
+    def plot(self, DMR_chrom, DMR_idx, gc, samples, gene_bed, cgi_bed, orderby="groups", widenby=0):
+        chr_idx = self.chromosomes.index(DMR_chrom)
+        start = self.cDMRs[chr_idx].gen_start[DMR_idx]
+        end = self.cDMRs[chr_idx].gen_end[DMR_idx]
+        region = {"chrom":DMR_chrom, "start":start, "end":end}
+        if orderby == "groups":
+           pos_flat = [x for y in self.groups["positions"] for x in y]
+           samples = [samples[x] for x in pos_flat]
+        t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
+        
         
 
 
