@@ -5,6 +5,8 @@ import pickle
 import scipy.stats as stats
 import re
 import sys
+import pybedtools as pbt
+
 """This module contains helper functions used in the RoAM process.
 """
 def nanmerge(arr, operation):
@@ -91,6 +93,7 @@ def load_object(filename):
     infile.close()
     return obj
 
+    
 def nansmooth(vec, winsize, mode):
     """Averages along a moving window ignoring NaNs.
     
@@ -544,6 +547,37 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         dm[j] = dmi
         j += 1
     return (m, dm)
+
+    def plot_region(region, gc, samples, gene_bed=None, cgi_bed=None, widenby=0):
+        region = standardize_region(region)  # nec?
+        no_samples = len(samples)
+        orig_start = region["start"]
+        orig_end = region["end"]
+        region["start"] = region["start"] - widenby
+        region["end"] = region["end"] + widenby
+        gc_chr = gc.chr_names.index(region["chrom"])
+        gc_chr_coords = gc.coords[gc_chr]
+        start = np.where(gc_chr_coords >= region["start"][0][0])
+        end = np.where(gc_chr_coords <= region["end"][0][-1])
+        orig_start = np.where(gc_chr_coords >= orig_start)
+        orig_end = np.where(gc_chr_coords <= orig_end)
+        width = end - start + 1
+        vals = np.zeros((no_samples, width))
+        genes = pbt.BedTool(gene_bed)
+        #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
+        genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
+        cgis = pbt.BedTool(cgi_bed)
+        for sample in range(no_samples):
+            samp_chr = sample.index([region["chrom"]])[0]
+            meth = sample.methylation["methylation"][samp_chr]
+            vals[sample] = meth[start:end+1]
+        panels = {}
+        if gene_bed:
+            panels["genes"] = {"type":"interval", "direction":True, "interval_names":True, "data":genes}
+        if cgi_bed:
+            panels["cgis"] = {"type":"interval", "direction":False, "interval_names":False, "data":cgis}
+            
+        
 
 if __name__ == "__main__":
     reg = "chr1:234,543,678-234,567,890"
