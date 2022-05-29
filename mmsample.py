@@ -40,11 +40,13 @@ class Mmsample(Chrom):
         The text file is in the format created by the Matlab dumps script associated with the mmsample class.
         """
         i = 0
+        meth_flag = 0
+        cov_flag = 0
         with open(infile, "rt") as mmfile:
             for line in mmfile:
                 line = line.rstrip("\n") #remove line feeds
                 fields = line.split(": ") 
-                if i < 6: #first 6 lines are headers
+                if i < 7: #first 7 lines are headers
                     if fields[0] == "Name":
                         self.name = fields[1]
                     elif fields[0] == "Abbreviation":
@@ -59,12 +61,28 @@ class Mmsample(Chrom):
                         coord = fields[1].split(" ")
                         coord = [int(x) for x in coord]
                         self.coord_per_position = coord[0]
-                elif i > 6: #7th line is blank, rest are chroms
-                    chrom = fields[0]
-                    meth = fields[1].split(" ")
-                    meth = [float(x) for x in meth] #convert all numbers to float (NaN is a float)
-                    self.chr_names.append(chrom)
-                    self.methylation.append(meth)
+                    elif fields[0] == "Chromosomes":
+                        self.chr_names = fields[1]
+                else:
+                    if fields[0] == "Methylation:":
+                        meth_flag = 1
+                        continue
+                    if fields[0] == "Coverage:":
+                        meth_flag = 0
+                        cov_flag = 1
+                        continue
+                    if meth_flag:
+                        chrom = fields[0]
+                        meth = fields[1].split(" ")
+                        meth = [float(x) for x in meth] #convert all numbers to float (NaN is a float)
+                        #self.chr_names.append(chrom)
+                        self.methylation.append(meth)
+                    elif cov_flag:
+                        chrom = fields[0]
+                        cov = fields[1].split(" ")
+                        cov = [float(x) for x in cov] #convert all numbers to float (NaN is a float)
+                        #self.chr_names.append(chrom)
+                        self.coverage.append(cov)
                 i += 1
         self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
     
@@ -349,7 +367,7 @@ if __name__ == "__main__":
     print(mms)
     #mms2 = Mmsample(name="First Attempt", abbrev="one", coord_per_position="2")
     #print(mms2)
-    mms.parse_infile("/mnt/x/bone_5_short.txt")
+    mms.parse_infile("data/python_dumps/Bone_5_cov_test.txt")
     print(mms)
     chr = ["chr4", "chr1", "chr7"]
     ind = mms.index(chr)
