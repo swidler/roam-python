@@ -1254,7 +1254,9 @@ class Amsample(Chrom):
         if len(intercept) == 1:
             intercept = intercept * np.ones(no_chr)
         intercept = [int(x) for x in intercept]
-
+        
+        ref.merge()
+            
         meth = []
         for chrom in range(no_chr):
             if self.chr_names:
@@ -1268,7 +1270,6 @@ class Amsample(Chrom):
             no_ct = [np.nan if x < lct else x for x in no_ct]
             #compute methylation
             c_to_t = no_t/no_ct
-            ref.merge()
             if function == "histogram":
                 # hard-coded parameters
                 ref_bins = 100
