@@ -558,7 +558,7 @@ class DMRs:
                     for hit in prom_hits:
                         if hit.name not in in_prom["name"]:
                             in_prom["name"].append(hit.name)
-                            in_prom["strand"].append(hit.strand)
+                            in_prom["strand"].append(hit.strand)  # change to int!
                 else:
                     in_prom["present"] = False
                     in_prom["strand"] = np.nan
@@ -743,7 +743,8 @@ class DMRs:
         Input: DMR object, iterator
         Output: text file in format DMRs_<time>.txt (directory currently hard-coded).
         """
-        with open(fname, "w") as fid:
+        fname_gen = fname.replace("DMRs", "DMR_gen")
+        with open(fname_gen, "w") as fid:
             fid.write(f"Samples: {self.samples}\n")
             fid.write(f"Group Assignment: {self.groups['group_nums']}\nGroup Naming: {self.groups['group_names']}\n")
             fid.write(f"Species: {self.species}\n")
@@ -761,21 +762,63 @@ class DMRs:
                         i += 1
                 else:
                     fid.write(f"\t{key}: {self.algorithm[key]}\n")
-            fid.write("cDMRs:\n")
+        samp_names = ""
+        for samp in self.samples:
+            samp_names += samp + " average methylation\t"
+        with open(fname, "w") as fid:
+            #fid.write("cDMRs:\n")
+            fid.write(f"Chrom\tDMR#\tout of\tCpG start\tCpG end\t#CpGs\tGenomic start\tGenomic end\t#bases\tMax_Qt\t{samp_names}in_CGI\tin_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
             for chrom in range(self.no_chromosomes):
-                fid.write(f"\tChrom {self.chromosomes[chrom]}:\n")
-                fid.write(f"\t\tNumber of DMRs: {self.cDMRs[chrom].no_DMRs}\n")
-                fid.write(f"\t\tCpG starts: {self.cDMRs[chrom].CpG_start}\n")
-                fid.write(f"\t\tCpG ends: {self.cDMRs[chrom].CpG_end}\n")
-                fid.write(f"\t\tNumber of CpGs: {self.cDMRs[chrom].no_CpGs}\n")
-                fid.write(f"\t\tGenomic starts: {self.cDMRs[chrom].gen_start}\n")
-                fid.write(f"\t\tGenomic ends: {self.cDMRs[chrom].gen_end}\n")
-                fid.write(f"\t\tNumber of bases: {self.cDMRs[chrom].no_bases}\n")
-                fid.write(f"\t\tMax Qts: {self.cDMRs[chrom].max_Qt}\n")
-                fid.write("\t\tMethylation: ")
-                for meth in range(len(self.cDMRs[chrom].methylation)):
-                    fid.write(f"{self.cDMRs[chrom].methylation[meth]}\n")
-                fid.write(f"\t\tAnnotation: {self.cDMRs[chrom].annotation}\n")
+                for dmr in range(self.cDMRs[chrom].no_DMRs):
+                    fid.write(f"{self.chromosomes[chrom]}\t")
+                    fid.write(f"{dmr+1}\t")
+                    fid.write(f"{self.cDMRs[chrom].no_DMRs}\t")
+                    fid.write(f"{self.cDMRs[chrom].CpG_start[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].CpG_end[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].no_CpGs[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].gen_start[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].gen_end[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].no_bases[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].max_Qt[dmr]}\t")
+                    for sample in range(self.no_samples):
+                        fid.write(f"{self.cDMRs[chrom].methylation[sample][dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_CGI']}\t")
+                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_gene']['present']}\t")
+                    name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_gene']['name']))
+                    fid.write(f"{name}\t")
+                    strand = self.cDMRs[chrom].annotation[dmr]['in_gene']['strand']
+                    if strand != strand:  # only happens when strand is nan
+                        clear_strand = strand
+                    else:
+                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                    fid.write(f"{clear_strand}\t")
+                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_prom']['present']}\t")
+                    name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_prom']['name']))
+                    fid.write(f"{name}\t")
+                    strand = self.cDMRs[chrom].annotation[dmr]['in_prom']['strand']
+                    if strand != strand:  # only happens when strand is nan
+                        clear_strand = strand
+                    else:
+                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                    fid.write(f"{clear_strand}\t")
+                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['dist']}\t")
+                    fid.write(f"{name}\t")
+                    strand = self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['strand']
+                    if strand != strand:  # only happens when strand is nan
+                        clear_strand = strand
+                    else:
+                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                    fid.write(f"{clear_strand}\t")
+                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['dist']}\t")
+                    fid.write(f"{name}\t")
+                    strand = self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['strand']
+                    if strand != strand:  # only happens when strand is nan
+                        clear_strand = strand
+                    else:
+                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                    fid.write(f"{clear_strand}\t")
+                    fid.write("\n")
+                    
                 
             
     #def parse_infile(self, infile):
