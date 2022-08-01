@@ -4,7 +4,6 @@ import tools as t
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-#import matplotlib.mlab as mlab
 import scipy.stats as stats
 import copy
 from chroms import Chrom
@@ -1324,22 +1323,23 @@ class Amsample(Chrom):
             meth.append(methi)
         self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
-    def simulate(self, degrad_rate, mms, report=True):
+    def simulate(self, mms, report=True):
         """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
             assuming a methylation given by Mmsample object.
         
-        Input: degrad_rate    the deamination rate of the Amsample object.
-               mms            Mmsample object that contains the reference methylation.
+        Input: mms            Mmsample object that contains the reference methylation.
                report         True/False indicating whether to display updates.
         Output: Amsample object with modified no_t and no_c values, based on simulation.
         """
         #initialize
-        self.name = self.name + "_(sim)"
+        if "sim" not in self.name:
+            self.name += "__sim_"
         self.is_simulated = True
 
         #make sure methylation in {mms} is scaled to [0,1]
         mms.scale()
-
+        mms.merge()
+        degrad_rate = self.d_rate["rate"]["global"]
         #parameters needed for the simulation
         meth_map = mms.get_methylation()[1]
 
@@ -1348,8 +1348,18 @@ class Amsample(Chrom):
                 print(f"Processing {self.chr_names[chrom]} ... ")
             no_c = np.array(self.no_c[chrom])
             tot_ct = no_c + self.no_t[chrom]
-            self.no_t[chrom] = np.random.binomial(tot_ct, degrad_rate*np.array(meth_map[chrom]))
-            self.no_t[chrom] = [max(0,x) for x in self.no_t[chrom]] #change bad (neg) vals resulting from nans to 0
+            ct_nan_idx = np.argwhere(np.isnan(tot_ct))
+            meth_nan_idx = np.argwhere(np.isnan(meth_map[chrom]))
+            tot_nan_idx = np.concatenate((ct_nan_idx, meth_nan_idx))
+            uniq_nan_idx = set(tot_nan_idx.flatten())
+            ct_float = [0 if i in uniq_nan_idx else tot_ct[i] for i in range(len(tot_ct))]
+            #ct_int = [int(x) for x in ct_float] #nec?
+            meth_float = [0 if i in uniq_nan_idx else meth_map[chrom][i] for i in range(len(meth_map[chrom]))]
+            #no_t = np.random.binomial(ct_int, degrad_rate*np.array(meth_float))  # np.array?
+            no_t = np.random.binomial(ct_float, degrad_rate*np.array(meth_float))  # np.array?
+            no_t_fl = no_t.astype(float)
+            no_t_fl[list(uniq_nan_idx)] = np.nan
+            self.no_t[chrom] = no_t_fl
             self.no_c[chrom] = tot_ct - self.no_t[chrom]
             if report:
                 print("done")
