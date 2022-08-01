@@ -62,7 +62,7 @@ class Mmsample(Chrom):
                         coord = [int(x) for x in coord]
                         self.coord_per_position = coord[0]
                     elif fields[0] == "Chromosomes":
-                        self.chr_names = fields[1]
+                        self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
                 else:
                     if fields[0] == "Methylation:":
                         meth_flag = 1
