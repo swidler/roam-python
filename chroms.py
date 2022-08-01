@@ -5,6 +5,7 @@ class Chrom:
     """Superclass with methods common to different sample objects
     """
     def index(self, chr_name): #find index of chrom(s) by name (input and output are lists)
+        # TODO: if it receives indices as input, they are returned untouched
         """Gives index of chromosome
         
         Input: chromosome name(s) as a list
@@ -20,7 +21,7 @@ class Chrom:
                 result.append(index)
         return result
 
-    def get_methylation(self, chrom=""):
+    def get_methylation(self, chrom=None):
         """gets the methylation vector for a specific chromosome.
         
         Input: chromomosome index or name of chromosome. If absent, methylation
