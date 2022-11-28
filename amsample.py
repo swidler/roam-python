@@ -397,7 +397,8 @@ class Amsample(Chrom):
                         max_a = [int(x) if x.isdigit() else np.nan for x in max_a] #convert all numbers to int, leave NaN alone
                         self.p_filters["max_a"] = max_a
                     elif "simulated" in fields[0]:
-                        self.is_simulated = False if "False" in fields[1] else True
+                        #self.is_simulated = False if "False" in fields[1] else True
+                        self.is_simulated = False if "False" in line else True
                     elif fields[0] == "Coordinates per position":
                         coord = fields[1].split()
                         coord = [int(x) if x.isdigit() else np.nan for x in coord] #convert all numbers to int, leave NaN alone
@@ -1088,7 +1089,7 @@ class Amsample(Chrom):
         #sanity check
         #if not self.is_filtered:
         #    raise Exception(f"{self.name} is not filtered")
-        if self.coord_per_position != "1" and self.coord_per_position != 1:  # handle string and int (to cover both old and new objects)
+        if self.coord_per_position != "1" and self.coord_per_position != 1 and 1 not in self.coord_per_position:  # handle string and int (to cover both old and new objects)
             raise Exception(f"{self.name} is not merged")
         
         #verify reference is merged and scaled
