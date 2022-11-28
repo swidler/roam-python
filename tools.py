@@ -6,6 +6,11 @@ import scipy.stats as stats
 import re
 import sys
 import pybedtools as pbt
+import matplotlib.pyplot as plt
+import matplotlib.axes as ax
+import matplotlib.patches as p
+
+from screeninfo import get_monitors
 
 """This module contains helper functions used in the RoAM process.
 """
@@ -349,7 +354,6 @@ def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
             m0       initial guess (mainly for debugging purposes)
     """
     #computer useful magnitudes
-    Tj = np.nansum(tij,0)
     no_samples = len(pi)
     #change nans to 0s
     tshape = tij.shape  # get shape to reshape vector after replacing nans
@@ -366,6 +370,8 @@ def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
     #compute more params using matrix multiplication
     Tpij = pi.dot(tij)
     Npij = pi.dot(nij)
+    #compute Tj
+    Tj = np.nansum(tij,0)
     #compute inital guess
     m = Tj / (Npij-Tpij)
     m0 = m[:]
@@ -389,7 +395,7 @@ def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
     dm = np.sqrt(1/I)
     return (m,dm,m0)
 
-def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.05, drate=[], min_finite=1, match_histogram=True, ref=None, max_iterations=20, tol=0.001):
+def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.05, drate=[], min_finite=1, match_histogram=True, ref=None, ref_winsize=0, max_iterations=20, tol=0.001):
     """Computes pooled ancient methylation.
     Input: samples            list of amSamples. Methylation is computed based on pooling of information from all these 
                 samples.
@@ -407,6 +413,7 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
                 we require data
            match_histogram    determines whether to match the histogram to that of a provided reference
            ref                an mmSample representing a reference methylome, used for the match_histogram option.
+           ref_winsize        window size used for the reference histogram.
            max_iterations     maximum number of iteration in the Newton-Raphson phase
            tol                tolerance in the Newton-Raphson phase
     Output: m                 pooled methylation. An  array, with a single entry per chromosome.
@@ -442,6 +449,12 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         win_size = []
         for chrom in chroms:
             win_size.append(determine_shared_winsize(samples, chrom, **winsize_alg))
+    # default reference winsize
+    if ref_winsize == 0:
+        ref_winsize = np.round(np.mean(win_size, 0))
+        for chrom in range(no_chr):
+            if not ref_winsize[chrom]%2: #win_size is even
+                ref_winsize[chrom] += 1 #make it odd
     # bring parameters into standard form - ref
     if ref:
         ref.merge(False)
@@ -483,7 +496,7 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         nij = np.zeros((no_samples,no_positions))
         for samp in range(no_samples):
             #[tij(samp,:), nij(samp,:)] = samples{samp}.smooth(c_idx(samp), p_alg.win_size(chr));
-            [tij[samp], nij[samp]] = samples[samp].smooth(chr_idx[samp], int(win_size[j]))
+            [tij[samp], nij[samp]] = samples[samp].smooth(chr_idx[samp], int(win_size[samp]))
             # remove regions with particularly low coverage
             #lct = findlowcoveragethreshold(nij(samp,:),p_alg.lcf(samp));
             lct = find_low_coverage_thresh(nij[samp], lcf[samp])
@@ -512,7 +525,8 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
             ref_binwidth = ref_edges[1] - ref_edges[0]
             # smooth the reference
             ref_idx = ref.index([chrom])[0]
-            vec = ref.smooth(ref_idx,win_size[j],name=chrom)[0]
+            #vec = ref.smooth(ref_idx,win_size[j],name=chrom)[0]
+            vec = ref.smooth(ref_idx,ref_winsize,name=chrom)[0]
             vec = [vec[x] for x in idx_finite[0]]
             # generate histograms
             hist = np.histogram(vec, bins=ref_edges)[0]
@@ -548,35 +562,233 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         j += 1
     return (m, dm)
 
-    def plot_region(region, gc, samples, gene_bed=None, cgi_bed=None, widenby=0):
-        region = standardize_region(region)  # nec?
-        no_samples = len(samples)
-        orig_start = region["start"]
-        orig_end = region["end"]
-        region["start"] = region["start"] - widenby
-        region["end"] = region["end"] + widenby
-        gc_chr = gc.chr_names.index(region["chrom"])
-        gc_chr_coords = gc.coords[gc_chr]
-        start = np.where(gc_chr_coords >= region["start"][0][0])
-        end = np.where(gc_chr_coords <= region["end"][0][-1])
-        orig_start = np.where(gc_chr_coords >= orig_start)
-        orig_end = np.where(gc_chr_coords <= orig_end)
-        width = end - start + 1
-        vals = np.zeros((no_samples, width))
-        genes = pbt.BedTool(gene_bed)
-        #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-        genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
-        cgis = pbt.BedTool(cgi_bed)
-        for sample in range(no_samples):
-            samp_chr = sample.index([region["chrom"]])[0]
-            meth = sample.methylation["methylation"][samp_chr]
-            vals[sample] = meth[start:end+1]
-        panels = {}
-        if gene_bed:
-            panels["genes"] = {"type":"interval", "direction":True, "interval_names":True, "data":genes}
-        if cgi_bed:
-            panels["cgis"] = {"type":"interval", "direction":False, "interval_names":False, "data":cgis}
-            
+def plot_region(region, gc, samples, gene_bed=None, cgi_bed=None, widenby=0):
+    panels = {}
+    genes = pbt.BedTool(gene_bed)
+    #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
+    genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
+    cgis = pbt.BedTool(cgi_bed)
+    if gene_bed:
+        panels["genes"] = {"type":"interval", "direction":True, "interval_names":True, "data":genes}
+    if cgi_bed:
+        panels["cgis"] = {"type":"interval", "direction":False, "interval_names":False, "data":cgis}
+    no_panels = len(panels)
+    region = standardize_region(region)  # nec?
+    no_samples = len(samples)
+    orig_start = region["start"]
+    orig_end = region["end"]
+    region["start"] = region["start"] - widenby
+    region["end"] = region["end"] + widenby
+    gc_chr = gc.chr_names.index(region["chrom"])
+    gc_chr_coords = gc.coords[gc_chr]
+    start = np.where(gc_chr_coords >= region["start"])[0][0]
+    end = np.where(gc_chr_coords <= region["end"])[0][-1]
+    orig_start = np.where(gc_chr_coords >= orig_start)[0][0]
+    orig_end = np.where(gc_chr_coords <= orig_end)[0][-1]
+    width = end - start + 1
+    vals = np.zeros((no_samples, width))
+    for sample in range(no_samples):
+        samp_chr = samples[sample].index([region["chrom"]])[0]
+        meth = samples[sample].methylation["methylation"][samp_chr]
+        vals[sample] = meth[start:end+1]
+    screen_height = get_monitors()[0].height
+    # these should go in config
+    OPTIMAL_HEIGHT_METH_LANE = 27
+    OPTIMAL_SPACE = 20
+    OPTIMAL_HEIGHT_INTERVAL_WITH_NAME = 15
+    OPTIMAL_HEIGHT_INTERVAL_NO_NAME = 5
+    OPTIMAL_HEIGHT_XSCALE = 15
+    FIG_TOP_MARGIN = 100
+    BOTTOM_MARGIN = 30
+    MIN_SHRINKAGE = 0.3
+    RIGHT_SHIFT = 0.01
+    LEFT_SHIFT = 1
+    BACK_COLOR = None
+    
+    # compute win_height
+    meth_height = OPTIMAL_HEIGHT_METH_LANE * no_samples
+    win_height = 3*OPTIMAL_SPACE + meth_height + OPTIMAL_HEIGHT_XSCALE + BOTTOM_MARGIN
+    panel_order_intervals = []
+    panel_height = {}
+    for key in panels.keys():
+        panel_order_intervals.append(panels[key])
+        if panels[key]["interval_names"]:
+            panel_height[key] = OPTIMAL_HEIGHT_INTERVAL_WITH_NAME
+            if panels[key]["direction"]:
+                panel_height[key] *= 2
+        else:
+            panel_height[key] = OPTIMAL_HEIGHT_INTERVAL_NO_NAME
+    win_height += sum(panel_height.values()) + no_panels*OPTIMAL_SPACE
+    shrinkage_factor = 1  # in config?
+    if win_height > screen_height:
+        shrinkage_factor = screen_height / win_height
+        if shrinkage_factor > MIN_SHRINKAGE:
+            win_height = screen_height
+        else:
+            shrinkage_factor = MIN_SHRINKAGE
+            win_height = MIN_SHRINKAGE * win_height
+    """
+    # y_min is the bottom y-coordinate of the figure
+    y_min = max(screen_height - win_height - FIG_TOP_MARGIN,1)
+    # open figure
+    fig = plt.subplot()
+    bbox = fig.get_window_extent()
+    pos = [bbox.xmin, y_min, bbox.width, win_height]
+    fig.set_position(pos)
+    pos_axes = pos[:]
+    pos_axes[0] += pos[2]/10
+    pos_axes[2] -= pos[2]/5
+    ax.Axes.set_position(fig, pos_axes)  # store in var?
+    """  # not sure if any of above relevant
+    
+    #fig, axes = plt.subplots()
+    #fig, [ax3, ax2, ax1] = plt.subplots(3, sharex=True)
+    fig, axes = plt.subplots(4, sharex=True)
+    plt.ylim([0,1])
+    plt.xlim([start, end])
+    ax1 = axes[-1]
+    pos = ax.Axes.get_position(ax1)
+    #pos_axes = [pos.xmin, pos.ymin, 0.8, 0.03]  # currently hardcoded. not sure how to generalize
+    pos_ax1 = [pos.xmin, pos.ymin, 0.75, 0.05]
+    ax.Axes.set_position(ax1, pos_ax1)
+    plt.setp(ax1, xlim=([start, end]), ylim=([0,0.5]))
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.get_yaxis().set_visible(False)
+    #ax.Axes.set_position(axes, pos_axes)
+    #axes.spines['top'].set_visible(False)
+    #axes.spines['left'].set_visible(False)
+    #axes.spines['right'].set_visible(False)
+    #axes.get_yaxis().set_visible(False)
+    bar_scale = max(5*round(0.2*0.1*width), 5)
+    x_start = start + np.ceil(bar_scale/2)
+    plt.axhline(y=0.1, xmin=0.08, xmax=0.18, color="k")
+    plt.text(x_start+0.05*bar_scale+4, 0.15, f"{bar_scale} CpGs")
+    
+    reg_no_chr = region.copy()
+    reg_no_chr["chrom"] = reg_no_chr["chrom"].replace("chr", "")  # to match gene file, which has chr nums, not chr<num>
+    i = -2
+    for key in panels.keys():
+        ax2 = axes[i]
+        b = panels[key]["data"]
+        if key == "genes":
+            reg_bed = f'''
+            {reg_no_chr["chrom"]} {reg_no_chr["start"]} {reg_no_chr["end"]}
+            '''
+        elif key == "cgis":
+            reg_bed = f'''
+            {region["chrom"]} {region["start"]} {region["end"]}
+            '''
+        a = pbt.BedTool(reg_bed, from_string=True)
+        intersection = b.intersect(a, u=True)
+        consolidated = intersection.merge(s=True, c="4,5,6", o="distinct")  # as yet untested. used d=-1? 
+        #still need to merge intervals?
+        interval_span = 1
+        subset = consolidated.filter(lambda x: x.strand == "+")  # count lines on plus strand
+        tot = len(subset)  # can't do len(subset) more than once (lambda?)
+        if panels[key]["direction"] == True:
+            if tot != len(consolidated) and tot != 0:  # not all on same strand
+                interval_span = 2
+        # sort intervals
+        starts = [x.start for x in consolidated]
+        ends = [x.end for x in consolidated]
+        # plot intervals
+        for i in range(len(starts)):
+        #for st in starts:
+            istart = np.where(gc_chr_coords >= starts[i])[0][0]
+            truncated_left = False
+            if istart < start:
+                truncated_left = True
+                istart = start
+        #for en in ends:
+            iend = np.where(gc_chr_coords <= ends[i])[0][-1]
+            truncated_right = False
+            if iend > end:
+                truncated_right = True
+                iend = end
+            add = 0
+            pos = ax.Axes.get_position(ax1)
+            pos_ax2 = [pos.xmin, .18, pos.width, 0.1]
+            ax.Axes.set_position(ax2, pos_ax2)
+            plt.setp(ax2, xlim=([start, end]), ylim=([0,interval_span]))
+
+
+            if interval_span == 2:
+                if consolidated[i].strand == "+":
+                    rect = p.Rectangle([istart, 0], iend-istart, 1, facecolor="black")
+                    text_y = 0.82 
+                else:
+                    rect = p.Rectangle([istart, 1], iend-istart, 2, facecolor="black")
+                    text_y = 0.32
+                    add = 1
+            else:
+                rect = p.Rectangle([istart, 0], iend-istart, 1, facecolor="black")
+                text_y = 1.05
+            ax2.add_patch(rect)
+            # add white arrows at the ends of truncated intervals
+            interval_width = iend - istart + 1
+            ar_width = min(width/30,interval_width/4)
+            if truncated_left:
+                ar_x = [start+2*ar_width, start+ar_width, start, start+ar_width, start+2*ar_width, start+ar_width]
+                ar_y = [x + add for x in [0, 0, 0.5, 1, 1, 0.5]]
+                coords = list(zip(ar_x, ar_y))
+                arrow_left = p.Polygon(coords, facecolor = 'white')
+                ax2.add_patch(arrow_left)
+            if truncated_right:
+                ar_x = [end-2*ar_width, end-ar_width, end, end-ar_width, end-2*ar_width, end-ar_width]
+                ar_y = [x + add for x in [0, 0, 0.5, 1, 1, 0.5]]
+                coords = list(zip(ar_x, ar_y))
+                arrow_right = p.Polygon(coords, facecolor = 'white')
+                ax2.add_patch(arrow_right)
+            # add name into the interval
+            if panels[key]["interval_names"] == True:
+                # place in the middle of the interval
+                name = consolidated[i].name
+                #name = "very long gene name"
+                t = plt.text(0.5*(istart+iend), add + text_y, f"{name}", color="w", ha="center")
+                #plt.draw()
+                plt.savefig("fname")
+                # if too big, move to the side
+                ext = t.get_window_extent()
+                #pos = t.get_position()
+                if ext.width > interval_width:
+                    if iend-start > end-iend:
+                    # place on the left side
+                        t.set_position([istart, add+text_y])
+                        t.set_ha("right")
+                    else:
+                        t.set_position([iend, add+text_y])
+                        t.set_ha("left")
+                    t.set_color("black")
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['left'].set_visible(False)
+            ax2.spines['right'].set_visible(False)
+            ax2.spines['bottom'].set_visible(False)
+            ax2.tick_params(bottom=False)
+            ax2.get_yaxis().set_visible(False) 
+            # write interval name
+            ax2.text(end+2, 0.5*interval_span, key.capitalize(), ha='left', va='center')  
+            # make an arrow designating interval direction
+        if starts:
+            if panels[key]["direction"] == True:
+                if interval_span == 2:
+                    ax2.annotate('', xy=(start-1, 0.5), xytext=(start-bar_scale, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
+                    ax2.annotate('', xy=(start-bar_scale, 1.5), xytext=(start-1, 1.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
+                else:
+                    if consolidated[i].strand == "+":
+                        ax2.annotate('', xy=(start-1, 0.5), xytext=(start-bar_scale, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
+                    else:
+                        ax2.annotate('', xy=(start-bar_scale, 0.5), xytext=(start-1, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
+                
+        plt.show()
+        i -= 1
+    
+    
+    
+    
+    
+
         
 
 if __name__ == "__main__":
