@@ -367,6 +367,12 @@ class DMRs:
         giS = [None]*no_groups
         for grp in range(no_groups):
             giS[grp] = positions[grp]
+        # compute reference winsize per chromosome
+        ref_winsize = np.round(np.mean(win_size, 0))
+        for chrom in range(no_chr):
+            if not ref_winsize[chrom]%2: #win_size is even
+                ref_winsize[chrom] += 1 #make it odd
+        
         #loop on chroms
         cdm = [c.cDMR() for i in range(no_chr)]
         for chrom in range(no_chr):
@@ -380,7 +386,7 @@ class DMRs:
             meth = np.zeros((no_groups, no_pos))  # methylation
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
             for grp in range(no_groups):   
-                [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref)
+                [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                 meth[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                 meth_err[grp,:] = dma[0]  # ditto
             # compute the two statistics
@@ -408,25 +414,14 @@ class DMRs:
             coordi_diff.insert(0,1)  # offset list by 1 to match orig matlab algorithm
             #  initialize {iQt_up}
             iQt_up = np.zeros(num_finite_pos+1)
-            # set idx_binary=1 only for positions whose reference methylation
-            # in group #2 is below 1-delta (otherwise, clearly there is no DMR)
-            idx_binary = np.zeros(num_finite_pos)
-            idx_binary[methi[1,:]<1-delta] = 1
-            # TODO: test the effect of idx_binary = ones(num_finite_pos,1);
             # compute {iQt_up} recursively
             for pos in range(num_finite_pos):
-                iQt_up[pos+1] = max(0, coordi_diff[pos] * idx_binary[pos] * (iQt_up[pos] + lt_up[pos]))
+                iQt_up[pos+1] = max(0, coordi_diff[pos] * (iQt_up[pos] + lt_up[pos]))
             # initialize {iQt_down}
             iQt_down = np.zeros(num_finite_pos+1)
-            # set idx_binary=1 only for positions whose methylation in group #2
-            # is above delta
-            #TODO: test idx_binary = ones(no_finite_positions,1);
-            idx_binary = np.zeros(num_finite_pos)
-            idx_binary[methi[1,:]>delta] = 1
-            #idx_binary = ones(no_finite_positions,1);
             # compute {iQt_down} recursively
             for pos in range(num_finite_pos):
-                iQt_down[pos+1] = max(0, coordi_diff[pos] * idx_binary[pos] * (iQt_down[pos] + lt_down[pos]))
+                iQt_down[pos+1] = max(0, coordi_diff[pos] * (iQt_down[pos] + lt_down[pos]))
             # make a clean version of {Qt}, that takes into account the many CpG
             # positions we had removed earlier. The function reports this vector,
             # which is useful later for plotting
@@ -880,6 +875,59 @@ class DMRs:
            pos_flat = [x for y in self.groups["positions"] for x in y]
            samples = [samples[x] for x in pos_flat]
         t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
+        
+    def run_fdr(self, sim_dmrs, thresh=0.05):
+        """Calculates the FDR between simulated DMRs and real DMRs
+
+        Input: list of simulation DMR data
+               threshold for the FDR (defult:0.05)
+        Output:       DMR object with the DMRs whose parameters (max_Qt and no_CpGs) give an FDR that is lower than the threshold
+        """
+        most_samples = 0 
+        thresh_Qt = None
+        thresh_CpG = None
+        unfiltDMRs = self.noDMRs()[0]
+        for cpg in range(max([max(self.cDMRs[x].no_CpGs) for x in range(len(self.cDMRs))])+1):
+            for qt in range(int(np.ceil(max([max(self.cDMRs[x].max_Qt) for x in range(len(self.cDMRs))]))+1)):
+                counter = 0 
+                sim_counter = np.zeros(len(sim_dmrs))
+                for chrom in range(self.no_chromosomes):
+                    tot = len(np.where((np.array(self.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(self.cDMRs[chrom].max_Qt) >=qt)))
+                    counter += tot
+                    for dm in sim_dmrs:
+                        tot = len(np.where((np.array(dm.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(dm.cDMRs[chrom].max_Qt) >=qt)))
+                        sim_counter += tot
+                ratio = np.mean(sim_counter)/counter
+                if np.isnan(ratio):
+                    continue
+                elif ratio <= thresh:
+                    if counter > most_samples:
+                        most_samples = counter
+                        thresh_Qt = qt
+                        thresh_CpG = cpg
+        if not thresh_Qt:
+            print("FDR was larger than the threshold for all parameter values")
+            filt_dm = None
+        else:
+            filt_dm = copy.deepcopy(self)
+            cdm = [c.cDMR() for i in range(self.no_chromosomes)]
+            for chrom in range(self.no_chromosomes):
+                idx = sorted(list(set(list(np.where(np.array(self.cDMRs[chrom].no_CpGs) > thresh_CpG)[0])).intersection(list(np.where(np.array(self.cDMRs[chrom].max_Qt) > thresh_Qt)[0]))))
+                cdm[chrom].CpG_start = np.array(self.cDMRs[chrom].CpG_start)[idx]
+                cdm[chrom].CpG_end = np.array(self.cDMRs[chrom].CpG_end)[idx]
+                cdm[chrom].gen_start = np.array(self.cDMRs[chrom].gen_start)[idx]
+                cdm[chrom].gen_end = np.array(self.cDMRs[chrom].gen_end)[idx]
+                cdm[chrom].no_bases = np.array(self.cDMRs[chrom].no_bases)[idx]
+                cdm[chrom].no_CpGs = np.array(self.cDMRs[chrom].no_CpGs)[idx]
+                cdm[chrom].max_Qt = np.array(self.cDMRs[chrom].max_Qt)[idx]
+                cdm[chrom].methylation = np.array([np.array(self.cDMRs[chrom].methylation[x])[idx] for x in range(len(self.cDMRs[chrom].methylation))])  # will this work?
+                cdm[chrom].no_DMRs = len(idx)
+            print(f"Qt threshold is {thresh_Qt}")
+            print(f"CpG threshold is {thresh_CpG}")
+            print(f"No_DMR after filtering is {most_samples} out of {unfiltDMRs}")
+            filt_dm.cDMRs = cdm            
+        print("done")
+                    
         
         
 
