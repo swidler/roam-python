@@ -1333,8 +1333,8 @@ class Amsample(Chrom):
         Output: Amsample object with modified no_t and no_c values, based on simulation.
         """
         #initialize
-        if "sim" not in self.name:
-            self.name += "__sim_"
+        # if "sim" not in self.name:  # not sure why this was done
+            # self.name += "__sim_"
         self.is_simulated = True
 
         #make sure methylation in {mms} is scaled to [0,1]
