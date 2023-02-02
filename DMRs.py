@@ -876,42 +876,55 @@ class DMRs:
            samples = [samples[x] for x in pos_flat]
         t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
         
-    def run_fdr(self, sim_dmrs, thresh=0.05):
-        """Calculates the FDR between simulated DMRs and real DMRs
+    def adjust_params(self, sim_dmrs, thresh=0.05):
+        """Finds parameters values that achieve a desired FDR
 
-        Input: list of simulation DMR data
+        Input: observed DMRs
+               list of simulated DMR data
                threshold for the FDR (defult:0.05)
-        Output:       DMR object with the DMRs whose parameters (max_Qt and no_CpGs) give an FDR that is lower than the threshold
+        Output:       DMR object where filters on the optimal parameters have been applied.
         """
-        most_samples = 0 
+        most_DMRs = 0 
         thresh_Qt = None
         thresh_CpG = None
-        unfiltDMRs = self.noDMRs()[0]
+        # observed number of DMRs
+        obs_noDMRs = self.noDMRs()[0]
+        # finding the largest value of the parameters
         for cpg in range(max([max(self.cDMRs[x].no_CpGs) for x in range(len(self.cDMRs))])+1):
             for qt in range(int(np.ceil(max([max(self.cDMRs[x].max_Qt) for x in range(len(self.cDMRs))]))+1)):
                 counter = 0 
                 sim_counter = np.zeros(len(sim_dmrs))
+                # make a grid search, using jumps of 1 (currently fixed default), picking the parameters that obey 
+                # FDR<threshold and providing the largest number of DMRs
                 for chrom in range(self.no_chromosomes):
-                    tot = len(np.where((np.array(self.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(self.cDMRs[chrom].max_Qt) >=qt)))
+                    tot = len(np.where((np.array(self.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(self.cDMRs[chrom].max_Qt) >=qt))[0])
                     counter += tot
+                    i = 0
                     for dm in sim_dmrs:
-                        tot = len(np.where((np.array(dm.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(dm.cDMRs[chrom].max_Qt) >=qt)))
-                        sim_counter += tot
+                        tot = len(np.where((np.array(dm.cDMRs[chrom].no_CpGs) >= cpg) & (np.array(dm.cDMRs[chrom].max_Qt) >=qt))[0])
+                        sim_counter[i] += tot
+                        i += 1
+                # evaluate FDR
                 ratio = np.mean(sim_counter)/counter
                 if np.isnan(ratio):
                     continue
                 elif ratio <= thresh:
-                    if counter > most_samples:
-                        most_samples = counter
+                    if counter > most_DMRs:
+                        most_DMRs = counter
                         thresh_Qt = qt
                         thresh_CpG = cpg
+        print(f"Qt threshold is {thresh_Qt}")
+        print(f"CpG threshold is {thresh_CpG}")
+        # recompute observed DMRs using chosen parameters    
+        adjusted_dm = copy.deepcopy(self)
         if not thresh_Qt:
             print("FDR was larger than the threshold for all parameter values")
-            filt_dm = None
         else:
-            filt_dm = copy.deepcopy(self)
+            # initalize the cDMRs object
             cdm = [c.cDMR() for i in range(self.no_chromosomes)]
+            # populate the object
             for chrom in range(self.no_chromosomes):
+                # find DMRs that pass the threshold
                 idx = sorted(list(set(list(np.where(np.array(self.cDMRs[chrom].no_CpGs) > thresh_CpG)[0])).intersection(list(np.where(np.array(self.cDMRs[chrom].max_Qt) > thresh_Qt)[0]))))
                 cdm[chrom].CpG_start = np.array(self.cDMRs[chrom].CpG_start)[idx]
                 cdm[chrom].CpG_end = np.array(self.cDMRs[chrom].CpG_end)[idx]
@@ -922,10 +935,8 @@ class DMRs:
                 cdm[chrom].max_Qt = np.array(self.cDMRs[chrom].max_Qt)[idx]
                 cdm[chrom].methylation = np.array([np.array(self.cDMRs[chrom].methylation[x])[idx] for x in range(len(self.cDMRs[chrom].methylation))])  # will this work?
                 cdm[chrom].no_DMRs = len(idx)
-            print(f"Qt threshold is {thresh_Qt}")
-            print(f"CpG threshold is {thresh_CpG}")
-            print(f"No_DMR after filtering is {most_samples} out of {unfiltDMRs}")
-            filt_dm.cDMRs = cdm            
+            print(f"{most_DMRs} out of {obs_noDMRs} DMRs remain after adjustment to FDR {thresh}")
+            adjusted_dm.cDMRs = cdm            
         print("done")
                     
         
