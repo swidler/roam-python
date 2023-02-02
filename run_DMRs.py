@@ -5,7 +5,10 @@ import amsample as a
 import mmsample as m
 import tools as t
 import datetime
+import copy
 from config_DMR import *  # import as cfg for disambiguation?
+import config as cfg
+
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
@@ -64,27 +67,30 @@ if "fdr" in stages:
         print(f"loading sample {sample}")
         input_obj = t.load_object(infile)
         samplist.append(input_obj)
-    sim_obj_list = []
+    #sim_obj_list = []
     dmr_obj_list = []
-    for perm in range(sim_permutations):
-        sim_obj_list.append({})
-        dmr_obj_list.append(d.DMRs())
-    for sample in samplist:
-        for perm in range(sim_permutations):
-            samp_name = sample.name
-            sample.simulate(mms)
-            sample.estimate_drate(ref=mms)
-            sample.reconstruct_methylation(ref=mms)
-            #dump object to text file
-            sim_obj_list[perm][samp_name] = sample
-            #sample.dump(f"simeth_{perm}")  
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names 
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     for perm in range(sim_permutations):
+        sim_obj_list = {}
+        dmr_obj_list.append(d.DMRs())
+    #for perm in range(sim_permutations):
+        for sample in samplist:
+            print(f"sample {sample.name}, perm {perm}\n")
+            samp_name = sample.name
+            samp_copy = copy.deepcopy(sample)
+            samp_copy.simulate(mms)
+            samp_copy.estimate_drate(ref=mms)
+            samp_copy.reconstruct_methylation(ref=mms)
+            #dump object to text file
+            sim_obj_list[samp_name] = samp_copy
+            del samp_copy  # will this fix memory errors?
+            #sample.dump(f"simeth_{perm}")  
+    #for perm in range(sim_permutations):
         min_finite = min_fin[:]
-        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list[perm].values()), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
-    filtered_DMR = dms.run_fdr(dmr_obj_list)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list.values()), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
+    adjusted_DMR = dms.adjust_params(dmr_obj_list)
     print("done")
     
         
