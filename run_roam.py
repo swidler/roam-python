@@ -11,19 +11,19 @@ def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
     #create Amsample object
     ams = a.Amsample(name=name, abbrev=abbrev)
     # eg: ams = a.Amsample(name="Ust_Ishim", abbrev="Ust")
-       
-    stage = cfg.stages[0]
+    stages = cfg.stages[:]   
+    stage = stages[0]
     if stage == "bam":
        #populate object from bam file
        ams.bam_to_am(filename=filename, library=cfg.library, chr_lengths=cfg.chr_lengths, species=cfg.species, trim_ends=cfg.trim_ends, chroms=cfg.chroms, filedir=cfg.filedir, file_per_chrom=cfg.file_per_chrom)
        # eg: ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
-       cfg.stages = cfg.stages[1:]  # remove bam stage from list
+       stages = stages[1:]  # remove bam stage from list 
     else:
         #get object info from text file
         ams.parse_infile(cfg.text_infile)                                   
         # eg: ams.parse_infile("data/python_dumps/ust_ishim_bam.txt")                                       
     mm_flag = 0
-    for stage in cfg.stages:
+    for stage in stages:
         if stage == "diagnose":
             ams.diagnose()
         elif stage == "filter":
