@@ -4,7 +4,7 @@ import amsample as a
 import mmsample as m
 import tools as t
 #from config import *
-import config_testing as cfg
+import config as cfg
 import glob
 
 def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev):
