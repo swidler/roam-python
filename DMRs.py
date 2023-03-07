@@ -225,8 +225,8 @@ class DMRs:
             else:
                 #Option 1: same window size for all individuals/chromosomes
                 if len(win_size) == 1:
-                    if not win_size%2: #win_size is even
-                        win_size += 1 #make it odd
+                    if not win_size[0]%2: #win_size is even
+                        win_size[0] += 1 #make it odd
                     win_size = win_size * np.ones((no_samples, no_chr))
                     
                 #same W for all chromosomes of an individual
