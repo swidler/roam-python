@@ -28,6 +28,8 @@ class Chrom:
         from all chromosomes is returned.
         Output: chromosome name(s) and corresponding methylation, each as a list (returned in a tuple).
         """
+        # todo: add option to take a list of specific chromosomes
+        
         if isinstance(chrom, str): #chrom name entered
             index = self.chr_names.index(chrom) #get index of chrom by name
             result = (chrom, self.methylation[index])

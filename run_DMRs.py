@@ -21,7 +21,7 @@ if "create_files" in stages:
         t.save_object(outfile, ams)
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
-    chr_names = gc.chr_names 
+    chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     samplist = []
     #for the next step, all input files must be pickled
@@ -70,7 +70,7 @@ if "fdr" in stages:
     #sim_obj_list = []
     dmr_obj_list = []
     gc = t.load_object(gc_object)
-    chr_names = gc.chr_names 
+    chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     for perm in range(sim_permutations):
         sim_obj_list = {}
