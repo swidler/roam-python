@@ -1324,7 +1324,7 @@ class Amsample(Chrom):
             meth.append(methi)
         self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
-    def simulate(self, mms, report=True):
+    def simulate(self, mms, report=True, chrom=None):
         """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
             assuming a methylation given by Mmsample object.
         
@@ -1342,7 +1342,7 @@ class Amsample(Chrom):
         mms.merge()
         degrad_rate = self.d_rate["rate"]["global"]
         #parameters needed for the simulation
-        meth_map = mms.get_methylation()[1]
+        meth_map = mms.get_methylation(chrom=chrom)[1]
 
         for chrom in range(self.no_chrs):
             if report:
