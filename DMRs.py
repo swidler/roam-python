@@ -187,7 +187,7 @@ class DMRs:
         else:
             is_auto_win = False
             is_meth_win = False
-        if type(lcf) == str and lcf == "meth":
+        if type(lcf) == str and lcf == "meth":  # buggy?
             is_meth_lcf = True
             lcf = np.zeros(no_samples) #should these be nan?
         elif isinstance(lcf, (int, float)):  # pre-methylation
@@ -917,7 +917,8 @@ class DMRs:
         print(f"CpG threshold is {thresh_CpG}")
         # recompute observed DMRs using chosen parameters    
         adjusted_dm = copy.deepcopy(self)
-        if not thresh_Qt:
+        #if not thresh_Qt:  # causes errors
+        if thresh_Qt == None:
             print("FDR was larger than the threshold for all parameter values")
         else:
             # initalize the cDMRs object
@@ -925,7 +926,7 @@ class DMRs:
             # populate the object
             for chrom in range(self.no_chromosomes):
                 # find DMRs that pass the threshold
-                idx = sorted(list(set(list(np.where(np.array(self.cDMRs[chrom].no_CpGs) > thresh_CpG)[0])).intersection(list(np.where(np.array(self.cDMRs[chrom].max_Qt) > thresh_Qt)[0]))))
+                idx = sorted(list(set(list(np.where(np.array(self.cDMRs[chrom].no_CpGs) >= thresh_CpG)[0])).intersection(list(np.where(np.array(self.cDMRs[chrom].max_Qt) >= thresh_Qt)[0]))))
                 cdm[chrom].CpG_start = np.array(self.cDMRs[chrom].CpG_start)[idx]
                 cdm[chrom].CpG_end = np.array(self.cDMRs[chrom].CpG_end)[idx]
                 cdm[chrom].gen_start = np.array(self.cDMRs[chrom].gen_start)[idx]
