@@ -350,9 +350,9 @@ class Amsample(Chrom):
                 if len(fields) > 1:
                     fields[1] = fields[1].lstrip() #remove leading space
                 if i < 6: #first 6 lines are headers
-                    if fields[0] == "Name" and name == None:
+                    if fields[0] == "Name" and (self.name == None or self.name == "unknown"):
                         self.name = fields[1]
-                    elif fields[0] == "Abbreviation" and abbrev == None:
+                    elif fields[0] == "Abbreviation" and (self.abbrev == None or self.abbrev == "unk"):
                         self.abbrev = fields[1]
                     elif fields[0] == "Species":
                         self.species = fields[1]
