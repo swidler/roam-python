@@ -41,7 +41,13 @@ Running the scripts
 
     To run RoAM, start by editing the variables in the config.py file. These include input and output filenames, 
     sample name, a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. 
-    The stages are "bam", "diagnose", "filter", "drate", and "meth".
+    The first 4 variables, input (.bam) file, name, abbreviation, and library (single or double stranded) are required. 
+    The rest have defaults loaded, but be sure to put all necessary files in the proper directory (default is the current directory).
+    
+    The script can also be run from the commnd line, using flags for the 4 required parameters, as follows:
+    run_roam.py -f "path to bam file" -n "sample name" -a "sample abbreviation" -l "library--single or double"
+    
+    The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth".
     The first stage, bam, is the conversion of bam file(s) to Amsample object. It is a prerequisite to the other stages.
     It can be run by itself or with the other stages, but need not be run more than once.
     The diagnose stage computes basic statistics on each input chromosome, and recommends what thresholds to use when 
