@@ -208,7 +208,7 @@ class Amsample(Chrom):
         
         self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
         
         Input: 
@@ -222,6 +222,7 @@ class Amsample(Chrom):
             trim_ends          True to trim ends during processing, False if this has already been done
             mapq_thresh        threshold for read quality
             qual_thresh        threshold for read nucleotide quality
+            gc_object          path for CpG file
         
         Output: Amsample object, populated with data from bam file
         """
@@ -561,7 +562,7 @@ class Amsample(Chrom):
             meth = min(max(meth,0),1)
         return meth
 
-    def diagnose(self, fname=None, span=5, strict=True, tolerance=1e-3, compare=True, max_c_to_t=0.25, max_g_to_a=0.25, max_coverage=100, low_coverage=1):
+    def diagnose(self, fname=None, span=5, strict=True, tolerance=1e-3, compare=True, max_c_to_t=0.25, max_g_to_a=0.25, max_coverage=100, low_coverage=1, logdir=None, picdir=None):
         """Computes basic statistics on each input chromosome, and recommends what thresholds to use when excluding 
             PCR duplicates and true mutations.
             
@@ -836,7 +837,7 @@ class Amsample(Chrom):
         to_remove = np.unique(to_remove)
         return to_remove
 
-    def filter(self, max_c_to_t = None, min_t = 1, merge = True, fname = None, max_g_to_a = .25, max_a = 1, method = None, max_coverage = None, max_TsPerCoverage = None):
+    def filter(self, max_c_to_t = None, min_t = 1, merge = True, fname = None, max_g_to_a = .25, max_a = 1, method = None, max_coverage = None, max_TsPerCoverage = None, logdir=None):
         """Removes information from CpG sites that did not pass various quality control tests
         
         Input:    max_c_to_t         threshold used to identify sites with a true C->T mutation. All positions 
@@ -1365,16 +1366,17 @@ class Amsample(Chrom):
             if report:
                 print("done")
 
-    def dump(self, stage, chroms=None):
+    def dump(self, stage, chroms=None, dir=outdir):
         """Dumps Amsample object to text file.
         
         Input: stage    name indicating which part of the process has been dumped, for use in file name.
                chroms   indices of chromsomes to dump. 
+               dir      output directory, specified in input params or config file
         Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
         """
         aname = self.name
         aname = re.sub("\s", "_", aname)
-        fname = outdir + aname + "_" + stage + ".txt"
+        fname = dir + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\n")
             fid.write(f"Library: {self.library}\n")
