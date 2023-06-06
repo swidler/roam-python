@@ -86,10 +86,10 @@ class Mmsample(Chrom):
                 i += 1
         self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
     
-    def bismark_to_mm(self, bisfile, gc_object):
+    def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_abbrev, mod_spec, mod_ref, mod_method):
         """Converts Bismark result file (.cov or .bedGraph) into mmsample object
         
-        Input: empty Mmsample object, Bismark file name, gcoordinates object (reference)
+        Input: empty Mmsample object, Bismark file name, gcoordinates object (reference), modern sample specifics
         Output: populated Mmsample object
         """
         gc = t.load_object(gc_object)
@@ -311,11 +311,11 @@ class Mmsample(Chrom):
         weights = zero_for_nan/variance
         return (smooth_vec, weights)
     
-    def create_mms_from_text_file(self):
-        self.parse_infile(modern_infile)
+    def create_mms_from_text_file(self, mod_infile):
+        self.parse_infile(mod_infile)
         
-    def create_mms_from_bismark_file(self):
-        self.bismark_to_mm(bismark_infile, gc_object)
+    def create_mms_from_bismark_file(self, bis_infile, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method):
+        self.bismark_to_mm(bis_infile, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
         
     def to_m(self, chroms=None):
         """Transforms methylation beta-values to M-values.
