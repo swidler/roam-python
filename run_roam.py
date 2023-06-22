@@ -9,7 +9,7 @@ import glob
 import argparse
 import sys
 
-# first 4 (required) params from config can be specified on the command line
+# params from config can be specified on the command line
 argParser = argparse.ArgumentParser()
 argParser.add_argument("-f", "--filename", help="path of bam input file")
 argParser.add_argument("-l", "--library", help="single or double stranded")
@@ -34,7 +34,7 @@ argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-mn", "--mname", help="modern sample name")
-argParser.add_argument("-ma", "--mabbrev", help="mdern sample abbreviation")
+argParser.add_argument("-ma", "--mabbrev", help="modern sample abbreviation")
 argParser.add_argument("-ms", "--mspecies", help="modern sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
@@ -75,8 +75,8 @@ def roam_pipeline(**params):
         species = params["species"] if "species" in params else cfg.species
         trim = params["trim"] if "trim" in params else cfg.trim_ends
         chroms = params["chroms"] if "chroms" in params else cfg.chroms
-        mapq = params["mapq"] if "mapq" in params else cfg.mapq_thresh
-        qual = params["qual"] if "qual" in params else cfg.qual_thresh
+        mapq = int(params["mapq"]) if "mapq" in params else cfg.mapq_thresh
+        qual = int(params["qual"]) if "qual" in params else cfg.qual_thresh
         gc = params["gc_file"] if "gc_file" in params else cfg.gc_object
         
 #populate object from bam file
