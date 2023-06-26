@@ -1,9 +1,9 @@
 # dirs
-object_dir = "directory for pickled objects"
+object_dir = ""  # directory for pickled objects--defaults to ""
 # eg object_dir = "objects/"
-data_dir = "directory for data files from RoAM process"
+data_dir = ""  # directory for data files from RoAM process--defaults to ""
 # eg data_dir = "data/python_dumps/"
-dump_dir = "directory for output txt files and pics"
+dump_dir = ""  # directory for output txt files and pics--defaults to ""
 # eg dump_dir = data_dir + "DMR/"
 
 
@@ -17,10 +17,11 @@ DMP_obj_infile = "pickled DMR permutation file for use in permutstat"
 # eg DMP_obj_infile = object_dir + "DMP_obj27-02-2022_12.21"
 
 # filename vars
-templ = "template to match any extra text in sample file"
-# eg templ = "filt_"
+#templ = "template to match any extra text in sample file"
+# eg 
+templ = "_meth"
 
-stages = ["create_files", "DMR", "permute", "permutstat", "plotmethylation"] # stages in the process. Change to reflect what you want to run.
+stages = ["create_files", "DMR", "fdr", "permute", "permutstat", "plotmethylation"] # stages in the process. Change to reflect what you want to run.
 # DMR runs the groupDMR process and the annotation. It can be run independently or in conjunction with permutation stages.
 # Permutation stages (permute runs permutations, permutstat calculates permutation statistics) can be run independently as 
 # long as they have a DMR file to work with. The plotmethylation method also requires a DMR file.
@@ -38,7 +39,7 @@ lcf = "meth"  # for pre-methylation-stage samples (eg DMR), change to value (eg 
 
 # permute vars
 num_permutations = 10
-
+sim_permutations = 5
 # plotmethylation vars
 # index number of desired DMR (indexing is zero-based!) and chromosome name
 DMR_idx = 0
