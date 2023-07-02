@@ -81,7 +81,7 @@ if "DMR" in stages or "permute" in stages or "plot" in stages:
     print(samples)
 if "DMR" in stages:
     dms = d.DMRs()
-else:
+elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotmethylation" in stages or "plot" in stages:
     DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else cfg.DMR_obj_infile
     dms = t.load_object(DMR_obj_infile)
 if "DMR" in stages:
