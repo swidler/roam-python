@@ -73,8 +73,8 @@ if "DMR" in stages or "permute" in stages or "plot" in stages:
     samplist = []
     #for the next step, all input files must be pickled
     for sample in samples:
-        infile = object_dir + templ + sample
-        #infile = object_dir + sample + templ
+        #infile = object_dir + templ + sample
+        infile = object_dir + sample + templ
         print(f"loading sample {sample}")
         input_obj = t.load_object(infile)
         samplist.append(input_obj)
@@ -103,8 +103,8 @@ if "fdr" in stages:
     samplist = []  # if dmr in stages, samplist already loaded
     for sample in samples:
         #use filtered files
-        infile = object_dir + templ + sample
-        #infile = object_dir + sample + templ
+        #infile = object_dir + templ + sample
+        infile = object_dir + sample + templ
         print(f"loading sample {sample}")
         input_obj = t.load_object(infile)
         samplist.append(input_obj)
