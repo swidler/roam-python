@@ -21,7 +21,7 @@ argParser.add_argument("-du", "--dump_dir", help="directory for output txt files
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
 argParser.add_argument("-cg", "--cgi_file", help="CGI file")
-argParser.add_argument("-di", "--dmr_infile", help="pickled DMR file for use in permutations and plots")
+argParser.add_argument("-di", "--dmr_infile", help="pickled DMR file for use in fdr, permutations, and plots")
 argParser.add_argument("-dpi", "--dmp_infile", help="pickled DMR permutation file for use in permutstat")
 argParser.add_argument("-t", "--templ", help="template to match any extra text in sample filename")
 argParser.add_argument("-st", "--stages", nargs="+", help="stages of process to be run")
@@ -34,6 +34,7 @@ argParser.add_argument("-p", "--permutations", help="number of permutations to r
 argParser.add_argument("-dmi", "--dmr_idx", help="index of DMR")
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
+argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -51,6 +52,7 @@ group_names = parameters["groups"] if "groups" in parameters else cfg.group_name
 min_CpGs = parameters["min_cpgs"] if "min_cpgs" in parameters else cfg.min_CpGs
 delta = parameters["delta"] if "delta" in parameters else cfg.delta
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rcfg.bismark_infile
+modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
 gene_file = parameters["gene_file"] if "gene_file" in parameters else cfg.gene_file
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else cfg.cgi_file
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
@@ -99,7 +101,7 @@ if "fdr" in stages:
     if bismark_infile:
         mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_species, rcfg.mod_ref, rcfg.mod_method)
     else:
-        mms.create_mms_from_text_file()
+        mms.create_mms_from_text_file(modern)
     samplist = []  # if dmr in stages, samplist already loaded
     for sample in samples:
         #use filtered files
