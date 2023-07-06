@@ -124,7 +124,7 @@ class Amsample(Chrom):
         cpg_minus = gc.coords[chrom]
         for read in chrom_bam:
             if read.is_unmapped:
-                print(f"Read {read.qname} on chrom {chrom_name} is unampped. Skipping.")
+                print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
                 continue
             seq = read.query_sequence
             cig = read.cigar
