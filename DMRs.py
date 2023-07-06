@@ -209,7 +209,10 @@ class DMRs:
         #process low-coverage-filter
         if is_meth_lcf:
             for samp in range(no_samples):
-                lcf[samp] = samples[samp].methylation["lcf"]
+                if isinstance(samples[samp].methylation["lcf"], list):
+                    lcf[samp] = samples[samp].methylation["lcf"][0]
+                else:
+                    lcf[samp] = samples[samp].methylation["lcf"]
         #process match_histogram
         if ref:
             match_histogram = True
