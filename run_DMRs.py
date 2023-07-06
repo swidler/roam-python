@@ -35,6 +35,7 @@ argParser.add_argument("-dmi", "--dmr_idx", help="index of DMR")
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
+argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -86,22 +87,27 @@ if "DMR" in stages:
 elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotmethylation" in stages or "plot" in stages:
     DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else cfg.DMR_obj_infile
     dms = t.load_object(DMR_obj_infile)
+if "DMR" in stages or "fdr" in stages:
+    mms = m.Mmsample()
+    if bismark_infile:
+        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_species, rcfg.mod_ref, rcfg.mod_method)
+    else:
+        mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
     import cProfile
+    ref = parameters["ref"] if "ref" in parameters else cfg.ref
+    if ref:
+        ref = mms
     min_finite = min_fin[:]
     #cProfile.run("(qt_up, qt_down) = dms.groupDMRs(samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=[0.8,0.8], min_CpGs=min_CpGs, delta=delta)", "data/logs/DMR_profile")
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref)
     #cProfile.run("dms.annotate(gene_file, cgi_file)", "data/logs/annotate_profile")
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
 if "fdr" in stages:
     #create Mmsample object
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
-    mms = m.Mmsample()
-    if bismark_infile:
-        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_species, rcfg.mod_ref, rcfg.mod_method)
-    else:
-        mms.create_mms_from_text_file(modern)
+    
     samplist = []  # if dmr in stages, samplist already loaded
     for sample in samples:
         #use filtered files
