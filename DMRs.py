@@ -372,6 +372,7 @@ class DMRs:
             giS[grp] = positions[grp]
         # compute reference winsize per chromosome
         ref_winsize = np.round(np.mean(win_size, 0))
+        ref_winsize = ref_winsize.astype(int)  # ensure that winsize values are integers
         for chrom in range(no_chr):
             if not ref_winsize[chrom]%2: #win_size is even
                 ref_winsize[chrom] += 1 #make it odd
