@@ -27,6 +27,7 @@ argParser.add_argument("-t", "--templ", help="template to match any extra text i
 argParser.add_argument("-st", "--stages", nargs="+", help="stages of process to be run")
 argParser.add_argument("-de", "--delta", help="")
 argParser.add_argument("-mc", "--min_cpgs", help="")
+argParser.add_argument("-mq", "--min_qt", help="")
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="")
 argParser.add_argument("-w", "--win_size", help="")
 argParser.add_argument("-l", "--lcf", help="")
@@ -51,6 +52,7 @@ win_size = parameters["win_size"] if "win_size" in parameters else cfg.win_size
 lcf = parameters["lcf"] if "lcf" in parameters else cfg.lcf
 group_names = parameters["groups"] if "groups" in parameters else cfg.group_names
 min_CpGs = parameters["min_cpgs"] if "min_cpgs" in parameters else cfg.min_CpGs
+min_Qt = parameters["min_qt"] if "min_qt" in parameters else cfg.min_Qt
 delta = parameters["delta"] if "delta" in parameters else cfg.delta
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rcfg.bismark_infile
 modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
