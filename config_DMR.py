@@ -31,9 +31,10 @@ ref = False  # for histogram matching. When ref is True, histogram matching is d
 # change sample and group names to reflect your samples and their file names
 samples = ["1116","1496","2520","4873","4875","4877","4878","4914","5077","5233","5235","5236"]
 group_names = ["Farmers","Farmers","Farmers","HGs","HGs","HGs","HGs","HGs","Farmers","HGs","HGs","HGs"]
-delta = 0.15
+delta = 0.5
 min_CpGs = 40
 min_fin = [1,1]
+min_Qt = 0
 win_size = "meth"  # for pre-methylation-stage samples (eg DMR), change to "auto"
 lcf = "meth"  # for pre-methylation-stage samples (eg DMR), change to value (eg 0.05)
 
