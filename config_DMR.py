@@ -25,7 +25,7 @@ stages = ["create_files", "DMR", "fdr", "permute", "permutstat", "plotmethylatio
 # DMR runs the groupDMR process and the annotation. It can be run independently or in conjunction with permutation stages.
 # Permutation stages (permute runs permutations, permutstat calculates permutation statistics) can be run independently as 
 # long as they have a DMR file to work with. The plotmethylation method also requires a DMR file.
-ref = False  # for histogram matching. When ref is True, histogram matching is done (ref used is bone5 by default, and changeable in modern file params)
+ref = True  # for histogram matching. When ref is True, histogram matching is done (ref used is bone5 by default, and changeable in modern file params)
 
 # groupDMRs vars
 # change sample and group names to reflect your samples and their file names
