@@ -89,7 +89,7 @@ class DMRs:
                 idm.max_Qt.append(maxQt)
                 idm.CpG_start.append(CpG_start)
                 idm.CpG_end.append(CpG_end)
-                idm.methylation.append(meth)
+                idm.grp_methylation_statistic.append(meth)
         idm.no_DMRs = len(idm.gen_start)
 
     @staticmethod
@@ -131,7 +131,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="groupDMRs.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -387,7 +387,7 @@ class DMRs:
             #get number of positions along the chrom
             no_pos = len(coord.coords[coord.index([chromosomes[chrom]])[0]])  # in case of diff chrom order
             #loop on groups
-            meth = np.zeros((no_groups, no_pos))  # methylation
+            meth = np.zeros((no_groups, no_pos))  # methylation statistic--change name!
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
             for grp in range(no_groups):   
                 [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
@@ -442,9 +442,9 @@ class DMRs:
             #import cProfile
             #cProfile.runctx("samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)", globals=globals(), locals=locals(), filename="data/logs/regmeth_profile")
             samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)
-            meth = np.array(cdm[chrom].methylation)
-            meth = np.transpose(meth)
-            samp_meth = np.insert(samp_meth,0,meth,axis=0)
+            #meth = np.array(cdm[chrom].methylation)
+            #meth = np.transpose(meth)
+            #samp_meth = np.insert(samp_meth,0,meth,axis=0)
             cdm[chrom].methylation = samp_meth
             if report:
                 print(f"\tdetected {cdm[chrom].no_DMRs} DMRs")
@@ -762,23 +762,28 @@ class DMRs:
                 else:
                     fid.write(f"\t{key}: {self.algorithm[key]}\n")
         samp_names = ""
+        group_names = ""
         for samp in self.samples:
             samp_names += samp + " average methylation\t"
+        for group in self.groups['group_names']:
+            group_names += group + " meth statistic\t"
         with open(fname, "w") as fid:
             #fid.write("cDMRs:\n")
-            fid.write(f"Chrom\tDMR#\tout of\tCpG start\tCpG end\t#CpGs\tGenomic start\tGenomic end\t#bases\tMax_Qt\t{samp_names}in_CGI\tin_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
+            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}in_CGI\tin_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
                     fid.write(f"{self.chromosomes[chrom]}\t")
                     fid.write(f"{dmr+1}\t")
                     fid.write(f"{self.cDMRs[chrom].no_DMRs}\t")
+                    fid.write(f"{self.cDMRs[chrom].gen_start[dmr]}\t")
+                    fid.write(f"{self.cDMRs[chrom].gen_end[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].CpG_start[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].CpG_end[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].no_CpGs[dmr]}\t")
-                    fid.write(f"{self.cDMRs[chrom].gen_start[dmr]}\t")
-                    fid.write(f"{self.cDMRs[chrom].gen_end[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].no_bases[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].max_Qt[dmr]}\t")
+                    for grp in range(self.groups['no_groups']):
+                        fid.write(f"{self.cDMRs[chrom].grp_methylation_statistic[dmr][grp]}\t")
                     for sample in range(self.no_samples):
                         fid.write(f"{self.cDMRs[chrom].methylation[sample][dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_CGI']}\t")
@@ -880,12 +885,14 @@ class DMRs:
            samples = [samples[x] for x in pos_flat]
         t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
         
-    def adjust_params(self, sim_dmrs, thresh=0.05):
+    def adjust_params(self, sim_dmrs, thresh=0.05, fname="DMR_log.txt", report=True):
         """Finds parameters values that achieve a desired FDR
 
         Input: observed DMRs
                list of simulated DMR data
                threshold for the FDR (defult:0.05)
+               report    True if reporting to the display is desired
+               fname     output filename (log file)
         Output:       DMR object where filters on the optimal parameters have been applied.
         """
         most_DMRs = 0 
@@ -947,6 +954,9 @@ class DMRs:
                 adjusted_dm.cDMRs = cdm            
             print("done")
         # add return line! 
+        if report:
+            fid = open(fname, "a")
+            fid.write(f"Qt threshold:{thresh_Qt}, CpG threshold:{thresh_CpG}\n")
         return {"Qt threshold":thresh_Qt, "CpG threshold":thresh_CpG}     # actually not nec  
         
         
