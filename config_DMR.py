@@ -46,4 +46,6 @@ sim_permutations = 5
 DMR_idx = 0
 DMR_chrom = "chr1"
 
+report = True  # for optional logging
+
     
