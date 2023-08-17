@@ -37,6 +37,7 @@ argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
+argParser.add_argument("-re", "--report", help="flag for logging info", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -59,6 +60,7 @@ modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
 gene_file = parameters["gene_file"] if "gene_file" in parameters else cfg.gene_file
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else cfg.cgi_file
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
+report = parameters["report"] if parameters["report"] else cfg.report
 # add param for permutations in permute?
 
 time = datetime.datetime.now()
@@ -106,6 +108,10 @@ if "DMR" in stages:
     #cProfile.run("dms.annotate(gene_file, cgi_file)", "data/logs/annotate_profile")
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
+    if report:
+        dms.annotate(gene_file, cgi_file)  
+        fname = dump_dir + f"DMRs_{time}.txt"
+        dms.dump_DMR(fname)  # dump doesn't currently work w/out annotate
 if "fdr" in stages:
     #create Mmsample object
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
@@ -139,12 +145,13 @@ if "fdr" in stages:
         min_finite = min_fin[:]
         dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list.values()), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
+    #if not ("DMR" in stages and report):
+    adjusted_DMR.annotate(gene_file, cgi_file)  
+    fname = dump_dir + f"filtered_DMRs_{time}.txt"
+    adjusted_DMR.dump_DMR(fname)  # dump doesn't currently work w/out annotate
     print("done")
     
-if "DMR" in stages:
-    dms.annotate(gene_file, cgi_file)  
-    fname = dump_dir + f"DMRs_{time}.txt"
-    dms.dump_DMR(fname)  # dump doesn't currently work w/out annotate
+
     
     
         
