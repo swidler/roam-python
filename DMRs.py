@@ -387,15 +387,15 @@ class DMRs:
             #get number of positions along the chrom
             no_pos = len(coord.coords[coord.index([chromosomes[chrom]])[0]])  # in case of diff chrom order
             #loop on groups
-            meth = np.zeros((no_groups, no_pos))  # methylation statistic--change name!
+            meth_stat = np.zeros((no_groups, no_pos))  # methylation statistic
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
             for grp in range(no_groups):   
                 [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                meth[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
+                meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                 meth_err[grp,:] = dma[0]  # ditto
             # compute the two statistics
-            meth[meth>1] = 1
-            diffi = meth[0] - meth[1]  # since there must be exactly 2 groups
+            meth_stat[meth_stat>1] = 1
+            diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
             idm = np.sqrt(meth_err[0]**2 + meth_err[1]**2)
             lt_up = (diffi - delta)/idm
             lt_down = (-diffi - delta)/idm
@@ -404,7 +404,7 @@ class DMRs:
             lt_down = lt_down[not_nans]
             coordi = coord.coords[coord.index([chromosomes[chrom]])][0]
             coordi = coordi[not_nans]
-            methi = meth[:,not_nans]
+            #methi = meth[:,not_nans]
             num_finite_pos = len(coordi)
             # create index
             trunc2clean = np.array(range(no_pos))
@@ -434,8 +434,8 @@ class DMRs:
             Qt_down[chrom] = np.array(Qt_down[chrom])
             Qt_down[chrom][not_nans] = iQt_down[1:]
             # filter and characterize DMRs
-            self.findDMRs(cdm[chrom], iQt_up, coordi, trunc2clean, meth, min_bases, min_CpGs, min_Qt)
-            self.findDMRs(cdm[chrom], iQt_down, coordi, trunc2clean, meth, min_bases, min_CpGs, min_Qt)
+            self.findDMRs(cdm[chrom], iQt_up, coordi, trunc2clean, meth_stat, min_bases, min_CpGs, min_Qt)
+            self.findDMRs(cdm[chrom], iQt_down, coordi, trunc2clean, meth_stat, min_bases, min_CpGs, min_Qt)
             cdm[chrom].chromosome = chromosomes[chrom]
             # compute methylation in each sample
             samp_meth = np.zeros((len(samples),cdm[chrom].no_DMRs))
@@ -929,7 +929,10 @@ class DMRs:
                             thresh_CpG = cpg
             print(f"Qt threshold is {thresh_Qt}")
             print(f"CpG threshold is {thresh_CpG}")
-            # recompute observed DMRs using chosen parameters    
+            if report:
+                with open(fname, "a") as fid:
+                    fid.write(f"Qt threshold:{thresh_Qt}, CpG threshold:{thresh_CpG}\n")
+        # recompute observed DMRs using chosen parameters    
             adjusted_dm = copy.deepcopy(self)
             #if not thresh_Qt:  # causes errors
             if thresh_Qt == None:
@@ -940,24 +943,25 @@ class DMRs:
                 # populate the object
                 for chrom in range(self.no_chromosomes):
                     # find DMRs that pass the threshold
+                    chromosome = self.chromosomes[chrom]
                     idx = sorted(list(set(list(np.where(np.array(self.cDMRs[chrom].no_CpGs) >= thresh_CpG)[0])).intersection(list(np.where(np.array(self.cDMRs[chrom].max_Qt) >= thresh_Qt)[0]))))
-                    cdm[chrom].CpG_start = np.array(self.cDMRs[chrom].CpG_start)[idx]
-                    cdm[chrom].CpG_end = np.array(self.cDMRs[chrom].CpG_end)[idx]
-                    cdm[chrom].gen_start = np.array(self.cDMRs[chrom].gen_start)[idx]
-                    cdm[chrom].gen_end = np.array(self.cDMRs[chrom].gen_end)[idx]
-                    cdm[chrom].no_bases = np.array(self.cDMRs[chrom].no_bases)[idx]
-                    cdm[chrom].no_CpGs = np.array(self.cDMRs[chrom].no_CpGs)[idx]
-                    cdm[chrom].max_Qt = np.array(self.cDMRs[chrom].max_Qt)[idx]
-                    cdm[chrom].methylation = np.array([np.array(self.cDMRs[chrom].methylation[x])[idx] for x in range(len(self.cDMRs[chrom].methylation))])  # will this work?
-                    cdm[chrom].no_DMRs = len(idx)
+                    if idx:
+                        cdm[chrom].chromosome = chromosome
+                        cdm[chrom].CpG_start = np.array(self.cDMRs[chrom].CpG_start)[idx]
+                        cdm[chrom].CpG_end = np.array(self.cDMRs[chrom].CpG_end)[idx]
+                        cdm[chrom].gen_start = np.array(self.cDMRs[chrom].gen_start)[idx]
+                        cdm[chrom].gen_end = np.array(self.cDMRs[chrom].gen_end)[idx]
+                        cdm[chrom].no_bases = np.array(self.cDMRs[chrom].no_bases)[idx]
+                        cdm[chrom].no_CpGs = np.array(self.cDMRs[chrom].no_CpGs)[idx]
+                        cdm[chrom].max_Qt = np.array(self.cDMRs[chrom].max_Qt)[idx]
+                        cdm[chrom].methylation = np.array([np.array(self.cDMRs[chrom].methylation[x])[idx] for x in range(len(self.cDMRs[chrom].methylation))])  # will this work?
+                        cdm[chrom].no_DMRs = len(idx)
+                        cdm[chrom].grp_methylation_statistic = np.array(self.cDMRs[chrom].grp_methylation_statistic)[idx]
                 print(f"{most_DMRs} out of {obs_noDMRs} DMRs remain after adjustment to FDR {thresh}")
                 adjusted_dm.cDMRs = cdm            
             print("done")
         # add return line! 
-        if report:
-            fid = open(fname, "a")
-            fid.write(f"Qt threshold:{thresh_Qt}, CpG threshold:{thresh_CpG}\n")
-        return {"Qt threshold":thresh_Qt, "CpG threshold":thresh_CpG}     # actually not nec  
+        return adjusted_dm
         
         
 
