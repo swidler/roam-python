@@ -37,7 +37,7 @@ argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
-argParser.add_argument("-re", "--report", help="flag for logging info", action="store_true")
+argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -60,7 +60,7 @@ modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
 gene_file = parameters["gene_file"] if "gene_file" in parameters else cfg.gene_file
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else cfg.cgi_file
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
-report = parameters["report"] if parameters["report"] else cfg.report
+report = False if parameters["noreport"] else cfg.report
 # add param for permutations in permute?
 
 time = datetime.datetime.now()
