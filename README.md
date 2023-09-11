@@ -84,6 +84,34 @@ Running the scripts
     
     The DMR process has a similar flow. First edit the variables in the config_DMR.py file. These include directory and
     filenames, samples and group names, parameters for grouping the DMRs, and the parts of the script to run.
+
+	When running from the command line, parameters can be specified as follows:
+	-s sample names, a list specified with no quotes or commas
+	-g group names--should correspond with samples, a list specified with no quotes or commas
+	-o directory for pickled objects
+	-d directory for data files from RoAM process
+	-du directory for output txt files and pics
+	-gc CpG file
+	-ge sorted text file with genes
+	-cg CGI file
+	-di pickled DMR file for use in fdr, permutations, and plots
+	-dpi pickled DMR permutation file for use in permutstat
+	-t template to match any extra text in sample filename
+	-st stages of process to be run, a list specified with no quotes or commas
+	-de minimum methylation difference between the two groups
+	-mc DMRs whose number of CpGs is less than min_CpGs are filtered out
+	-mq DMRs with Qt < min_qt are filtered out
+	-mf minimum number of ancient samples for which we require data
+	-w window size for smoothing
+	-l low coverage factor
+	-p number of permutations to run
+	-dmi index of DMR
+	-dmc chromosome of DMR
+	-b .cov or .bedGraph file for modern genome
+	-mo text file for modern genome
+	-r reference genome for use in histogram matching
+	-re flag for logging info--use when logging not desired
+
     The stages are "create_files", "DMR", "permute", "permutstat", and "plotmethylation".
     The first stage, create_files, takes text files from the RoAM process and converts them into pickled files that the
     rest of the process uses. It is a prerequisite to the other stages. It can be run by itself or with the other 
