@@ -10,10 +10,12 @@ import config_DMR as cfg
 import config as rcfg
 import argparse
 import sys
+import os
 
 # params from config can be specified on the command line
 argParser = argparse.ArgumentParser()
 argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
+argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
 argParser.add_argument("-o", "--object_dir", help="directory for pickled objects")
 argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process")
@@ -44,6 +46,7 @@ keys = [x for x in vars(args).keys() if vars(args)[x] != None]
 vals = [vars(args)[x] for x in keys]
 parameters = dict(zip(keys, vals))
 samples = parameters["samples"] if "samples" in parameters else cfg.samples
+mod_samples = parameters["mod_samples"] if "mod_samples" in parameters else cfg.mod_samples
 templ = parameters["templ"] if "templ" in parameters else cfg.templ
 object_dir = parameters["object_dir"] if "object_dir" in parameters else cfg.object_dir
 stages = parameters["stages"] if "stages" in parameters else cfg.stages
@@ -65,7 +68,7 @@ report = False if parameters["noreport"] else cfg.report
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
-if "create_files" in stages:
+if "create_ancient_files" in stages:
     data_dir = parameters["data_dir"] if "data_dir" in parameters else cfg.data_dir
     for sample in samples:
         ams = a.Amsample()
@@ -73,19 +76,37 @@ if "create_files" in stages:
         ams.parse_infile(filename)
         outfile = object_dir + sample + templ
         t.save_object(outfile, ams)
+if "create_modern_files" in stages:
+    data_dir = parameters["data_dir"] if "data_dir" in parameters else cfg.data_dir
+    for sample in mod_samples:
+        mms = m.Mmsample()
+        bisfile = ""
+        filename = data_dir + sample + ".bedGraph"
+        if os.path.isfile(filename):
+            bisfile = filename
+        else:
+            filename = data_dir + sample + ".cov"
+            if os.path.isfile(filename):
+                bisfile = filename
+        if bisfile:
+            mms.bismark_to_mm(bisfile, gc_object, sample, rcfg.mod_abbrev, rcfg.mod_spec, "", rcfg.mod_method)
+            outfile = object_dir + sample + templ
+            t.save_object(outfile, mms)
+        else:
+            raise Exception(f"No file in {data_dir} matches {sample}")
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     samplist = []
     #for the next step, all input files must be pickled
-    for sample in samples:
-        #infile = object_dir + templ + sample
-        infile = object_dir + sample + templ
-        print(f"loading sample {sample}")
-        input_obj = t.load_object(infile)
-        samplist.append(input_obj)
-    print(samples)
+    for samps in (samples, mod_samples):
+        for sample in samps:
+            infile = object_dir + sample + templ
+            print(f"loading sample {sample}")
+            input_obj = t.load_object(infile)
+            samplist.append(input_obj)
+    print(samples)  # print mod_samples too
 if "DMR" in stages:
     dms = d.DMRs()
 elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotmethylation" in stages or "plot" in stages:
@@ -94,7 +115,7 @@ elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotme
 if "DMR" in stages or "fdr" in stages:
     mms = m.Mmsample()
     if bismark_infile:
-        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_species, rcfg.mod_ref, rcfg.mod_method)
+        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_spec, rcfg.mod_ref, rcfg.mod_method)
     else:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
@@ -117,7 +138,7 @@ if "fdr" in stages:
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
     
     samplist = []  # if dmr in stages, samplist already loaded
-    for sample in samples:
+    for sample in samples:  # modify to match line 103
         #use filtered files
         #infile = object_dir + templ + sample
         infile = object_dir + sample + templ
