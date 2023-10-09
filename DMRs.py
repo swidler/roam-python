@@ -131,7 +131,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -164,18 +164,21 @@ class DMRs:
                report             True if reporting to the display is desired
                match_histogram    whether to perform histogram matching in pooled_methylation
                ref                mmSample reference object (used only for histogram matching).
+               win_mod            window size for modern samples
         Output: modified DMR object, Qt_up, Qt_down
         """
         no_samples = len(samples)
         is_ancient = [1 if type(x).__name__ == "Amsample" else 0 for x in samples]
-        to_remove = np.where(np.array(is_ancient) == 0)[0]
+        if all(x==0 for x in is_ancient):
+            raise Exception("All samples are modern")
+        #to_remove = np.where(np.array(is_ancient) == 0)[0]
         is_meth_lcf = False
-        if len(to_remove) != 0:  # fix--should test length of array
-            for x in to_remove:
-                del sample_groups[x]
-                del samples[x]
-            no_samples = len(samples)
-            print(f"In the current version, modern samples are ignored. {len(to_remove)} sample(s) removed.")
+        #if len(to_remove) != 0:  # fix--should test length of array
+        #    for x in to_remove:
+        #        del sample_groups[x]
+        #        del samples[x]
+        #    no_samples = len(samples)
+        #    print(f"In the current version, modern samples are ignored. {len(to_remove)} sample(s) removed.")
 
         chromosomes = chroms if chroms else coord.chromosomes
         if type(win_size) == str and win_size == "meth":  # futurewarning--fix this and others
@@ -204,33 +207,40 @@ class DMRs:
                 raise Exception(f"Length of d_rate ({len(d_rate_in)}) does not match number of ancient samples ({sum(is_ancient)})")
         #substitute default drates
         for samp in range(no_samples):
-            if np.isnan(d_rate[samp]):
+            if is_ancient[samp] and np.isnan(d_rate[samp]):
                 d_rate[samp] = samples[samp].d_rate["rate"]["global"]
         #process low-coverage-filter
         if is_meth_lcf:
             for samp in range(no_samples):
-                if isinstance(samples[samp].methylation["lcf"], list):
-                    lcf[samp] = samples[samp].methylation["lcf"][0]
-                else:
-                    lcf[samp] = samples[samp].methylation["lcf"]
+                if is_ancient[samp]:
+                    if isinstance(samples[samp].methylation["lcf"], list):
+                        lcf[samp] = samples[samp].methylation["lcf"][0]
+                    else:
+                        lcf[samp] = samples[samp].methylation["lcf"]
         #process match_histogram
         if ref:
             match_histogram = True
         #process window size
         no_chr = len(chromosomes)
+        idx_mod = np.where(np.array(is_ancient) == 0)
         if not is_auto_win:
             if is_meth_win:
                 win_size = np.nan * np.ones((no_samples, no_chr))
                 for samp in range(no_samples):
-                    indices = samples[samp].index(chromosomes)
-                    smp = samples[samp].methylation["win_size"]
-                    win_size[samp,] = [smp[x] for x in indices]
+                    if is_ancient[samp]:
+                        indices = samples[samp].index(chromosomes)
+                        smp = samples[samp].methylation["win_size"]
+                        win_size[samp,] = [smp[x] for x in indices]
+                    else:
+                        win_size[samp,] = win_mod
             else:
                 #Option 1: same window size for all individuals/chromosomes
                 if len(win_size) == 1:
                     if not win_size[0]%2: #win_size is even
                         win_size[0] += 1 #make it odd
                     win_size = win_size * np.ones((no_samples, no_chr))
+                    if win_mod:  # prob a silly condition
+                        win_size[idx_mod,] = win_mod
                     
                 #same W for all chromosomes of an individual
                 elif win_size.ndim ==1:
@@ -239,6 +249,8 @@ class DMRs:
                             if not win_size[samp]%2: #win_size is even
                                win_size[samp] += 1 #make it odd
                     win_size = np.transpose([win_size]) * np.ones(no_chr)
+                    if win_mod:  # prob a silly condition
+                        win_size[idx_mod,] = win_mod
                     
                 #different W for each chromosome and individual
                 else:
@@ -247,6 +259,8 @@ class DMRs:
                             if ~np.isnan(win_size[samp, chrom]):
                                 if not win_size[samp, chrom]%2: #win_size is even
                                     win_size[samp, chrom] += 1 #make it odd
+                    if win_mod:  # prob a silly condition
+                        win_size[idx_mod,] = win_mod
                     
         else:
             win_size = np.zeros((no_samples, no_chr))
@@ -259,7 +273,8 @@ class DMRs:
                     chr_ind = samples[samp].chr_names.index(chromosomes[chrom]) #enough just to use chrom? this doesn't assume same order
                     chr_name = chromosomes[chr_ind] 
                     win_size[samp, chrom] = t.determine_shared_winsize(samples, chr_name, **winsize_alg) 
-            
+            if win_mod:  # prob a silly condition
+                win_size[idx_mod,] = win_mod
         #group samples by type (eg farmer, hunter-gatherer)
         sample_names = [samples[x].name for x in range(len(samples))]
         types = dict(zip(sample_names, sample_groups))
@@ -272,6 +287,7 @@ class DMRs:
         group_names = [x[0] for x in group_sizes]
         group_nums = [group_names.index(x)+1 for x in sample_groups]
         positions = []
+        grp_ancient = [[],[]]
         self.groups["group_nums"] = group_nums[:]  # this list changes later, so copy here
         self.groups["group_names"] = group_names
         self.groups["no_groups"] = no_groups
@@ -283,6 +299,12 @@ class DMRs:
             if 0 < min_finite[grp] < 1:
                 min_finite[grp] = np.floor(min_finite[grp] * group_sizes[grp][1])
             positions.append([x for x,y in enumerate(samples) if types[y.name] == group_names[grp]])  # get pos of samples with this type
+        for grp in range(len(positions)):
+            for samp in range(len(positions[grp])):
+                grp_ancient[grp].append(is_ancient[positions[grp][samp]])
+        for grp in grp_ancient:
+            if not all(x==grp[x] for x in grp):
+                raise Exception("Groups must be composed of modern or ancient samples, but not both")
         #write to log
         if report:
             fid = open(fname, "w")
@@ -360,6 +382,8 @@ class DMRs:
             species[samp_ind] = samples[samp_ind].species
             if samples[samp_ind].reference != genome_ref:
                 raise Exception(f"Sample {samples[samp_ind].name} does not use {genome_ref}")
+            if not is_ancient[samp_ind]:
+                samples[samp_ind].scale()
         self.samples = samp_names
         self.chromosomes = chromosomes
         self.species = species
@@ -367,6 +391,10 @@ class DMRs:
         #split samples between groups
         if no_groups != 2:
             raise Exception("Currently, the algorithm works only on 2 groups")
+        modern_samples = [samples[x] for x in range(len(samples)) if is_ancient[x] == 0]  # are these 2 nec?
+        ancient_samples = [samples[x] for x in range(len(samples)) if is_ancient[x] == 1]
+        mod_idx = [x for x in range(len(samples)) if is_ancient[x] == 0]
+        ancient_idx = [x for x in range(len(samples)) if is_ancient[x] == 1]
         giS = [None]*no_groups
         for grp in range(no_groups):
             giS[grp] = positions[grp]
@@ -389,10 +417,27 @@ class DMRs:
             #loop on groups
             meth_stat = np.zeros((no_groups, no_pos))  # methylation statistic
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
-            for grp in range(no_groups):   
-                [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
-                meth_err[grp,:] = dma[0]  # ditto
+            for grp in range(no_groups):  
+                if grp_ancient[grp][0] == 0:
+                    #mij_bar = np.zeros((len(positions[grp]), no_pos))
+                    #wij = np.zeros((len(positions[grp]), no_pos))
+                    mij_bar = np.zeros((len(mod_idx), no_pos))
+                    wij = np.zeros((len(mod_idx), no_pos))
+                    for samp in range(len(mod_idx)):
+                        [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(chrom, [int(x) for x in [win_size[mod_idx[samp], chrom]]])
+                        Wj = np.nansum(wij, axis=0)
+                        # Calculate mm
+                        mm = np.sum(wij * mij_bar, axis=0) / Wj
+                        # Calculate dmm
+                        dmm = np.sqrt(1 / Wj)
+                        # Assign mm and dmm to m and dm respectively
+                        meth_stat[grp, :] = mm
+                        meth_err[grp, :] = dmm
+                else:  
+                    #[ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                    [ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx], [chromosomes[chrom]], win_size=win_size[ancient_idx,chrom], lcf=lcf[ancient_idx], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                    meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
+                    meth_err[grp,:] = dma[0]  # ditto
             # compute the two statistics
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
