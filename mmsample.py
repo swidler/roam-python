@@ -233,19 +233,25 @@ class Mmsample(Chrom):
                     fields = line.split("\t")
                     chr_name = fields[0]
                     chr_ind = gc.index([chr_name])[0]
+                    if np.isnan(chr_ind):
+                        print(f"{chr_name} does not appear in gcoordinates object")
+                        continue
                     chr_names[chr_name] = chr_ind
                     start = int(fields[1])
                     if file_type == "bed":  # bedGraph coords are zero-based
                         start += 1
+                    success = False
                     try:
                         i = coord_map[chr_ind][start]  # get index of first start pos in gc
+                        success = True
                     except:
                         unmatched_counter[chr_ind] += 1
-                    matched_counter[chr_ind] += 1
-                    meth[chr_ind][i] = fields[3]
-                    if file_type == "cov":
-                        tot_cov = int(fields[4]) + int(fields[5])
-                        cov[chr_ind][i] = tot_cov
+                    if success:
+                        matched_counter[chr_ind] += 1
+                        meth[chr_ind][i] = fields[3]
+                        if file_type == "cov":
+                            tot_cov = int(fields[4]) + int(fields[5])
+                            cov[chr_ind][i] = tot_cov
                      
         print(f"found {unmatched_counter} unmatched positions and {matched_counter} matched positions") 
         print(f"proportion matched: {matched_counter/chr_lengths}")   
