@@ -21,7 +21,7 @@ DMP_obj_infile = "pickled DMR permutation file for use in permutstat"
 # eg 
 templ = "_meth"
 
-stages = ["create_files", "DMR", "fdr", "permute", "permutstat", "plotmethylation"] # stages in the process. Change to reflect what you want to run.
+stages = ["create_ancient_files", "create_modern_files", "DMR", "fdr", "permute", "permutstat", "plotmethylation"] # stages in the process. Change to reflect what you want to run.
 # DMR runs the groupDMR process and the annotation. It can be run independently or in conjunction with permutation stages.
 # Permutation stages (permute runs permutations, permutstat calculates permutation statistics) can be run independently as 
 # long as they have a DMR file to work with. The plotmethylation method also requires a DMR file.
@@ -30,6 +30,7 @@ ref = True  # for histogram matching. When ref is True, histogram matching is do
 # groupDMRs vars
 # change sample and group names to reflect your samples and their file names
 samples = ["1116","1496","2520","4873","4875","4877","4878","4914","5077","5233","5235","5236"]
+mod_samples = []
 group_names = ["Farmers","Farmers","Farmers","HGs","HGs","HGs","HGs","HGs","Farmers","HGs","HGs","HGs"]
 delta = 0.5
 min_CpGs = 40
