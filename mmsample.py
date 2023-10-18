@@ -281,13 +281,14 @@ class Mmsample(Chrom):
             self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
         self.coord_per_position = "1"
 
-    def region_methylation(self, region, gc): 
+    def region_methylation(self, region, gc, standardize=True): 
         """Computes methylation in a region as a simple average of the values in all CpGs in the region
         
         Input: genomic region, gcoordinates object of CpG positions
         Output: methylation value in the region
         """
-        region = t.standardize_region(region) #take region input and change to dictionary
+        if standardize:
+            region = t.standardize_region(region) #take region input and change to dictionary
         chrom = region["chrom"] #get chrom from region dict
         chr_ind = gc.index([chrom])[0] #find index of region chrom in gc object
         
