@@ -138,13 +138,15 @@ if "fdr" in stages:
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
     
     samplist = []  # if dmr in stages, samplist already loaded
-    for sample in samples:  # modify to match line 103
+    #for sample in samples:  # modify to match line 103
+    for samps in (samples, mod_samples):
+        for sample in samps:
         #use filtered files
         #infile = object_dir + templ + sample
-        infile = object_dir + sample + templ
-        print(f"loading sample {sample}")
-        input_obj = t.load_object(infile)
-        samplist.append(input_obj)
+            infile = object_dir + sample + templ
+            print(f"loading sample {sample}")
+            input_obj = t.load_object(infile)
+            samplist.append(input_obj)
     dmr_obj_list = []
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
