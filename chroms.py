@@ -33,7 +33,7 @@ class Chrom:
         # todo: add option to take a list of specific chromosomes
         
         if isinstance(chrom, str): #chrom name entered
-            if "chr" not in self.chr_names:
+            if "chr" not in self.chr_names[0]:  # make sure format of chroms matches (assumes all or no chroms will start "chr")
                 chrom = chrom.removeprefix("chr")
             index = self.chr_names.index(chrom) #get index of chrom by name
             result = (chrom, self.methylation[index])
