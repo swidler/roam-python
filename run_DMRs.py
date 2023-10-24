@@ -138,15 +138,21 @@ if "fdr" in stages:
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
     
     samplist = []  # if dmr in stages, samplist already loaded
-    #for sample in samples:  # modify to match line 103
-    for samps in (samples, mod_samples):
-        for sample in samps:
+    for sample in samples:  
+    #for samps in (samples, mod_samples):
+        #for sample in samps:
         #use filtered files
         #infile = object_dir + templ + sample
-            infile = object_dir + sample + templ
-            print(f"loading sample {sample}")
-            input_obj = t.load_object(infile)
-            samplist.append(input_obj)
+        infile = object_dir + sample + templ
+        print(f"loading sample {sample}")
+        input_obj = t.load_object(infile)
+        samplist.append(input_obj)
+    mod_samplist = []
+    for sample in mod_samples:
+        infile = object_dir + sample + templ
+        print(f"loading sample {sample}")
+        input_obj = t.load_object(infile)
+        mod_samplist.append(input_obj)
     dmr_obj_list = []
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
@@ -166,7 +172,7 @@ if "fdr" in stages:
             del samp_copy  # will this fix memory errors?
             #sample.dump(f"simeth_{perm}")  
         min_finite = min_fin[:]
-        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list.values()), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list.values(), mod_samplist), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
     #if not ("DMR" in stages and report):
     adjusted_DMR.annotate(gene_file, cgi_file)  
