@@ -172,7 +172,8 @@ if "fdr" in stages:
             del samp_copy  # will this fix memory errors?
             #sample.dump(f"simeth_{perm}")  
         min_finite = min_fin[:]
-        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=list(sim_obj_list.values(), mod_samplist), sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
+        samps = list(sim_obj_list.values()) + mod_samplist
+        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
     #if not ("DMR" in stages and report):
     adjusted_DMR.annotate(gene_file, cgi_file)  
