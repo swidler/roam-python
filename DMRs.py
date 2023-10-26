@@ -303,7 +303,7 @@ class DMRs:
             for samp in range(len(positions[grp])):
                 grp_ancient[grp].append(is_ancient[positions[grp][samp]])
         for grp in grp_ancient:
-            if not all(x==grp[x] for x in grp):
+            if not all(x==grp[0] for x in grp):
                 raise Exception("Groups must be composed of modern or ancient samples, but not both")
         #write to log
         if report:
