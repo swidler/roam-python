@@ -434,8 +434,8 @@ class DMRs:
                         meth_stat[grp, :] = mm
                         meth_err[grp, :] = dmm
                 else:  
-                    #[ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                    [ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx], [chromosomes[chrom]], win_size=win_size[ancient_idx,chrom], lcf=lcf[ancient_idx], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                    [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                    #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                     meth_err[grp,:] = dma[0]  # ditto
             # compute the two statistics
