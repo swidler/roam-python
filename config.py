@@ -1,8 +1,8 @@
 # user-supplied vars--the first four are required
 name = "name"  
-# eg: name = "Vindija"
+# eg: name = "I2635"
 abbrev = "abbrev"  
-# eg: abbrev = "Vin"
+# eg: abbrev = "2635"
 # if name and/or abbrev left as None, script will take values from the input file
 library = "strands"  # 'single' or 'double'
 # eg: library = "double"  
@@ -51,10 +51,9 @@ picdir = ""  # directory for figures--default to ""
 
 
 #genome_file = "path_to_seq_file"
-# eg: 
-genome_file = "hg19.fa.gz"  # the path for the assembly file, eg hg19.fa.gz--default to currrent dir
+# eg: genome_file = "hg19.fa.gz"  # the path for the assembly file, eg hg19.fa.gz--default to currrent dir
 text_infile = "text_file_path"  # the path for the object saved in text format
-# eg: text_infile = "ams_vin.txt"
+# eg: text_infile = "data/python_dumps/I2635_drate.txt"
 modern_infile = "bone5.txt"  # sample text file for modern genome
 bismark_infile = None  # this file is a .cov or .bedGraph (or None if using sample text file)
 # eg: bismark_infile = "sample5.bedGraph"
@@ -64,4 +63,5 @@ mod_abbrev = "Bone5"  # sample abbreviation
 mod_spec = "Homo sapiens"  # sample species
 mod_ref = "hg19"  # sample reference genome
 mod_method = "WGBS"  # sample sequencing method
+bed = True  # if true, output bed file in addition to regular text output
 
