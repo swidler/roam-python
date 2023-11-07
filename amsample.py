@@ -1366,7 +1366,7 @@ class Amsample(Chrom):
             if report:
                 print("done")
 
-    def dump(self, stage, chroms=None, dir=outdir):
+    def dump(self, stage, chroms=None, dir=outdir, bed=True):
         """Dumps Amsample object to text file.
         
         Input: stage    name indicating which part of the process has been dumped, for use in file name.
@@ -1485,10 +1485,23 @@ class Amsample(Chrom):
                 elif key == "lcf":
                     fid.write(f"\tlcf: {self.methylation['lcf']}\n")
                 elif key == "methylation":
+                    if bed:
+                        gc = t.load_object(gc_object)
+                        meth_bed = {}
                     #for chrom in range(self.no_chrs):
                     for chrom in range(len(self.methylation["methylation"])):
+                        if bed:
+                            meth_bed[chrom] = []
+                            for i in range(len(self.methylation["methylation"][chrom])):
+                                meth_bed[chrom].append(f"{self.chr_names[chrom]}\t{gc.coords[chrom][i]}\t{gc.coords[chrom][i]+1}\t{self.methylation['methylation'][chrom][i]}\n")
                         meth = self.methylation["methylation"][chrom]
                         fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
+                    if bed:
+                        bed_fname = dir + aname + "_" + stage + ".bed"
+                        with open(bed_fname, "w") as bid:
+                            for chrom in range(len(meth_bed)):
+                                for line in range(len(meth_bed[chrom])):
+                                    bid.write(meth_bed[chrom][line])
             
 
 
