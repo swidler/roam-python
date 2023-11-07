@@ -38,6 +38,7 @@ argParser.add_argument("-ma", "--mabbrev", help="modern sample abbreviation")
 argParser.add_argument("-ms", "--mspecies", help="modern sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
+argParser.add_argument("-bed", "--nobed", help="flag for bed file", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -45,6 +46,7 @@ vals = [vars(args)[x] for x in keys]
 parameters = dict(zip(keys, vals))
 filedir = parameters["filedir"] if "filedir" in parameters else cfg.filedir
 file_per_chrom = parameters["chrom_file"] if "chrom_file" in parameters else cfg.file_per_chrom
+bed = False if parameters["nobed"] else cfg.bed
                 
 #def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev, library=cfg.library):
 def roam_pipeline(**params):
@@ -123,7 +125,7 @@ def roam_pipeline(**params):
     
     #dump object to text file
     outdir = params["outdir"] if "outdir" in params else cfg.outdir
-    ams.dump(stage, dir=outdir)
+    ams.dump(stage, dir=outdir, bed=bed)
     
 if filedir and not file_per_chrom:
     filenames = glob.glob(filedir+"/*.bam")
