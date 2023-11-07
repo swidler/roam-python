@@ -69,7 +69,8 @@ Running the scripts
 	-ma modern sample abbreviation 
 	-ms modern sample species 
 	-mr modern sample reference genome 
-	-mm modern sample sequencing method 
+	-mm modern sample sequencing method
+	-bed flag for bed file (use this flag when bed file output is not desired) 
     
     The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth".
     The first stage, bam, is the conversion of bam file(s) to Amsample object. It is a prerequisite to the other stages.
