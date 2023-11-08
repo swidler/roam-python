@@ -522,7 +522,7 @@ class DMRs:
         
         return(Qt_up, Qt_down)
     
-    def annotate(self, gene_bed, cgi_bed, prom_def=[5000,1000]):
+    def annotate(self, gene_bed, cgi_bed, prom_def=[5000,1000], cust_bed1=None, cust_bed2=None):
         """Retrieves important data about each DMR
         
         Input: gene_bed   bed file with gene data 
@@ -536,6 +536,14 @@ class DMRs:
         #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
         genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
         cgis = pbt.BedTool(cgi_bed)
+        if cust_bed1:
+            cust1 = pbt.BedTool(cust_bed1)
+        else:
+            cust1 = None
+        if cust_bed2:
+            cust2 = pbt.BedTool(cust_bed2)
+        else:
+            cust2 = None
         #cgis_no_dups = cgis.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
         before = prom_def[0]
         after = prom_def[1]
@@ -570,6 +578,20 @@ class DMRs:
                     in_CGI = True
                 else:  
                     in_CGI = False
+                if cust1:
+                    if cust1.any_hits(ivl):
+                        in_cust1 = True
+                    else:
+                        in_cust1 = False
+                else:
+                    in_cust1 = "N/A"
+                if cust2:
+                    if cust2.any_hits(ivl):
+                        in_cust2 = True
+                    else:
+                        in_cust2 = False
+                else:
+                    in_cust2 = "N/A"
                 
                 in_gene = {}
                 region_gene = region.replace("chr", "")
@@ -672,6 +694,8 @@ class DMRs:
                         downstream_TSS["strand"] = [1]
                     
                 annot["in_CGI"] = in_CGI
+                annot["in_cust1"] = in_cust1
+                annot["in_cust2"] = in_cust2
                 annot["in_gene"] = copy.deepcopy(in_gene)
                 annot["in_prom"] = copy.deepcopy(in_prom)
                 annot["upstream_TSS"] = copy.deepcopy(upstream_TSS)
@@ -814,9 +838,16 @@ class DMRs:
             group_names += group + " meth statistic\t"
         with open(fname, "w") as fid:
             #fid.write("cDMRs:\n")
-            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}in_CGI\tin_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
+            c1 = ""
+            c2 = ""
+            if self.cDMRs[0].annotation[0]['in_cust1'] != "N/A":
+                c1 = "in_cust1\t"
+            if self.cDMRs[0].annotation[0]['in_cust2'] != "N/A":
+                c2 = "in_cust2\t"                        
+            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}in_CGI\t{c1}{c2}in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
+                    
                     fid.write(f"{self.chromosomes[chrom]}\t")
                     fid.write(f"{dmr+1}\t")
                     fid.write(f"{self.cDMRs[chrom].no_DMRs}\t")
@@ -832,6 +863,10 @@ class DMRs:
                     for sample in range(self.no_samples):
                         fid.write(f"{self.cDMRs[chrom].methylation[sample][dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_CGI']}\t")
+                    if self.cDMRs[chrom].annotation[dmr]['in_cust1'] != "N/A":
+                        fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust1']}\t")
+                    if self.cDMRs[chrom].annotation[dmr]['in_cust2'] != "N/A":
+                        fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust2']}\t")
                     fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_gene']['present']}\t")
                     name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_gene']['name']))
                     fid.write(f"{name}\t")
