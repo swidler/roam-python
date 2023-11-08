@@ -23,6 +23,8 @@ argParser.add_argument("-du", "--dump_dir", help="directory for output txt files
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
 argParser.add_argument("-cg", "--cgi_file", help="CGI file")
+argParser.add_argument("-c1", "--cust_file1", help="first custom bed file")
+argParser.add_argument("-c2", "--cust_file2", help="second custom bed file")
 argParser.add_argument("-di", "--dmr_infile", help="pickled DMR file for use in fdr, permutations, and plots")
 argParser.add_argument("-dpi", "--dmp_infile", help="pickled DMR permutation file for use in permutstat")
 argParser.add_argument("-t", "--templ", help="template to match any extra text in sample filename")
@@ -62,6 +64,8 @@ bismark_infile = parameters["bismark"] if "bismark" in parameters else rcfg.bism
 modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
 gene_file = parameters["gene_file"] if "gene_file" in parameters else cfg.gene_file
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else cfg.cgi_file
+cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else cfg.cust_file1
+cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else cfg.cust_file2
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
 report = False if parameters["noreport"] else cfg.report
 # add param for permutations in permute?
@@ -130,7 +134,7 @@ if "DMR" in stages:
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
-        dms.annotate(gene_file, cgi_file)  
+        dms.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
         fname = dump_dir + f"DMRs_{time}.txt"
         dms.dump_DMR(fname)  # dump doesn't currently work w/out annotate
 if "fdr" in stages:
@@ -176,7 +180,7 @@ if "fdr" in stages:
         dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
     #if not ("DMR" in stages and report):
-    adjusted_DMR.annotate(gene_file, cgi_file)  
+    adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
     adjusted_DMR.dump_DMR(fname)  # dump doesn't currently work w/out annotate
     print("done")
@@ -208,6 +212,6 @@ DMR_idx = parameters["dmr_idx"] if "dmr_idx" in parameters else cfg.DMR_idx
 if "plotmethylation" in stages:
     fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}"
     dms.plotmethylation(DMR_chrom, DMR_idx, fname)  
-if "plot" in stages:
+if "plot" in stages:  # deal with custom files here?
     dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=5000)
     
