@@ -840,10 +840,12 @@ class DMRs:
             #fid.write("cDMRs:\n")
             c1 = ""
             c2 = ""
-            if self.cDMRs[0].annotation[0]['in_cust1'] != "N/A":
-                c1 = "in_cust1\t"
-            if self.cDMRs[0].annotation[0]['in_cust2'] != "N/A":
-                c2 = "in_cust2\t"                        
+            for chrom in range(self.no_chromosomes):
+                if self.cDMRs[chrom].annotation:
+                    if self.cDMRs[chrom].annotation[0]['in_cust1'] != "N/A":
+                        c1 = "in_cust1\t"
+                    if self.cDMRs[chrom].annotation[0]['in_cust2'] != "N/A":
+                        c2 = "in_cust2\t"                        
             fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}in_CGI\t{c1}{c2}in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
