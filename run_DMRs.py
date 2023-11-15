@@ -42,6 +42,7 @@ argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for moder
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
+argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -68,6 +69,7 @@ cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else cfg.cus
 cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else cfg.cust_file2
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
 report = False if parameters["noreport"] else cfg.report
+annot = False if parameters["noannot"] else cfg.annot
 # add param for permutations in permute?
 
 time = datetime.datetime.now()
@@ -134,9 +136,10 @@ if "DMR" in stages:
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
-        dms.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
+        if annot:
+            dms.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
         fname = dump_dir + f"DMRs_{time}.txt"
-        dms.dump_DMR(fname)  # dump doesn't currently work w/out annotate
+        dms.dump_DMR(fname)
 if "fdr" in stages:
     #create Mmsample object
     sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
@@ -180,9 +183,10 @@ if "fdr" in stages:
         dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
     #if not ("DMR" in stages and report):
-    adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
+    if annot:
+        adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
-    adjusted_DMR.dump_DMR(fname)  # dump doesn't currently work w/out annotate
+    adjusted_DMR.dump_DMR(fname)
     print("done")
     
 
