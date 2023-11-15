@@ -50,5 +50,6 @@ DMR_idx = 0
 DMR_chrom = "chr1"
 
 report = True  # for optional logging
+annot = True  # for optional annotation
 
     
