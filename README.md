@@ -112,6 +112,7 @@ Running the scripts
 	-mo text file for modern genome
 	-r reference genome for use in histogram matching
 	-re flag for logging info--use when logging not desired
+	-an flag for running annotation--use when annotation not desired
 
     The stages are "create_files", "DMR", "permute", "permutstat", and "plotmethylation".
     The first stage, create_files, takes text files from the RoAM process and converts them into pickled files that the
