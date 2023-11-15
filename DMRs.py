@@ -532,10 +532,22 @@ class DMRs:
                    into the gene
         Output: cDMR object with updated annotation
         """
-        genes = pbt.BedTool(gene_bed)
+        if gene_bed:
+            genes = pbt.BedTool(gene_bed)
+            genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
+            before = prom_def[0]
+            after = prom_def[1]
+            proms = gint.Gintervals(chr_names=self.chromosomes)
+            proms.calc_prom_coords(genes_no_dups, before, after)
+            tss = gcoord.Gcoordinates(chr_names=self.chromosomes, description="TSS positions")
+            tss.calc_tss(genes_no_dups)
+        else:
+            genes = None
         #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-        genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
-        cgis = pbt.BedTool(cgi_bed)
+        if cgi_bed:
+            cgis = pbt.BedTool(cgi_bed)
+        else:
+            cgis = None
         if cust_bed1:
             cust1 = pbt.BedTool(cust_bed1)
         else:
@@ -545,12 +557,7 @@ class DMRs:
         else:
             cust2 = None
         #cgis_no_dups = cgis.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-        before = prom_def[0]
-        after = prom_def[1]
-        proms = gint.Gintervals(chr_names=self.chromosomes)
-        proms.calc_prom_coords(genes_no_dups, before, after)
-        tss = gcoord.Gcoordinates(chr_names=self.chromosomes, description="TSS positions")
-        tss.calc_tss(genes_no_dups)
+        
         # loop on chromosomes
         for chrom in range(self.no_chromosomes):
             print(f"chrom {self.chromosomes[chrom]}")
@@ -574,10 +581,13 @@ class DMRs:
                 annot = {}
                 region = regions[dmr]
                 ivl = pbt.BedTool(region, from_string=True)[0]  # get 1st element to make it an interval object
-                if cgis.any_hits(ivl):
-                    in_CGI = True
-                else:  
-                    in_CGI = False
+                if cgis:
+                    if cgis.any_hits(ivl):
+                        in_CGI = True
+                    else:  
+                        in_CGI = False
+                else:
+                    in_CGI = "N/A"
                 if cust1:
                     if cust1.any_hits(ivl):
                         in_cust1 = True
@@ -592,106 +602,111 @@ class DMRs:
                         in_cust2 = False
                 else:
                     in_cust2 = "N/A"
-                
-                in_gene = {}
-                region_gene = region.replace("chr", "")
-                ivl_gene = pbt.BedTool(region_gene, from_string=True)[0]  # get 1st element to make it an interval object
-                gene_hits = genes.all_hits(ivl_gene)
-                if gene_hits:
-                    in_gene["present"] = True
-                    in_gene["name"] = []
-                    in_gene["strand"] = []
-                    for hit in gene_hits:
-                        if hit.name not in in_gene["name"]:
-                            in_gene["name"].append(hit.name)
-                            if hit.strand == "+":
-                                strand = 1
-                            elif hit.strand == "-":
-                                strand = 0
-                            else:
-                                strand = np.nan
-                            in_gene["strand"].append(strand)
-                else:
-                    in_gene["present"] = False
-                    in_gene["strand"] = np.nan
-                    in_gene["name"] = []
-                in_prom = {}
-                prom_hits = chrom_proms.all_hits(ivl)
-                if prom_hits:
-                    in_prom["present"] = True
-                    in_prom["name"] = []
-                    in_prom["strand"] = []
-                    for hit in prom_hits:
-                        if hit.name not in in_prom["name"]:
-                            in_prom["name"].append(hit.name)
-                            in_prom["strand"].append(hit.strand)  # change to int!
-                else:
-                    in_prom["present"] = False
-                    in_prom["strand"] = np.nan
-                    in_prom["name"] = []
-                upstream_TSS = {}
-                up_plus = self.cDMRs[chrom].gen_end[dmr] - itss
-                up_minus = itss - self.cDMRs[chrom].gen_start[dmr]
-                up_plus[np.where(up_plus < 0)] = np.nan
-                up_minus[np.where(up_minus < 0)] = np.nan
-                up_plus[np.where(tss.strand[chrom] == 0)] = np.nan
-                up_minus[np.where(tss.strand[chrom] == 1)] = np.nan
-                closest_plus = np.nanmin(up_plus)
-                idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(up_plus)
-                closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
-                if closest_plus < 0:
-                    closest_plus = 0
-                closest_minus = np.nanmin(up_minus)
-                idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(up_minus)
-                closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
-                if closest_minus < 0:
-                    closest_minus = 0
-                if closest_minus == closest_plus:
-                    upstream_TSS["dist"] = closest_plus
-                    upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
-                    upstream_TSS["strand"] = [1,0]
-                else:
-                    absmin = np.nanmin([closest_minus, closest_plus])
-                    if closest_minus == absmin:
-                        upstream_TSS["dist"] = closest_minus
-                        upstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
-                        upstream_TSS["strand"] = [0]
+                if genes:
+                    in_gene = {}
+                    region_gene = region.replace("chr", "")
+                    ivl_gene = pbt.BedTool(region_gene, from_string=True)[0]  # get 1st element to make it an interval object
+                    gene_hits = genes.all_hits(ivl_gene)
+                    if gene_hits:
+                        in_gene["present"] = True
+                        in_gene["name"] = []
+                        in_gene["strand"] = []
+                        for hit in gene_hits:
+                            if hit.name not in in_gene["name"]:
+                                in_gene["name"].append(hit.name)
+                                if hit.strand == "+":
+                                    strand = 1
+                                elif hit.strand == "-":
+                                    strand = 0
+                                else:
+                                    strand = np.nan
+                                in_gene["strand"].append(strand)
                     else:
+                        in_gene["present"] = False
+                        in_gene["strand"] = np.nan
+                        in_gene["name"] = []
+                    in_prom = {}
+                    prom_hits = chrom_proms.all_hits(ivl)
+                    if prom_hits:
+                        in_prom["present"] = True
+                        in_prom["name"] = []
+                        in_prom["strand"] = []
+                        for hit in prom_hits:
+                            if hit.name not in in_prom["name"]:
+                                in_prom["name"].append(hit.name)
+                                in_prom["strand"].append(hit.strand)  # change to int!
+                    else:
+                        in_prom["present"] = False
+                        in_prom["strand"] = np.nan
+                        in_prom["name"] = []
+                    upstream_TSS = {}
+                    up_plus = self.cDMRs[chrom].gen_end[dmr] - itss
+                    up_minus = itss - self.cDMRs[chrom].gen_start[dmr]
+                    up_plus[np.where(up_plus < 0)] = np.nan
+                    up_minus[np.where(up_minus < 0)] = np.nan
+                    up_plus[np.where(tss.strand[chrom] == 0)] = np.nan
+                    up_minus[np.where(tss.strand[chrom] == 1)] = np.nan
+                    closest_plus = np.nanmin(up_plus)
+                    idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(up_plus)
+                    closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
+                    if closest_plus < 0:
+                        closest_plus = 0
+                    closest_minus = np.nanmin(up_minus)
+                    idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(up_minus)
+                    closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
+                    if closest_minus < 0:
+                        closest_minus = 0
+                    if closest_minus == closest_plus:
                         upstream_TSS["dist"] = closest_plus
-                        upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
-                        upstream_TSS["strand"] = [1]
-                
-                downstream_TSS = {}
-                down_minus = self.cDMRs[chrom].gen_end[dmr] - itss
-                down_plus = itss - self.cDMRs[chrom].gen_start[dmr]
-                down_plus[np.where(down_plus < 0)] = np.nan
-                down_minus[np.where(down_minus < 0)] = np.nan
-                down_plus[np.where(tss.strand[chrom] == 0)] = np.nan
-                down_minus[np.where(tss.strand[chrom] == 1)] = np.nan
-                closest_plus = np.nanmin(down_plus)
-                idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(down_plus)
-                closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
-                if closest_plus < 0:
-                    closest_plus = 0
-                closest_minus = np.nanmin(down_minus)
-                idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(down_minus)
-                closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
-                if closest_minus < 0:
-                    closest_minus = 0
-                if closest_minus == closest_plus:
-                    downstream_TSS["dist"] = closest_plus
-                    downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
-                    downstream_TSS["strand"] = [1,0]
-                else:
-                    absmin = np.nanmin([closest_minus, closest_plus])
-                    if closest_minus == absmin:
-                        downstream_TSS["dist"] = closest_minus
-                        downstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
-                        downstream_TSS["strand"] = [0]
+                        upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
+                        upstream_TSS["strand"] = [1,0]
                     else:
+                        absmin = np.nanmin([closest_minus, closest_plus])
+                        if closest_minus == absmin:
+                            upstream_TSS["dist"] = closest_minus
+                            upstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
+                            upstream_TSS["strand"] = [0]
+                        else:
+                            upstream_TSS["dist"] = closest_plus
+                            upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
+                            upstream_TSS["strand"] = [1]
+                    
+                    downstream_TSS = {}
+                    down_minus = self.cDMRs[chrom].gen_end[dmr] - itss
+                    down_plus = itss - self.cDMRs[chrom].gen_start[dmr]
+                    down_plus[np.where(down_plus < 0)] = np.nan
+                    down_minus[np.where(down_minus < 0)] = np.nan
+                    down_plus[np.where(tss.strand[chrom] == 0)] = np.nan
+                    down_minus[np.where(tss.strand[chrom] == 1)] = np.nan
+                    closest_plus = np.nanmin(down_plus)
+                    idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(down_plus)
+                    closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
+                    if closest_plus < 0:
+                        closest_plus = 0
+                    closest_minus = np.nanmin(down_minus)
+                    idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(down_minus)
+                    closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
+                    if closest_minus < 0:
+                        closest_minus = 0
+                    if closest_minus == closest_plus:
                         downstream_TSS["dist"] = closest_plus
-                        downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
-                        downstream_TSS["strand"] = [1]
+                        downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
+                        downstream_TSS["strand"] = [1,0]
+                    else:
+                        absmin = np.nanmin([closest_minus, closest_plus])
+                        if closest_minus == absmin:
+                            downstream_TSS["dist"] = closest_minus
+                            downstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
+                            downstream_TSS["strand"] = [0]
+                        else:
+                            downstream_TSS["dist"] = closest_plus
+                            downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
+                            downstream_TSS["strand"] = [1]
+                else:
+                    in_gene = "N/A"
+                    in_prom = "N/A"
+                    upstream_TSS = "N/A"
+                    downstream_TSS = "N/A"
                     
                 annot["in_CGI"] = in_CGI
                 annot["in_cust1"] = in_cust1
@@ -840,13 +855,19 @@ class DMRs:
             #fid.write("cDMRs:\n")
             c1 = ""
             c2 = ""
+            cg = ""
+            g = "\n"
             for chrom in range(self.no_chromosomes):
                 if self.cDMRs[chrom].annotation:
                     if self.cDMRs[chrom].annotation[0]['in_cust1'] != "N/A":
                         c1 = "in_cust1\t"
                     if self.cDMRs[chrom].annotation[0]['in_cust2'] != "N/A":
-                        c2 = "in_cust2\t"                        
-            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}in_CGI\t{c1}{c2}in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n")
+                        c2 = "in_cust2\t"
+                    if self.cDMRs[chrom].annotation[0]['in_CGI'] != "N/A":
+                        cg = "in_CGI\t"  
+                    if self.cDMRs[chrom].annotation[0]['in_gene'] != "N/A":
+                        g = "in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n"            
+            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}{c1}{c2}{cg}{g}")
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
                     
@@ -864,45 +885,48 @@ class DMRs:
                         fid.write(f"{self.cDMRs[chrom].grp_methylation_statistic[dmr][grp]}\t")
                     for sample in range(self.no_samples):
                         fid.write(f"{self.cDMRs[chrom].methylation[sample][dmr]}\t")
-                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_CGI']}\t")
-                    if self.cDMRs[chrom].annotation[dmr]['in_cust1'] != "N/A":
-                        fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust1']}\t")
-                    if self.cDMRs[chrom].annotation[dmr]['in_cust2'] != "N/A":
-                        fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust2']}\t")
-                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_gene']['present']}\t")
-                    name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_gene']['name']))
-                    fid.write(f"{name}\t")
-                    strand = self.cDMRs[chrom].annotation[dmr]['in_gene']['strand']
-                    if strand != strand:  # only happens when strand is nan
-                        clear_strand = strand
-                    else:
-                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
-                    fid.write(f"{clear_strand}\t")
-                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_prom']['present']}\t")
-                    name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_prom']['name']))
-                    fid.write(f"{name}\t")
-                    strand = self.cDMRs[chrom].annotation[dmr]['in_prom']['strand']
-                    if strand != strand:  # only happens when strand is nan
-                        clear_strand = strand
-                    else:
-                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
-                    fid.write(f"{clear_strand}\t")
-                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['dist']}\t")
-                    fid.write(f"{name}\t")
-                    strand = self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['strand']
-                    if strand != strand:  # only happens when strand is nan
-                        clear_strand = strand
-                    else:
-                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
-                    fid.write(f"{clear_strand}\t")
-                    fid.write(f"{self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['dist']}\t")
-                    fid.write(f"{name}\t")
-                    strand = self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['strand']
-                    if strand != strand:  # only happens when strand is nan
-                        clear_strand = strand
-                    else:
-                        clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
-                    fid.write(f"{clear_strand}\t")
+                    if self.cDMRs[chrom].annotation:
+                        if self.cDMRs[chrom].annotation[dmr]['in_CGI'] != "N/A":
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_CGI']}\t")
+                        if self.cDMRs[chrom].annotation[dmr]['in_cust1'] != "N/A":
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust1']}\t")
+                        if self.cDMRs[chrom].annotation[dmr]['in_cust2'] != "N/A":
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_cust2']}\t")
+                        if self.cDMRs[chrom].annotation[dmr]['in_gene'] != "N/A":
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_gene']['present']}\t")
+                            name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_gene']['name']))
+                            fid.write(f"{name}\t")
+                            strand = self.cDMRs[chrom].annotation[dmr]['in_gene']['strand']
+                            if strand != strand:  # only happens when strand is nan
+                                clear_strand = strand
+                            else:
+                                clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                            fid.write(f"{clear_strand}\t")
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['in_prom']['present']}\t")
+                            name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['in_prom']['name']))
+                            fid.write(f"{name}\t")
+                            strand = self.cDMRs[chrom].annotation[dmr]['in_prom']['strand']
+                            if strand != strand:  # only happens when strand is nan
+                                clear_strand = strand
+                            else:
+                                clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                            fid.write(f"{clear_strand}\t")
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['dist']}\t")
+                            fid.write(f"{name}\t")
+                            strand = self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['strand']
+                            if strand != strand:  # only happens when strand is nan
+                                clear_strand = strand
+                            else:
+                                clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                            fid.write(f"{clear_strand}\t")
+                            fid.write(f"{self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['dist']}\t")
+                            fid.write(f"{name}\t")
+                            strand = self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['strand']
+                            if strand != strand:  # only happens when strand is nan
+                                clear_strand = strand
+                            else:
+                                clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
+                            fid.write(f"{clear_strand}\t")
                     fid.write("\n")
                     
                 
