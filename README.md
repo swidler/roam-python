@@ -95,6 +95,8 @@ Running the scripts
 	-gc CpG file
 	-ge sorted text file with genes
 	-cg CGI file
+	-c1 first custom bed file
+	-c2 second custom bed file
 	-di pickled DMR file for use in fdr, permutations, and plots
 	-dpi pickled DMR permutation file for use in permutstat
 	-t template to match any extra text in sample filename
@@ -114,9 +116,9 @@ Running the scripts
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
 
-    The stages are "create_files", "DMR", "permute", "permutstat", and "plotmethylation".
-    The first stage, create_files, takes text files from the RoAM process and converts them into pickled files that the
-    rest of the process uses. It is a prerequisite to the other stages. It can be run by itself or with the other 
+    The stages are "create_ancient_files", "create_modern_fies", "DMR", "permute", "permutstat", and "plotmethylation".
+    The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process and convert them into pickled files that the
+    rest of the process uses. They are prerequisites to the other stages. They can be run alone or with the other 
     stages, but need not be run more than once for a give group of samples.
     The DMR step compares the methylation of the samples and finds differentially methylated regions. It creates 
     both a text file and a pickled file of the DMR object, for use by the subsequent stages.
