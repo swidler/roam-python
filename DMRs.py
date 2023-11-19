@@ -565,18 +565,18 @@ class DMRs:
             # add handling for no DMRs?
             # get DMR regions
             regions = self.get_regions(self.cDMRs[chrom])
-            
-            # generate an array of TSSs
-            # add handling of no tss?
-            itss = tss.coords[chrom]
-            itss = itss.astype(float)
-            prom_string = ""
-            for prom in range(len(proms.start[chrom])):
-                prom_string += f"\n{proms.chr_names[chrom]} {proms.start[chrom][prom]} {proms.end[chrom][prom]} {proms.iname[chrom][prom]} 0 {proms.strand[chrom][prom]}"
-            chrom_proms = pbt.BedTool(prom_string, from_string=True)
             dmr_annot = []
-            #get genes in this chrom
-            genes_chrom = genes_no_dups.filter(lambda a: a.chrom == str(chrom+1)).saveas()
+            if genes:
+                # generate an array of TSSs
+                # add handling of no tss?
+                itss = tss.coords[chrom]
+                itss = itss.astype(float)
+                prom_string = ""
+                for prom in range(len(proms.start[chrom])):
+                    prom_string += f"\n{proms.chr_names[chrom]} {proms.start[chrom][prom]} {proms.end[chrom][prom]} {proms.iname[chrom][prom]} 0 {proms.strand[chrom][prom]}"
+                chrom_proms = pbt.BedTool(prom_string, from_string=True)
+                #get genes in this chrom
+                genes_chrom = genes_no_dups.filter(lambda a: a.chrom == str(chrom+1)).saveas()
             for dmr in range(num_DMRs):
                 annot = {}
                 region = regions[dmr]
