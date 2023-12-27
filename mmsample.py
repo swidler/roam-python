@@ -3,7 +3,7 @@
 import tools as t
 import numpy as np
 from chroms import Chrom
-from config import *
+#from config import *
 import sys
 import re
 
