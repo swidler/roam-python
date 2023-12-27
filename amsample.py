@@ -13,7 +13,7 @@ import gzip
 import datetime
 import glob
 import re
-from config import *
+#from config import *
 import sys
 
 
@@ -302,7 +302,7 @@ class Amsample(Chrom):
         
         Output: pickled file in format <ref_genome_name>_cpgs in object dir
         """
-        outfile = object_dir + mod_ref + "_cpgs"
+        outfile = object_dir + mod_ref + "_cpgs"  #change to configparser from ini or send when calling
         with gzip.open(genome_file, "rt") as fas:
             records = list(SeqIO.parse(fas, "fasta"))
         chromosome_cpgs = {}
@@ -1366,7 +1366,7 @@ class Amsample(Chrom):
             if report:
                 print("done")
 
-    def dump(self, stage, chroms=None, dir=outdir, bed=True):
+    def dump(self, stage, chroms=None, dir="", bed=True, gc_object=""):
         """Dumps Amsample object to text file.
         
         Input: stage    name indicating which part of the process has been dumped, for use in file name.
