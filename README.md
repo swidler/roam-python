@@ -5,7 +5,7 @@ Required modules:
 
 numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, matplotlib
 
-Input files and other variables should be specified in config.py.
+Input files and other variables should be specified in config.ini.
 
 Input files:
 
@@ -21,7 +21,7 @@ To index all bam files in a directory, use the indexing script:
 
 		./create_bai.sh <directory>/*.bam
 		
-genome assembly sequence file
+genome assembly sequence file (used only when creating a new CpG coordinates file)
 
     hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
 		
@@ -39,7 +39,7 @@ CpG coordinates
     
 Running the scripts
 
-    To run RoAM, start by editing the variables in the config.py file. These include input and output filenames, 
+    To run RoAM, start by editing the variables in the config.ini file. These include input and output filenames, 
     sample name, a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. 
     The first 4 variables, input (.bam) file, name, abbreviation, and library (single or double stranded) are required. 
     The rest have defaults loaded, but be sure to put all necessary files in the proper directory (default is the current directory).
@@ -47,6 +47,7 @@ Running the scripts
     The script can also be run from the command line, using flags for the required parameters, as follows:
     run_roam.py -f "path to bam file" -n "sample name" -a "sample abbreviation" -l "library--single or double"
     The rest of the parameters can be specified as well, to override defaults (quoted strings, except where noted):
+    -co path of config file (different config files can be used for different runs)
     -le chrom lengths, specified with no quotes or commas, eg -le 12345 23456 (must correspond with chromosome list, below)
 	-s sample species
 	-c list of chromosomes to use, a list specified with no quotes or commas, eg -c chr1 chr2 chr3
@@ -77,7 +78,7 @@ Running the scripts
     It can be run by itself or with the other stages, but need not be run more than once.
     The diagnose stage computes basic statistics on each input chromosome, and recommends what thresholds to use when 
     excluding PCR duplicates and true mutations. It also generates various plots for sanity checks. These are stored as 
-    .png files in the directory specified in the config.py file.
+    .png files in the directory specified in the config.ini file.
     The next step is filter, which removes information from CpG sites that did not pass various quality control tests.
     Next, drate, estimates the deamination rate.
     The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
@@ -119,7 +120,7 @@ Running the scripts
     The stages are "create_ancient_files", "create_modern_fies", "DMR", "permute", "permutstat", and "plotmethylation".
     The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process and convert them into pickled files that the
     rest of the process uses. They are prerequisites to the other stages. They can be run alone or with the other 
-    stages, but need not be run more than once for a give group of samples.
+    stages, but need not be run more than once for a given group of samples.
     The DMR step compares the methylation of the samples and finds differentially methylated regions. It creates 
     both a text file and a pickled file of the DMR object, for use by the subsequent stages.
     The permute step scrambles up the DMR groups to validate the DMRs found and the permutstat step calculates the 
