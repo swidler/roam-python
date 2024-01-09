@@ -6,14 +6,17 @@ import mmsample as m
 import tools as t
 import datetime
 import copy
-import config_DMR as cfg  
-import config as rcfg
+#import config_DMR_testing as config  
+#import config as rconfig
 import argparse
 import sys
 import os
+import configparser as cp
 
 # params from config can be specified on the command line
 argParser = argparse.ArgumentParser()
+argParser.add_argument("-co", "--config", help="path of config file")
+argParser.add_argument("-rco", "--rconfig", help="path of RoAM config file")
 argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
 argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
@@ -35,8 +38,9 @@ argParser.add_argument("-mq", "--min_qt", type=int, help="DMRs with Qt < min_qt 
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="minimum number of ancient samples for which we require data")
 argParser.add_argument("-w", "--win_size", help="window size for smoothing")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
+argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr")
 argParser.add_argument("-p", "--permutations", type=int, help="number of permutations to run")
-argParser.add_argument("-dmi", "--dmr_idx", type=int, help="index of DMR")
+argParser.add_argument("-dmi", "--dmr_idx", type=int, help="index of DMR")  # index or name??
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
@@ -48,34 +52,42 @@ args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
 vals = [vars(args)[x] for x in keys]
 parameters = dict(zip(keys, vals))
-samples = parameters["samples"] if "samples" in parameters else cfg.samples
-mod_samples = parameters["mod_samples"] if "mod_samples" in parameters else cfg.mod_samples
-templ = parameters["templ"] if "templ" in parameters else cfg.templ
-object_dir = parameters["object_dir"] if "object_dir" in parameters else cfg.object_dir
-stages = parameters["stages"] if "stages" in parameters else cfg.stages
-gc_object = parameters["gc_file"] if "gc_file" in parameters else cfg.gc_object
-min_fin = parameters["min_finite"] if "min_finite" in parameters else cfg.min_fin
-win_size = parameters["win_size"] if "win_size" in parameters else cfg.win_size
-lcf = parameters["lcf"] if "lcf" in parameters else cfg.lcf
-group_names = parameters["groups"] if "groups" in parameters else cfg.group_names
-min_CpGs = parameters["min_cpgs"] if "min_cpgs" in parameters else cfg.min_CpGs
-min_Qt = parameters["min_qt"] if "min_qt" in parameters else cfg.min_Qt
-delta = parameters["delta"] if "delta" in parameters else cfg.delta
-bismark_infile = parameters["bismark"] if "bismark" in parameters else rcfg.bismark_infile
-modern = parameters["modern"] if "modern" in parameters else rcfg.modern_infile
-gene_file = parameters["gene_file"] if "gene_file" in parameters else cfg.gene_file
-cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else cfg.cgi_file
-cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else cfg.cust_file1
-cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else cfg.cust_file2
-dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else cfg.dump_dir
-report = False if parameters["noreport"] else cfg.report
-annot = False if parameters["noannot"] else cfg.annot
+confile = parameters["config"] if "config" in parameters else "config_DMR.ini"
+config = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
+config.read(confile)
+rconfile = parameters["rconfig"] if "rconfig" in parameters else "config.ini"
+rconfig = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
+rconfig.read(rconfile)
+
+samples = parameters["samples"[:]] if "samples" in parameters else config["basic"]["samples"].split(",")
+mod_samples = parameters["mod_samples"[:]] if "mod_samples" in parameters else config["basic"]["mod_samples"].split(",")
+templ = parameters["templ"] if "templ" in parameters else config["files"]["templ"]
+object_dir = parameters["object_dir"] if "object_dir" in parameters else config["paths"]["object_dir"]
+stages = parameters["stages"[:]] if "stages" in parameters else config["basic"]["stages"].split(",")
+gc_object = parameters["gc_file"] if "gc_file" in parameters else config["files"]["gc_object"]
+min_fin = parameters["min_finite"] if "min_finite" in parameters else list(map(int, config["basic"]["min_fin"].split(",")))
+win_size = parameters["win_size"] if "win_size" in parameters else config["basic"]["win_size"]
+lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
+lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
+group_names = parameters["groups"[:]] if "groups" in parameters else config["basic"]["group_names"].split(",")
+min_CpGs = parameters["min_cpgs"] if "min_cpgs" in parameters else config["basic"].getint("min_CpGs")
+min_Qt = parameters["min_qt"] if "min_qt" in parameters else config["basic"].getint("min_Qt")
+delta = parameters["delta"] if "delta" in parameters else float(config["basic"]["delta"])
+bismark_infile = parameters["bismark"] if "bismark" in parameters else rconfig["files"]["bismark_infile"]
+modern = parameters["modern"] if "modern" in parameters else rconfig["files"]["modern_infile"]
+gene_file = parameters["gene_file"] if "gene_file" in parameters else config["files"]["gene_file"]
+cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else config["files"]["cgi_file"]
+cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else config["files"]["cust_file1"]
+cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else config["files"]["cust_file2"]
+dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths"]["dump_dir"]
+report = False if parameters["noreport"] else config["options"].getboolean("report")
+annot = False if parameters["noannot"] else config["options"].getboolean("annot")
 # add param for permutations in permute?
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
 if "create_ancient_files" in stages:
-    data_dir = parameters["data_dir"] if "data_dir" in parameters else cfg.data_dir
+    data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
     for sample in samples:
         ams = a.Amsample()
         filename = data_dir + sample + templ + ".txt"
@@ -83,7 +95,7 @@ if "create_ancient_files" in stages:
         outfile = object_dir + sample + templ
         t.save_object(outfile, ams)
 if "create_modern_files" in stages:
-    data_dir = parameters["data_dir"] if "data_dir" in parameters else cfg.data_dir
+    data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
     for sample in mod_samples:
         mms = m.Mmsample()
         bisfile = ""
@@ -95,7 +107,7 @@ if "create_modern_files" in stages:
             if os.path.isfile(filename):
                 bisfile = filename
         if bisfile:
-            mms.bismark_to_mm(bisfile, gc_object, sample, rcfg.mod_abbrev, rcfg.mod_spec, "", rcfg.mod_method)
+            mms.bismark_to_mm(bisfile, gc_object, sample, rconfig["modern"]["mod_abbrev"], rconfig["modern"]["mod_spec"], "", rconfig["modern"]["mod_method"])
             outfile = object_dir + sample + templ
             t.save_object(outfile, mms)
         else:
@@ -108,25 +120,27 @@ if "DMR" in stages or "permute" in stages or "plot" in stages:
     #for the next step, all input files must be pickled
     for samps in (samples, mod_samples):
         for sample in samps:
-            infile = object_dir + sample + templ
-            print(f"loading sample {sample}")
-            input_obj = t.load_object(infile)
-            samplist.append(input_obj)
+            if sample:
+                infile = object_dir + sample + templ
+                print(f"loading sample {sample}")
+                input_obj = t.load_object(infile)
+                samplist.append(input_obj)
     print(samples)  # print mod_samples too
 if "DMR" in stages:
     dms = d.DMRs()
 elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotmethylation" in stages or "plot" in stages:
-    DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else cfg.DMR_obj_infile
+    sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
+    DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else config["files"]["DMR_obj_infile"]
     dms = t.load_object(DMR_obj_infile)
 if "DMR" in stages or "fdr" in stages:
     mms = m.Mmsample()
     if bismark_infile:
-        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rcfg.mod_name, rcfg.mod_abbrev, rcfg.mod_spec, rcfg.mod_ref, rcfg.mod_method)
+        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rconfig["modern"]["mod_name"], rconfig["modern"]["mod_abbrev"], rconfig["modern"]["mod_spec"], rconfig["modern"]["mod_ref"], rconfig["modern"]["mod_method"])
     else:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
     import cProfile
-    ref = parameters["ref"] if "ref" in parameters else cfg.ref
+    ref = parameters["ref"] if "ref" in parameters else config["basic"].getboolean("ref")
     if ref:
         ref = mms
     min_finite = min_fin[:]
@@ -142,7 +156,6 @@ if "DMR" in stages:
         dms.dump_DMR(fname)
 if "fdr" in stages:
     #create Mmsample object
-    sim_permutations = parameters["permutations"] if "permutations" in parameters else cfg.sim_permutations
     
     samplist = []  # if dmr in stages, samplist already loaded
     for sample in samples:  
@@ -156,10 +169,11 @@ if "fdr" in stages:
         samplist.append(input_obj)
     mod_samplist = []
     for sample in mod_samples:
-        infile = object_dir + sample + templ
-        print(f"loading sample {sample}")
-        input_obj = t.load_object(infile)
-        mod_samplist.append(input_obj)
+        if sample:
+            infile = object_dir + sample + templ
+            print(f"loading sample {sample}")
+            input_obj = t.load_object(infile)
+            mod_samplist.append(input_obj)
     dmr_obj_list = []
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
@@ -195,23 +209,24 @@ if "fdr" in stages:
         
     
 if "permute" in stages:
+    num_permutations = parameters["permutations"] if "permutations" in parameters else config["permute"].getint("num_permutations")
     dmp = dms.permute(num_permutations, samplist, gc)
     i = 1
     for x in dmp:  
         fname = dump_dir + f"DMRs_{time}.{i}.txt"
         x.dump_DMR(fname)
         i += 1
-    t.save_object(f"{object_dir}DMP_obj{time}", dmp) 
+    t.save_object(f"{object_dir}DMP_obj_{time}", dmp) 
 if "permutstat" in stages:
     if "permute" not in stages:
-        DMP_obj_infile = parameters["dmp_infile"] if "dmp_infile" in parameters else cfg.DMP_obj_infile
+        DMP_obj_infile = parameters["dmp_infile"] if "dmp_infile" in parameters else config["files"]["DMP_obj_infile"]
         dmp = t.load_object(DMP_obj_infile)
     pstat = dms.permutstat(dmp)
     fname = dump_dir + f"pstat_{time}.txt"
     dms.dump_pstat(pstat, fname)
     
-DMR_chrom = parameters["dmr_chrom"] if "dmr_chrom" in parameters else cfg.DMR_chrom
-DMR_idx = parameters["dmr_idx"] if "dmr_idx" in parameters else cfg.DMR_idx
+DMR_chrom = parameters["dmr_chrom"] if "dmr_chrom" in parameters else config["plotmethylation"]["DMR_chrom"]
+DMR_idx = parameters["dmr_idx"] if "dmr_idx" in parameters else config["plotmethylation"].getint("DMR_idx")
     
 if "plotmethylation" in stages:
     fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}"
