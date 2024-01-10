@@ -35,7 +35,10 @@ CpG coordinates
 	
 	cpg_coords.P is a pickled object containing the coordinates of all CpGs in the genome.
 	Download the CpG coordinate file from http://carmelab.huji.ac.il/data.html and unzip into 
-	objects subdirectory of script directory.
+	objects subdirectory of script directory. When using a custom CpG file, make sure that there is
+	only one base per positon, i.e. only the coordinates from the positive strand should be included. 
+	The negative strand will also be read, but the code assumes that only the positive strand will be
+	included in the file.
     
 Running the scripts
 
@@ -84,11 +87,14 @@ Running the scripts
     The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
     When done adjusting the config file, run the run_roam.py script.
     
-    The DMR process has a similar flow. First edit the variables in the config_DMR.py file. These include directory and
+    The DMR process has a similar flow. First edit the variables in the config_DMR.ini file. These include directory and
     filenames, samples and group names, parameters for grouping the DMRs, and the parts of the script to run.
 
 	When running from the command line, parameters can be specified as follows:
+	-co path of config file (different config files can be used for different runs)
+	-rco path of RoAM config file
 	-s sample names, a list specified with no quotes or commas
+	-ms modern sample names (list like samples)
 	-g group names--should correspond with samples, a list specified with no quotes or commas
 	-o directory for pickled objects
 	-d directory for data files from RoAM process
@@ -108,6 +114,7 @@ Running the scripts
 	-mf minimum number of ancient samples for which we require data
 	-w window size for smoothing
 	-l low coverage factor
+	-sp number of permutations to run for fdr
 	-p number of permutations to run
 	-dmi index of DMR
 	-dmc chromosome of DMR
