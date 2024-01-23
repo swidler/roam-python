@@ -8,8 +8,6 @@ import scipy.stats as stats
 import copy
 from chroms import Chrom
 import pysam
-from Bio import SeqIO
-import gzip
 import datetime
 import glob
 import re
@@ -300,43 +298,6 @@ class Amsample(Chrom):
             print(f"ratio of chrom coords to cpg coords is {len(self.no_t[1])/len(gc.coords[0])}")
         self.no_chrs = len(chroms)
         #add object name
-    
-    @staticmethod    
-    def create_cpg_file():  # need to turn this into a gcoordinates object
-        """Builds pickled CpG for reference genome
-        
-        Output: pickled file in format <ref_genome_name>_cpgs in object dir
-        """
-        outfile = object_dir + mod_ref + "_cpgs"  #change to configparser from ini or send when calling
-        with gzip.open(genome_file, "rt") as fas:
-            records = list(SeqIO.parse(fas, "fasta"))
-        chromosome_cpgs = {}
-        for chrom_name in chroms:
-            chrom = chroms.index(chrom_name)
-            for record in records:  # these are from the genome fasta file
-                num, seq = record.id, str(record.seq)
-                if num == "chrM":
-                    num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
-                if num == "chr"+chrom_name or num == chrom_name:
-                    seq = seq.upper()  # change all letters to uppercase
-                    c_in_genome = [1 if x == "C" else 0 for x in seq]
-                    c_in_genome[-1] = 0  # c in last pos can't be cpg
-                    g_in_genome = [1 if x == "G" else 0 for x in seq]
-            c_in_cpg = np.zeros(chr_lengths[chrom])
-            g_in_cpg = np.zeros(chr_lengths[chrom])
-            c_idx = []
-            g_idx = []
-            for i in range(len(c_in_genome)):
-                if c_in_genome[i] and g_in_genome[i+1]:
-                    c_in_cpg[i] = 1
-                    g_in_cpg[i+1] = 1
-                    c_idx.append(i)
-                    g_idx.append(i+1)
-            cpg_plus = [x for x,y in enumerate(c_in_cpg) if y == 1]
-            cpg_minus = [x for x,y in enumerate(g_in_cpg) if y == 1]
-            cpg_vals = [cpg_plus, cpg_minus]
-            chromosome_cpgs[chrom_name] = cpg_vals
-        t.save_object(outfile, chromosome_cpgs)
 
     def parse_infile(self, infile):
         """Populate Amsample object from text file
