@@ -2,6 +2,9 @@
 
 from chroms import Chrom
 import numpy as np
+import tools as t
+import gzip
+from Bio import SeqIO
 
 class Gcoordinates(Chrom):
     def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], coords=[], strand=[], metadata=[], metadata_name=[]):
@@ -56,6 +59,39 @@ class Gcoordinates(Chrom):
                 i += 1
         self.coords = np.asarray(temp)
         self.no_chrs = len(self.coords) #reassign chrom num based on new info
+        
+    def create_cpg_file(self, genome_file, outfile, chr_lengths):
+        """Builds pickled CpG for reference genome
+        
+        Output: pickled file in format <species_name>_cpg_coords.P in object dir
+        """
+        with gzip.open(genome_file, "rt") as fas:
+            records = list(SeqIO.parse(fas, "fasta"))
+        
+        for chrom_name in self.chr_names:
+            chrom = self.index([chrom_name])[0]
+            for record in records:  # these are from the genome fasta file
+                num, seq = record.id, str(record.seq)
+                if num == "chrM":
+                    num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
+                if num == "chr"+chrom_name or num == chrom_name:
+                    seq = seq.upper()  # change all letters to uppercase
+                    c_in_genome = [1 if x == "C" else 0 for x in seq]
+                    c_in_genome[-1] = 0  # c in last pos can't be cpg
+                    g_in_genome = [1 if x == "G" else 0 for x in seq]
+            c_in_cpg = np.zeros(chr_lengths[chrom])
+            g_in_cpg = np.zeros(chr_lengths[chrom])
+            c_idx = []
+            g_idx = []
+            for i in range(len(c_in_genome)):
+                if c_in_genome[i] and g_in_genome[i+1]:
+                    c_in_cpg[i] = 1
+                    g_in_cpg[i+1] = 1
+                    c_idx.append(i)
+                    g_idx.append(i+1)
+            cpg_plus = [x+1 for x,y in enumerate(c_in_cpg) if y == 1]
+            self.coords[chrom] = (np.array(cpg_plus))
+        t.save_object(outfile, self)
 
     def calc_tss(self, genes):
         """Computes Transcription Start Sites (TSSs)
