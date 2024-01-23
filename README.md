@@ -33,12 +33,13 @@ modern sample
 
 CpG coordinates
 	
-	cpg_coords.P is a pickled object containing the coordinates of all CpGs in the genome.
+	cpg_coords.P is a pickled object containing the coordinates of all CpGs in the human genome (Hg19).
 	Download the CpG coordinate file from http://carmelab.huji.ac.il/data.html and unzip into 
-	objects subdirectory of script directory. When using a custom CpG file, make sure that there is
-	only one base per positon, i.e. only the coordinates from the positive strand should be included. 
-	The negative strand will also be read, but the code assumes that only the positive strand will be
-	included in the file.
+	objects subdirectory of script directory. To using a custom CpG file, make sure to download the 
+	assembly in fa.gz format. When running RoAM, use the --create_cpg flag and include the path of the 
+	assembly file in the config.ini or in the input parameters. The cpg file will be created and stored in 
+	the object directory, using the format <species_with_underscores>_cpg_coords.P. In order to create
+	the file without running the rest of RoAM, add the --no_roam flag to the input parameters.
     
 Running the scripts
 
@@ -59,7 +60,7 @@ Running the scripts
 	-m mapping quality for read 
 	-q mapping quality for position 
 	-st stages of process to be run, a list specified with no quotes or commas, eg -st bam diagnose
-	-o directory for saved (pickled) object files 
+	-o directory for saved (pickled) object files (include final / for all directories)
 	-fd directory for multiple input files 
 	-od output directory 
 	-ld directory for log files 
@@ -75,6 +76,9 @@ Running the scripts
 	-mr modern sample reference genome 
 	-mm modern sample sequencing method
 	-bed flag for bed file (use this flag when bed file output is not desired) 
+	-cpg flag for creating CpG file
+	-cr reference genome assembly for CpG file
+	-no flag for not running the rest of RoAM after creating CpG file
     
     The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth".
     The first stage, bam, is the conversion of bam file(s) to Amsample object. It is a prerequisite to the other stages.
@@ -87,16 +91,17 @@ Running the scripts
     The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
     When done adjusting the config file, run the run_roam.py script.
     
-    The DMR process has a similar flow. First edit the variables in the config_DMR.ini file. These include directory and
-    filenames, samples and group names, parameters for grouping the DMRs, and the parts of the script to run.
+    The DMR process has a similar flow. First edit the variables in the config_DMR.ini file. These include
+    directory and filenames, samples and group names, parameters for grouping the DMRs, and the parts of 
+    the script to run.
 
-	When running from the command line, parameters can be specified as follows:
+    When running from the command line, parameters can be specified as follows:
 	-co path of config file (different config files can be used for different runs)
 	-rco path of RoAM config file
 	-s sample names, a list specified with no quotes or commas
 	-ms modern sample names (list like samples)
 	-g group names--should correspond with samples, a list specified with no quotes or commas
-	-o directory for pickled objects
+	-o directory for pickled objects (include final / for all directories)
 	-d directory for data files from RoAM process
 	-du directory for output txt files and pics
 	-gc CpG file
