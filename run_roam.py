@@ -95,8 +95,8 @@ def roam_pipeline(**params):
     stages = params["stages"[:]] if "stages" in params else config["basic"]["stages"].split(",") 
     stage = stages[0]
     if stage == "bam":
+        filename = params["filename"] if "filename" in params else config["required"]["filename"]
         if not file_per_chrom:
-            filename = params["filename"] if "filename" in params else config["required"]["filename"]
             if filename == "filename_path" or not filename:
                 print("Filename is a required parameter")
                 sys.exit(1)
