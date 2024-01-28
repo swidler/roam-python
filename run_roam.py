@@ -10,7 +10,7 @@ import argparse
 import sys
 import configparser as cp
 import gcoordinates as gcoord
-from aifc import fn
+
 
 
 # params from config can be specified on the command line
