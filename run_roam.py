@@ -10,6 +10,7 @@ import argparse
 import sys
 import configparser as cp
 import gcoordinates as gcoord
+from aifc import fn
 
 
 # params from config can be specified on the command line
@@ -94,10 +95,11 @@ def roam_pipeline(**params):
     stages = params["stages"[:]] if "stages" in params else config["basic"]["stages"].split(",") 
     stage = stages[0]
     if stage == "bam":
-        filename = params["filename"] if "filename" in params else config["required"]["filename"]
-        if filename == "filename_path" or not filename:
-            print("Filename is a required parameter")
-            sys.exit(1)
+        if not file_per_chrom:
+            filename = params["filename"] if "filename" in params else config["required"]["filename"]
+            if filename == "filename_path" or not filename:
+                print("Filename is a required parameter")
+                sys.exit(1)
         library = params["library"] if "library" in params else config["required"]["library"]
         if library == "strands" or not library:
             print("library is a required parameter")
@@ -156,6 +158,9 @@ if filedir and not file_per_chrom:
     for fn in filenames:
         name = abbrev = fn.split("/")[-1].split(".")[0]
         #roam_pipeline(filename=fn, name=name, abbrev=abbrev, library=library)
+        parameters["filename"] = fn
+        parameters["name"] = name
+        parameters["abbrev"] = abbrev
         roam_pipeline(**parameters)
 else:
     #roam_pipeline(filename=fn, name=name, abbrev=abbrev, library=library)
