@@ -30,6 +30,8 @@ modern sample
     This can be loaded from a text file:
     Download bone5.zip from http://carmelab.huji.ac.il/data.html and unzip into script directory.
     Alternatively, use a Bismark result file in the BedGraph or Cov format and specify in the config file.
+    The modern reference is not strictly required, but it is __highly__ recommended, since the more accurate
+    methods of deamination estimation and methylation reconstruction depend on it.
 
 CpG coordinates
 	
@@ -46,7 +48,8 @@ Running the scripts
     To run RoAM, start by editing the variables in the config.ini file. These include input and output filenames, 
     sample name, a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. 
     The first 4 variables, input (.bam) file, name, abbreviation, and library (single or double stranded) are required. 
-    The rest have defaults loaded, but be sure to put all necessary files in the proper directory (default is the current directory).
+    The rest have defaults loaded, but be sure to put all necessary files in the proper directory 
+    (default is the current directory).
     
     The script can also be run from the command line, using flags for the required parameters, as follows:
     run_roam.py -f "path to bam file" -n "sample name" -a "sample abbreviation" -l "library--single or double"
@@ -58,7 +61,8 @@ Running the scripts
 	-t set True to trim ends during processing
 	-cf set True for dir with one file per chromosome
 	-m mapping quality for read 
-	-q mapping quality for position 
+	-q mapping quality for position
+	-rm method of reconstruction (can be histogram, lin, or log; default is histogram) 
 	-st stages of process to be run, a list specified with no quotes or commas, eg -st bam diagnose
 	-o directory for saved (pickled) object files (include final / for all directories)
 	-fd directory for multiple input files 
@@ -80,21 +84,34 @@ Running the scripts
 	-cr reference genome assembly for CpG file
 	-no flag for not running the rest of RoAM after creating CpG file
     
-    The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth".
+    The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth". 
+    When the script ends (after the last requested stage), it outputs a text file for the last stage completed. 
+    This file, in the format <sample>_<stage>.txt, can be found in the specified output directory and can 
+    be used as input for later stages. Additionally, after the last stage (reconstruct methylation), a bed
+    file (<sample>_meth.bed) is also produced, unless the user has specifically prevented this, using the
+    parameter in the config file or from the command line.
+    
     The first stage, bam, is the conversion of bam file(s) to Amsample object. It is a prerequisite to the other stages.
     It can be run by itself or with the other stages, but need not be run more than once.
-    The diagnose stage computes basic statistics on each input chromosome, and recommends what thresholds to use when 
-    excluding PCR duplicates and true mutations. It also generates various plots for sanity checks. These are stored as 
-    .png files in the directory specified in the config.ini file.
-    The next step is filter, which removes information from CpG sites that did not pass various quality control tests.
-    Next, drate, estimates the deamination rate.
-    The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
-    When done adjusting the config file, run the run_roam.py script.
     
+    The diagnose stage computes basic statistics on each input chromosome, and recommends what thresholds to use when 
+    excluding PCR duplicates and true mutations. The information is recorded in a file in the specified log directory, 
+    in the format <sample>_diagnostics.txt. It also generates various plots for sanity checks. These are stored as 
+    .png files in the directory specified in the config.ini file.
+    
+    The next step is filter, which removes information from CpG sites that did not pass various quality control tests.
+    The details of what was removed are stored in a file in the specified log directory, in the format <sample>_filter.txt.
+    
+    Next, drate, estimates the deamination rate.
+    
+    The last step, meth, computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
+    
+    When done adjusting the config file, run the run_roam.py script.
+
     The DMR process has a similar flow. First edit the variables in the config_DMR.ini file. These include
     directory and filenames, samples and group names, parameters for grouping the DMRs, and the parts of 
     the script to run.
-
+    
     When running from the command line, parameters can be specified as follows:
 	-co path of config file (different config files can be used for different runs)
 	-rco path of RoAM config file
@@ -128,16 +145,37 @@ Running the scripts
 	-r reference genome for use in histogram matching
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
-
-    The stages are "create_ancient_files", "create_modern_fies", "DMR", "permute", "permutstat", and "plotmethylation".
-    The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process and convert them into pickled files that the
-    rest of the process uses. They are prerequisites to the other stages. They can be run alone or with the other 
-    stages, but need not be run more than once for a given group of samples.
+    
+    The stages are "create_ancient_files", "create_modern_fies", "DMR", "fdr", "permute", "permutstat", and "plotmethylation".
+    
+    The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process
+    and convert them into pickled files that the rest of the process uses. They are prerequisites to the
+    other stages. They can be run alone or with the other stages, but need not be run more than once for 
+    a given group of samples.
+    
     The DMR step compares the methylation of the samples and finds differentially methylated regions. It creates 
-    both a text file and a pickled file of the DMR object, for use by the subsequent stages.
-    The permute step scrambles up the DMR groups to validate the DMRs found and the permutstat step calculates the 
-    statistical significance of the results.
-    The plotmethylation step creates a plot of a specific DMR to compare its methylation between samples and groups.
+    2 text files in the specified dump directory (DMR_gen_<timestamp>.txt lists input parameters and results,
+    while DMRs_<timestamp> has the data in tab separated format), and a pickled file of the DMR object in the specified 
+    object directory (DMR_obj_<timestamp>), for use by the subsequent stages. It also outputs a log file in the current dir
+    (DMR_log.txt) with info about the parameters used and DMRs found.
+    
+    The fdr (False Detection Rate) step filters the DMRs to the desired FDR level. It also notes the thresholds used at the end 
+    of the DMR_log file created in the DMR step. It outputs 2 text files in the dump directory (filtered_DMR_gen_<timestamp>.txt
+    and filtered_DMRs_<timestamp>, as above), and a log file in the current dir with info about the thresholds and the ratio 
+    obtained for each combination.
+    
+    The permute step scrambles up the DMR groups to validate the DMRs found. For each permutation, it creates 2 text files 
+    in the dump directory as above (DMR_gen_<timestamp>.<permutation #>.txt and DMRs_<timestamp>.<permutation #>.txt), and a 
+    log file in the current dir (p<permutation #>_groupDMRs.txt) with info on parameters used and DMRs found. This step also 
+    outputs a pickled file of the DMR object in the specified object directory (DMP_obj_<timestamp>) for use
+    in the permutstat stage.
+    
+    The permutstat step calculates the statistical significance of the results of the permute step. It outputs a text file 
+    in the dump directory (pstat_<timestamp>.txt) with the resulting statistics and p-values.
+    
+    The plotmethylation step creates a scatter plot of a specific DMR (meth_plot_<chromosome>_<DMR index>.png, in the 
+    dump directory) to compare its methylation between samples and groups.
+    
     When done adjusting the config file, run the run_DMRs.py script.
   
 Warnings
