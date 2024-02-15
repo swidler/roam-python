@@ -10,6 +10,7 @@ import argparse
 import sys
 import configparser as cp
 import gcoordinates as gcoord
+import numpy as np
 
 
 
@@ -47,6 +48,20 @@ argParser.add_argument("-bed", "--nobed", help="flag for bed file", action="stor
 argParser.add_argument("-cpg", "--create_cpg", help="flag for creating cpg file", action="store_true")
 argParser.add_argument("-cr", "--cpg_ref", help="reference genome assembly for CpG file")
 argParser.add_argument("-no", "--no_roam", help="flag for not running the rest of RoAM", action="store_true")
+argParser.add_argument("-dm", "--dmethod", help="method of deamination rate calculation (can be reference [highly recommended] or global)")
+argParser.add_argument("-mc", "--min_cov", help="minimum coverage of sites for deamination rate calculation")
+argParser.add_argument("-mb", "--min_beta", help="minimum beta value for reference method of deamination rate calculation")
+argParser.add_argument("-gm", "--global_meth", help="global methylation value for use with global method of deamination rate calculation")
+argParser.add_argument("-rm", "--rmethod", help="method of reconstruction (can be histogram, lin, or log)")
+argParser.add_argument("-lcf", "--lcf", help="low coverage factor for methylation reconstruction")
+argParser.add_argument("-sl", "--slope", nargs="+", help="slope for linear/logistic methods of methylation reconstruction")
+argParser.add_argument("-in", "--intercept", nargs="+", help="intercept for linear method of methylation reconstruction")
+argParser.add_argument("-w", "--win_size", help="window size for reconstruction of methylation--'auto' or list of 1 val or 1 for each chrom")
+argParser.add_argument("-wm", "--win_method", help="window size calculation method--'prob' or 'relerror'")
+argParser.add_argument("-min", "--min_meth", help="minimum methylation level to detect")
+argParser.add_argument("-p", "--p0", help="param used in winsize calculation for win_method = prob")
+argParser.add_argument("-k", "--k", help="reciprocal of param used in winsize calculation for win_method = relerror")
+argParser.add_argument("-max", "--max_width", help="maximum window size")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -129,7 +144,6 @@ def roam_pipeline(**params):
         elif stage == "drate" or stage == "meth":
             if not mm_flag:
                 #create Mmsample object
-                mms = m.Mmsample()
                 bismark = params["bismark"] if "bismark" in params else config["files"]["bismark_infile"]
                 modern = params["modern"] if "modern" in params else config["files"]["modern_infile"]
                 mod_name = params["mname"] if "mname" in params else config["modern"]["mod_name"]
@@ -137,16 +151,53 @@ def roam_pipeline(**params):
                 mod_species = params["mspecies"] if "mspecies" in params else config["modern"]["mod_spec"]
                 mod_ref = params["mref"] if "mref" in params else config["modern"]["mod_ref"]
                 mod_method = params["mmethod"] if "mmethod" in params else config["modern"]["mod_method"]
-                
-                if bismark:
-                    mms.create_mms_from_bismark_file(bismark, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
+                drate_method = params["dmethod"] if "dmethod" in params else config["drate"]["deamination_method"]
+                recon_method = params["rmethod"] if "rmethod" in params else config["meth"]["reconstruction_method"]
+                if recon_method == "histogram" or drate_method == "reference":
+                    mms = m.Mmsample()
+                    if bismark:
+                        mms.create_mms_from_bismark_file(bismark, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
+                    elif modern:
+                        mms.create_mms_from_text_file(modern)
+                    else:
+                        print("No modern reference file entered. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
+                        mms.create_mms_from_text_file("bone5.txt")
+                    mm_flag += 1
+                elif drate_method == "global" and stage == "drate":
+                    print("We highly recommend using the reference method for deamination rate calculation.")
                 else:
-                    mms.create_mms_from_text_file(modern)
-                mm_flag += 1
+                    mms = ""
             if stage == "drate":
-                ams.estimate_drate(ref=mms)
+                min_cov = params["min_cov"] if "min_cov" in params else config["drate"]["min_cov"]
+                min_beta = params["min_beta"] if "" in params else config["drate"]["min_beta"]
+                global_meth = params["global_meth"] if "global_meth" in params else config["drate"]["global_meth"]
+                drate_params = {}
+                drate_params["min_cov"] = int(min_cov)
+                if drate_method == "reference":
+                    drate_params["ref"] = mms
+                    drate_params["min_beta"] = float(min_beta)
+                else:
+                    drate_params["global_meth"] = float(global_meth)
+                drate_params["method"] = drate_method
+                ams.estimate_drate(**drate_params)
             elif stage == "meth":
-                ams.reconstruct_methylation(ref=mms)
+                lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
+                slope = params["slope"] if "slope" in params else config["meth"]["slope"]
+                intercept = params["intercept"] if "intercept" in params else config["meth"]["intercept"].split(",")
+                win_size = params["win_size"] if "win_size" in params else config["meth"]["win_size"]
+                win_method = params["win_method"] if "win_method" in params else config["meth"]["win_method"]
+                min_meth = params["min_meth"] if "min_meth" in params else config["meth"]["min_meth"]
+                p0 = params["p0"] if "p0" in params else config["meth"]["p0"]
+                k_recip = np.reciprocal(float(params["k"])) if "k" in params else np.reciprocal(float(config["meth"]["k"]))
+                max_width = params["max_width"] if "max_width" in params else config["meth"]["max_width"]
+                win_params = {}
+                if win_method: win_params["method"] = win_method
+                if min_meth: win_params["min_meth"] = float(min_meth)
+                if p0: win_params["p0"] = float(p0)
+                if k_recip: win_params["k_recip"] = float(k_recip)
+                if max_width: win_params["max_width"] = int(max_width)
+                
+                ams.reconstruct_methylation(ref=mms, function=recon_method, win_size=win_size, lcf=lcf, slope=slope, intercept=intercept, winsize_alg=win_params)
                 
     
     #dump object to text file
