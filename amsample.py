@@ -1006,8 +1006,6 @@ class Amsample(Chrom):
                   beta-values as a reference.
                  'global' should be used in cases we have no measured reference, and the estimation is based
                   on the pre-assumption of the total level of methylation in the genome.
-                 'estref' should be used in cases we have no measured reference, and the estimation is based
-                  on estimating positions with the beta-values close to one.
                global_meth   the estimated value of global genomic methylation, either as a fraction or as a
                   percentage. Applicable for 'method'='global'.
                min_cov       minimum coverage of sites that are used for the estimation.
@@ -1043,15 +1041,15 @@ class Amsample(Chrom):
             meth_params = ref_params
             if not meth_params["ref"]:
                 raise Exception("No reference provided when using 'reference' method")
-        elif method != "estref":
+        else:
             raise Exception(f"Unknown method '{method}'")
         print(f"Estimating deamination rate using the '{method}' method")
         if method == "global":
             print(f"\tglobal_methylation: {meth_params['global_methylation']:.2f}")
         elif method == "reference":
             print(f"\tmin_beta: {meth_params['min_beta']:.2f}")
-        if method == "global" or method == "reference":
-            print(f"\tmin_coverage: {meth_params['min_coverage']:d}")
+        #if method == "global" or method == "reference":
+        print(f"\tmin_coverage: {meth_params['min_coverage']:d}")
         
         #sanity check
         #if not self.is_filtered:
@@ -1076,9 +1074,6 @@ class Amsample(Chrom):
         for chrom in range(self.no_chrs):
             if re.search("[Mm]",self.chr_names[chrom]):
                 continue
-            if self.chr_names[chrom] not in ref.chr_names:
-                print(f"Chromosome {self.chr_names[chrom]} is not in reference sample")
-                continue
             #report
             print(f"Estimating deamination rate in {self.chr_names[chrom]}")
             
@@ -1091,6 +1086,9 @@ class Amsample(Chrom):
 
             #remove positions for which the reference has low beta-values
             if method == "reference":
+                if self.chr_names[chrom] not in ref.chr_names:
+                    print(f"Chromosome {self.chr_names[chrom]} is not in reference sample")
+                    continue
                 #Take only positions where {ref}>=min_beta
                 include = np.where(np.array(meth_params["ref"].get_methylation(self.chr_names[chrom])[1])>=meth_params["min_beta"])[0]
                 no_t = no_t[include]
@@ -1119,44 +1117,34 @@ class Amsample(Chrom):
             self.d_rate = {"method":"reference", "rate":drate, "ref":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
         elif method == "global":
             self.d_rate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
-        elif method == "estref":
-            self.d_rate = {"method":"estref", "rate":drate}
     
-    def determine_winsize(self, chrom, method="prob", coverage=None, drate=None, min_meth=0.2, p0=0.01, k_inv=1/2.5, max_width=31):
+    def determine_winsize(self, chrom, method="prob", min_meth=0.2, p0=0.01, k_recip=1/2.5, max_width=31):
         """Estimates the optimal window size in cases that collecting data from a window is required.
         
         Input: chrom        index of chromosome
                method       either 'prob' (for probability) or 'relerror' (for relative error).
-               coverage     effective coverage of the chromosome.
-               drate        demaination rate of the sample.
                min_meth     minimum methylation level we want to detect.
                p0           applicable if 'method'='prob'. It is the probability to get zero counts in the 
                  window if the methylation is min_meth.
-               k_inv        applicable if 'method'='relerror'. It is one over the maximum relative error in
+               k_recip        applicable if 'method'='relerror'. It is one over the maximum relative error in
                  estimating the methylation in a window whose true methylation is min_meth. It also means that the
                  mean is far (k standard deviations) from zero.
                max_width    maximum allowed width. Computed window is not allowed to be larger than 'max_width'.
         Output: win_size    recommended window size, forced to be an odd number.
         """
-        if coverage == None:
-            coverage = self.diagnostics["effective_coverage"][chrom]
-        if drate == None:
-            drate=self.d_rate["rate"]["global"]
+        coverage = self.diagnostics["effective_coverage"][chrom]
+        drate=self.d_rate["rate"]["global"]
         if not method=="prob" and not method=="relerror":
             raise Exception(f"Unknown method '{method}'")
         if min_meth>1:
             min_meth = 0.01 * min_meth
-        if method == "prob":
-            param = p0
-        else:
-            param = k_inv
-
+        
         #compute the window size
         p = min_meth * drate
         if method == "prob":
-            win_size = np.ceil(np.log(param)/np.log(1-p)/coverage)
+            win_size = np.ceil(np.log(p0)/np.log(1-p)/coverage)
         else:
-            win_size = np.ceil((1-p)/coverage/p/param**2)
+            win_size = np.ceil((1-p)/coverage/p/k_recip**2)
 
         #narrow window if too wide
         win_size = min(win_size, max_width)
@@ -1167,7 +1155,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, report=True):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1186,22 +1174,24 @@ class Amsample(Chrom):
                  all chromosomes) or a value for each chromosome.
                ref             Mmsample object containing the beta-values of the reference.
                lcf             low coverage factor.
-               report          a Boolean variable, determining whether to report output to screen.
+               
         Output: Amsample object with udpated methylation field.
         """
         no_chr = self.no_chrs
-        if slope == None:
+        if slope == None or slope == "":
             slope=[1/self.d_rate["rate"]["global"]]
-        if isinstance(win_size, str):
+        if win_size == "auto":
             auto_win = True
         else:
+            win_size = re.split(",| ", win_size)
+            win_size = [int(x) for x in win_size]
             auto_win = False
         
         #bring parameters into standard format - win_size
         if not auto_win:
             if len(win_size) == 1:
-                if not win_size%2:
-                    win_size += 1 #win_size should be odd
+                if not win_size[0]%2:
+                    win_size[0] += 1 #win_size should be odd
                 win_size = win_size * np.ones(no_chr)
             else:
                 for chrom in range(no_chr):
@@ -1215,14 +1205,13 @@ class Amsample(Chrom):
 
         #bring parameters into standard format - slope
         if len(slope) == 1:
-            slope = slope * np.ones(no_chr)
+            slope = float(slope[0]) * np.ones(no_chr)
 
         #bring parameters into standard format - intercept
         if len(intercept) == 1:
-            intercept = intercept * np.ones(no_chr)
-        intercept = [int(x) for x in intercept]
+            intercept = float(intercept[0]) * np.ones(no_chr)
+        intercept = [float(x) for x in intercept]
         
-        ref.merge()
             
         meth = []
         for chrom in range(no_chr):
@@ -1238,6 +1227,7 @@ class Amsample(Chrom):
             #compute methylation
             c_to_t = no_t/no_ct
             if function == "histogram":
+                ref.merge()
                 # hard-coded parameters
                 ref_bins = 100
                 sig_bins = 1000
@@ -1280,23 +1270,20 @@ class Amsample(Chrom):
                     methi[i] = d[i]
                             
             elif function == "log":
-                #tmp_exp = np.exp(2*slope[chrom]*c_to_t)
-                #methi = 2*tmp_exp/(tmp_exp+1)-1
                 methi = np.tanh(slope[chrom]*c_to_t)
             elif function == "lin":
                 methi = slope[chrom]*c_to_t+intercept[chrom]
                 methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
-            if report:
-                print(f"Average methylation: {np.nanmean(methi):.2f}")
+            print(f"Average methylation: {np.nanmean(methi):.2f}")
             meth.append(methi)
         self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
-    def simulate(self, mms, report=True, chrom=None):
+    def simulate(self, mms, chrom=None):
         """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
             assuming a methylation given by Mmsample object.
         
         Input: mms            Mmsample object that contains the reference methylation.
-               report         True/False indicating whether to display updates.
+               
         Output: Amsample object with modified no_t and no_c values, based on simulation.
         """
         #initialize
@@ -1312,8 +1299,7 @@ class Amsample(Chrom):
         meth_map = mms.get_methylation(chrom=chrom)[1]
 
         for chrom in range(self.no_chrs):
-            if report:
-                print(f"Processing {self.chr_names[chrom]} ... ")
+            print(f"Processing {self.chr_names[chrom]} ... ")
             no_c = np.array(self.no_c[chrom])
             tot_ct = no_c + self.no_t[chrom]
             ct_nan_idx = np.argwhere(np.isnan(tot_ct))
@@ -1329,8 +1315,7 @@ class Amsample(Chrom):
             no_t_fl[list(uniq_nan_idx)] = np.nan
             self.no_t[chrom] = no_t_fl
             self.no_c[chrom] = tot_ct - self.no_t[chrom]
-            if report:
-                print("done")
+            print("done")
 
     def dump(self, stage, chroms=None, dir="", bed=True, gc_object=""):
         """Dumps Amsample object to text file.
