@@ -29,7 +29,7 @@ modern sample
 
     This can be loaded from a text file:
     Download bone5.zip from http://carmelab.huji.ac.il/data.html and unzip into script directory.
-    Alternatively, use a Bismark result file in the BedGraph or Cov format and specify in the config file.
+    Alternatively, use a Bismark result file in the Cov format and specify in the config file.
     The modern reference is not strictly required, but it is highly recommended, since the more accurate
     methods of deamination estimation and methylation reconstruction depend on it.
 
@@ -153,13 +153,13 @@ Running the scripts
 	-p number of permutations to run
 	-dmi index of DMR
 	-dmc chromosome of DMR
-	-b .cov or .bedGraph file for modern genome
+	-b .cov file for modern genome
 	-mo text file for modern genome
 	-r reference genome for use in histogram matching
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
     
-    The stages are "create_ancient_files", "create_modern_fies", "DMR", "fdr", "permute", "permutstat", and "plotmethylation".
+    The stages are "create_ancient_files", "create_modern_files", "DMR", "fdr", "permute", "permutstat", and "plotmethylation".
     
     The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process
     and convert them into pickled files that the rest of the process uses. They are prerequisites to the
