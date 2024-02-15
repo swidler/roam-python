@@ -30,7 +30,7 @@ modern sample
     This can be loaded from a text file:
     Download bone5.zip from http://carmelab.huji.ac.il/data.html and unzip into script directory.
     Alternatively, use a Bismark result file in the BedGraph or Cov format and specify in the config file.
-    The modern reference is not strictly required, but it is __highly__ recommended, since the more accurate
+    The modern reference is not strictly required, but it is highly recommended, since the more accurate
     methods of deamination estimation and methylation reconstruction depend on it.
 
 CpG coordinates
@@ -53,7 +53,7 @@ Running the scripts
     
     The script can also be run from the command line, using flags for the required parameters, as follows:
     run_roam.py -f "path to bam file" -n "sample name" -a "sample abbreviation" -l "library--single or double"
-    The rest of the parameters can be specified as well, to override defaults (quoted strings, except where noted):
+    The rest of the parameters can be specified as well, to override defaults (strings, except where noted):
     -co path of config file (different config files can be used for different runs)
     -le chrom lengths, specified with no quotes or commas, eg -le 12345 23456 (must correspond with chromosome list, below)
 	-s sample species
@@ -83,6 +83,19 @@ Running the scripts
 	-cpg flag for creating CpG file
 	-cr reference genome assembly for CpG file
 	-no flag for not running the rest of RoAM after creating CpG file
+	-dm method of deamination rate calculation (can be reference [highly recommended] or global)
+	-mc minimum coverage of sites for deamination rate calculation
+	-mb minimum beta value for reference method of deamination rate calculation
+	-gm global methylation value for use with global method of deamination rate calculation
+	-lcf low coverage factor for methylation reconstruction
+	-sl slope for linear/logistic methods of methylation reconstruction
+	-in intercept for linear method of methylation reconstruction
+	-w window size for reconstruction of methylation--'auto' or list of 1 val or 1 for each chrom
+	-wm window size calculation method--'prob' or 'relerror'
+	-min minimum methylation level to detect
+	-p param used in winsize calculation for win_method = prob
+	-k reciprocal of param used in winsize calculation for win_method = relerror
+	-max maximum window size
     
     The stages of the process (which can be specified in the config file) are "bam", "diagnose", "filter", "drate", and "meth". 
     When the script ends (after the last requested stage), it outputs a text file for the last stage completed. 
