@@ -72,7 +72,7 @@ Running the scripts
 	-g path for the assembly file, eg hg19.fa.gz 
 	-tf path for the object saved in text format 
 	-mo text file for modern genome 
-	-b .cov or .bedGraph file for modern genome 
+	-b .cov file for modern genome 
 	-gc CpG file 
 	-mn modern sample name 
 	-ma modern sample abbreviation 
