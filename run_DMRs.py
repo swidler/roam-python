@@ -42,7 +42,7 @@ argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of pe
 argParser.add_argument("-p", "--permutations", type=int, help="number of permutations to run")
 argParser.add_argument("-dmi", "--dmr_idx", type=int, help="index of DMR")  # index or name??
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
-argParser.add_argument("-b", "--bismark", help=".cov or .bedGraph file for modern genome")
+argParser.add_argument("-b", "--bismark", help=".cov file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
@@ -98,15 +98,8 @@ if "create_modern_files" in stages:
     data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
     for sample in mod_samples:
         mms = m.Mmsample()
-        bisfile = ""
-        filename = data_dir + sample + ".bedGraph"
-        if os.path.isfile(filename):
-            bisfile = filename
-        else:
-            filename = data_dir + sample + ".cov"
-            if os.path.isfile(filename):
-                bisfile = filename
-        if bisfile:
+        bisfile = data_dir + sample + ".cov"
+        if os.path.isfile(bisfile):
             mms.bismark_to_mm(bisfile, gc_object, sample, rconfig["modern"]["mod_abbrev"], rconfig["modern"]["mod_spec"], "", rconfig["modern"]["mod_method"])
             outfile = object_dir + sample + templ
             t.save_object(outfile, mms)
@@ -129,7 +122,6 @@ if "DMR" in stages or "permute" in stages or "plot" in stages:
 if "DMR" in stages:
     dms = d.DMRs()
 elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotmethylation" in stages or "plot" in stages:
-    sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
     DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else config["files"]["DMR_obj_infile"]
     dms = t.load_object(DMR_obj_infile)
 if "DMR" in stages or "fdr" in stages:
@@ -178,6 +170,7 @@ if "fdr" in stages:
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
+    sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
     for perm in range(sim_permutations):
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
