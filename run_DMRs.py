@@ -44,6 +44,11 @@ argParser.add_argument("-dmi", "--dmr_idx", type=int, help="index of DMR")  # in
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
+argParser.add_argument("-mn", "--mname", help="modern sample name")
+argParser.add_argument("-ma", "--mabbrev", help="modern sample abbreviation")
+argParser.add_argument("-ms", "--mspecies", help="modern sample species")
+argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
+argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
@@ -75,6 +80,11 @@ min_Qt = parameters["min_qt"] if "min_qt" in parameters else config["basic"].get
 delta = parameters["delta"] if "delta" in parameters else float(config["basic"]["delta"])
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rconfig["files"]["bismark_infile"]
 modern = parameters["modern"] if "modern" in parameters else rconfig["files"]["modern_infile"]
+mod_name = params["mname"] if "mname" in params else rconfig["modern"]["mod_name"]
+mod_abbrev = params["mabbrev"] if "mabbrev" in params else rconfig["modern"]["mod_abbrev"]
+mod_species = params["mspecies"] if "mspecies" in params else rconfig["modern"]["mod_spec"]
+mod_ref = params["mref"] if "mref" in params else rconfig["modern"]["mod_ref"]
+mod_method = params["mmethod"] if "mmethod" in params else rconfig["modern"]["mod_method"]
 gene_file = parameters["gene_file"] if "gene_file" in parameters else config["files"]["gene_file"]
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else config["files"]["cgi_file"]
 cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else config["files"]["cust_file1"]
@@ -100,7 +110,7 @@ if "create_modern_files" in stages:
         mms = m.Mmsample()
         bisfile = data_dir + sample + ".cov"
         if os.path.isfile(bisfile):
-            mms.bismark_to_mm(bisfile, gc_object, sample, rconfig["modern"]["mod_abbrev"], rconfig["modern"]["mod_spec"], "", rconfig["modern"]["mod_method"])
+            mms.bismark_to_mm(bisfile, gc_object, sample, mod_abbrev, mod_species, "", mod_method)
             outfile = object_dir + sample + templ
             t.save_object(outfile, mms)
         else:
@@ -127,7 +137,7 @@ elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotme
 if "DMR" in stages or "fdr" in stages:
     mms = m.Mmsample()
     if bismark_infile:
-        mms.create_mms_from_bismark_file(bismark_infile, gc_object, rconfig["modern"]["mod_name"], rconfig["modern"]["mod_abbrev"], rconfig["modern"]["mod_spec"], rconfig["modern"]["mod_ref"], rconfig["modern"]["mod_method"])
+        mms.create_mms_from_bismark_file(bismark_infile, gc_object, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
     else:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
