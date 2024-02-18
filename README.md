@@ -130,6 +130,11 @@ Running the scripts
 	-rco path of RoAM config file
 	-s sample names, a list specified with no quotes or commas
 	-ms modern sample names (list like samples)
+	-mn modern sample name 
+	-ma modern sample abbreviation 
+	-ms modern sample species 
+	-mr modern sample reference genome 
+	-mm modern sample sequencing method
 	-g group names--should correspond with samples, a list specified with no quotes or commas
 	-o directory for pickled objects (include final / for all directories)
 	-d directory for data files from RoAM process
