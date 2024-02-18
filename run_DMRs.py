@@ -20,7 +20,7 @@ argParser.add_argument("-rco", "--rconfig", help="path of RoAM config file")
 argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
 argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
-argParser.add_argument("-o", "--object_dir", help="directory for pickled objects")
+argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
 argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process")
 argParser.add_argument("-du", "--dump_dir", help="directory for output txt files and pics")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
@@ -80,11 +80,11 @@ min_Qt = parameters["min_qt"] if "min_qt" in parameters else config["basic"].get
 delta = parameters["delta"] if "delta" in parameters else float(config["basic"]["delta"])
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rconfig["files"]["bismark_infile"]
 modern = parameters["modern"] if "modern" in parameters else rconfig["files"]["modern_infile"]
-mod_name = params["mname"] if "mname" in params else rconfig["modern"]["mod_name"]
-mod_abbrev = params["mabbrev"] if "mabbrev" in params else rconfig["modern"]["mod_abbrev"]
-mod_species = params["mspecies"] if "mspecies" in params else rconfig["modern"]["mod_spec"]
-mod_ref = params["mref"] if "mref" in params else rconfig["modern"]["mod_ref"]
-mod_method = params["mmethod"] if "mmethod" in params else rconfig["modern"]["mod_method"]
+mod_name = parameters["mname"] if "mname" in parameters else rconfig["modern"]["mod_name"]
+mod_abbrev = parameters["mabbrev"] if "mabbrev" in parameters else rconfig["modern"]["mod_abbrev"]
+mod_species = parameters["mspecies"] if "mspecies" in parameters else rconfig["modern"]["mod_spec"]
+mod_ref = parameters["mref"] if "mref" in parameters else rconfig["modern"]["mod_ref"]
+mod_method = parameters["mmethod"] if "mmethod" in parameters else rconfig["modern"]["mod_method"]
 gene_file = parameters["gene_file"] if "gene_file" in parameters else config["files"]["gene_file"]
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else config["files"]["cgi_file"]
 cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else config["files"]["cust_file1"]
