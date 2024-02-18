@@ -132,7 +132,7 @@ Running the scripts
 	-ms modern sample names (list like samples)
 	-mn modern sample name 
 	-ma modern sample abbreviation 
-	-ms modern sample species 
+	-msp modern sample species 
 	-mr modern sample reference genome 
 	-mm modern sample sequencing method
 	-g group names--should correspond with samples, a list specified with no quotes or commas
