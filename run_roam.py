@@ -70,7 +70,37 @@ parameters = dict(zip(keys, vals))
 confile = parameters["config"] if "config" in parameters else "config.ini"
 config = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
 config.read(confile)
-
+# validate user input
+def validate_input(**params):
+    drate_method = params["dmethod"] if "dmethod" in params else config["drate"]["deamination_method"]
+    recon_method = params["rmethod"] if "rmethod" in params else config["meth"]["reconstruction_method"]
+    if (
+        drate_method == "reference"
+        and "bismark" not in params and not config["files"]["bismark_infile"]
+        and "modern" not in params and not config["files"]["modern_infile"]
+        ):
+        print("No modern reference file entered for reference deamination method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
+    elif drate_method == "global":
+        print("We highly recommend using the reference method for deamination rate calculation.")
+        if "global_meth" not in params and not config["drate"]["global_meth"]:
+            raise Exception("No global_methylation param provided when using 'global' method")
+    if (
+        recon_method == "histogram"
+        and "bismark" not in params and not config["files"]["bismark_infile"]
+        and "modern" not in params and not config["files"]["modern_infile"]
+        ):
+        print("No modern reference file entered for histogram methylation reconstruction method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
+    elif (
+        (recon_method == "lin" or recon_method == "log")
+        and "slope" not in params and not config["meth"]["slope"]
+        ):
+        raise Exception("No slope param provided when using 'lin' or 'log' method")
+        
+     
+    
+    
+    
+validate_input(**parameters)
 filedir = parameters["filedir"] if "filedir" in parameters else config["paths"]["filedir"]
 file_per_chrom = parameters["chrom_file"] if "chrom_file" in parameters else config["basic"].getboolean("file_per_chrom")
 bed = False if parameters["nobed"] else config["files"].getboolean("bed")
