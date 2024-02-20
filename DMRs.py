@@ -141,7 +141,7 @@ class DMRs:
                chroms             list of chromsome names
                winsize_alg        a dictionary with parameters required to determine window size, see parameters 
                  for determine_shared_winsize.
-               fname              output file name
+               fname              log file name
                win_size           window size for smoothing. If 'meth', it is taken as the value used to reconstruct 
                    the methylation in each sample. If 'auto', a recommended value is computed for every chromosome
                    of each sample. Otherwise, it can be a scalar (used for all chromosomes in all samples), a vector 
