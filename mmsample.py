@@ -89,7 +89,7 @@ class Mmsample(Chrom):
     def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_abbrev, mod_spec, mod_ref, mod_method):
         """Converts Bismark result file (.cov) into mmsample object
         
-        Input: empty Mmsample object, Bismark file name, gcoordinates object (reference), modern sample specifics
+        Input: empty Mmsample object, Bismark file name, gcoordinates object (reference) filename, modern sample specifics
         Output: populated Mmsample object
         """
         gc = t.load_object(gc_object)
