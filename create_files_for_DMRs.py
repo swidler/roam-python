@@ -1,16 +1,60 @@
 #!/usr/bin/python3
 
-import tools as t
 import amsample as a
+import mmsample as m
+import tools as t
+import datetime
+import argparse
+import os
 
-samples = ["1116","1496","2520","4873","4875","4877","4878","4914","5077","5233","5235","5236"] 
-indir = "data/matlab_dumps/filtered/"
-outdir = "objects/"
-templ = "filt_"
-for sample in samples:
-    ams = a.Amsample()
-    filename = indir + sample + ".txt"
-    ams.parse_infile(filename)
-    outfile = outdir + templ + sample
-    t.save_object(outfile, ams)
+argParser = argparse.ArgumentParser()
+argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
+argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
+argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
+argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process (include final /)")
+argParser.add_argument("-gc", "--gc_file", help="CpG file")
+argParser.add_argument("-t", "--templ", help="template to match any extra text in sample filename")
+argParser.add_argument("-mt", "--mtempl", help="template to match any extra text in modern sample filename")
+argParser.add_argument("-ma", "--mabbrev", nargs="+", help="modern sample abbreviation")
+argParser.add_argument("-msp", "--mspecies", help="modern sample species")
+argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
+argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
 
+args = argParser.parse_args()
+keys = [x for x in vars(args).keys() if vars(args)[x] != None]
+vals = [vars(args)[x] for x in keys]
+parameters = dict(zip(keys, vals))
+
+samples = parameters["samples"[:]] if "samples" in parameters else []
+mod_samples = parameters["mod_samples"[:]] if "mod_samples" in parameters else []
+templ = parameters["templ"] if "templ" in parameters else ""
+mtempl = parameters["mtempl"] if "mtempl" in parameters else ""
+object_dir = parameters["object_dir"] if "object_dir" in parameters else ""
+gc_object = parameters["gc_file"] if "gc_file" in parameters else ""
+mod_abbrev = parameters["mabbrev"] if "mabbrev" in parameters else []
+mod_species = parameters["mspecies"] if "mspecies" in parameters else ""
+mod_ref = parameters["mref"] if "mref" in parameters else ""
+mod_method = parameters["mmethod"] if "mmethod" in parameters else ""
+
+if samples:
+    data_dir = parameters["data_dir"] if "data_dir" in parameters else ""
+    for sample in samples:
+        ams = a.Amsample()
+        filename = data_dir + sample + templ + ".txt"
+        ams.parse_infile(filename)
+        outfile = object_dir + sample + templ
+        t.save_object(outfile, ams)
+if mod_samples:
+    data_dir = parameters["data_dir"] if "data_dir" in parameters else ""
+    i = 0
+    for sample in mod_samples:
+        mms = m.Mmsample()
+        bisfile = data_dir + sample + ".cov"
+        abbrev = mod_abbrev[i]
+        if os.path.isfile(bisfile):
+            mms.bismark_to_mm(bisfile, gc_object, sample, abbrev, mod_species, mod_ref, mod_method)
+            outfile = object_dir + sample + mtempl
+            t.save_object(outfile, mms)
+        else:
+            raise Exception(f"No file in {data_dir} matches {sample}")
+        i+=1
