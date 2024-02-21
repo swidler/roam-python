@@ -121,6 +121,24 @@ Running the scripts
     
     When done adjusting the config file, run the run_roam.py script.
 
+	Before running the DMR process, the output files from the RoAM process must be converted into pickled files. 
+	If using modern samples as well, these are created at this stage from .cov files (Bismark output).
+	Run the create_files_for_DMRs.py script, using the following input parameters (quoted strings, unless otherwise noted):
+	
+	-s (ancient) sample names, a list specified with no quotes or commas
+	-ms modern sample names, a list specified with no quotes or commas
+	-o directory for saved (pickled) object files (include final /)
+	-d directory for data files from RoAM process (include final /)
+	-gc CpG file (for modern samples)
+	-ttemplate to match any extra text in sample filename
+	-mt template to match any extra text in modern sample filename
+	-ma modern sample abbreviation, a list specified with no quotes or commas (same length as modern samples)
+	-msp modern sample species
+	-mr modern sample reference genome
+	-mm modern sample sequencing method
+		
+	If any of the last 3 parameters differ for different modern samples, they will need to be run separately.
+
     The DMR process has a similar flow. First edit the variables in the config_DMR.ini file. These include
     directory and filenames, samples and group names, parameters for grouping the DMRs, and the parts of 
     the script to run.
@@ -136,8 +154,7 @@ Running the scripts
 	-mr modern sample reference genome 
 	-mm modern sample sequencing method
 	-g group names--should correspond with samples, a list specified with no quotes or commas
-	-o directory for pickled objects (include final / for all directories)
-	-d directory for data files from RoAM process
+	-o directory for saved (pickled) object files (include final / for all directories)
 	-du directory for output txt files and pics
 	-gc CpG file
 	-ge sorted text file with genes
@@ -164,12 +181,7 @@ Running the scripts
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
     
-    The stages are "create_ancient_files", "create_modern_files", "DMR", "fdr", "permute", "permutstat", and "plotmethylation".
-    
-    The first 2 stages, create_ancient_files and create_modern_files, take text files from the RoAM process
-    and convert them into pickled files that the rest of the process uses. They are prerequisites to the
-    other stages. They can be run alone or with the other stages, but need not be run more than once for 
-    a given group of samples.
+    The stages are "DMR", "fdr", "permute", "permutstat", and "plotmethylation".
     
     The DMR step compares the methylation of the samples and finds differentially methylated regions. It creates 
     2 text files in the specified dump directory (DMR_gen_<timestamp>.txt lists input parameters and results,
