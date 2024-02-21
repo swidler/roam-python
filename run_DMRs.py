@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import DMRs as d
-import amsample as a
+#import amsample as a
 import mmsample as m
 import tools as t
 import datetime
@@ -21,7 +21,7 @@ argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
 argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
 argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
-argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process")
+#argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process")
 argParser.add_argument("-du", "--dump_dir", help="directory for output txt files and pics")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
@@ -96,7 +96,7 @@ annot = False if parameters["noannot"] else config["options"].getboolean("annot"
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
-if "create_ancient_files" in stages:
+"""if "create_ancient_files" in stages:
     data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
     for sample in samples:
         ams = a.Amsample()
@@ -114,7 +114,7 @@ if "create_modern_files" in stages:
             outfile = object_dir + sample + templ
             t.save_object(outfile, mms)
         else:
-            raise Exception(f"No file in {data_dir} matches {sample}")
+            raise Exception(f"No file in {data_dir} matches {sample}")"""
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
