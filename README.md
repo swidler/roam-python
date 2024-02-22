@@ -74,11 +74,11 @@ Running the scripts
 	-mo text file for modern genome 
 	-b .cov file for modern genome 
 	-gc CpG file 
-	-mn modern sample name 
-	-ma modern sample abbreviation 
-	-ms modern sample species 
+	-mn modern reference sample name 
+	-ma modern reference sample abbreviation 
+	-ms modern reference sample species 
 	-mr modern sample reference genome 
-	-mm modern sample sequencing method
+	-mm modern reference sample sequencing method
 	-bed flag for bed file (use this flag when bed file output is not desired) 
 	-cpg flag for creating CpG file
 	-cr reference genome assembly for CpG file
@@ -147,12 +147,12 @@ Running the scripts
 	-co path of config file (different config files can be used for different runs)
 	-rco path of RoAM config file
 	-s sample names, a list specified with no quotes or commas
-	-ms modern sample names (list like samples)
-	-mn modern sample name 
-	-ma modern sample abbreviation 
-	-msp modern sample species 
+	-ms modern reference sample names (list like samples)
+	-mn modern reference sample name 
+	-ma modern reference sample abbreviation 
+	-msp modern reference sample species 
 	-mr modern sample reference genome 
-	-mm modern sample sequencing method
+	-mm modern reference sample sequencing method
 	-g group names--should correspond with samples, a list specified with no quotes or commas
 	-o directory for saved (pickled) object files (include final / for all directories)
 	-du directory for output txt files and pics
