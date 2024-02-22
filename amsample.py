@@ -824,10 +824,8 @@ class Amsample(Chrom):
                     library field is 'single'.
                   method             method used to remove true C->T mutations. It can be one of the following:
                     (1) 'c_to_t' uses information from no_t and no_c only. Uses the parameter 'max_c_to_t' above.
-                    (2) 'g_to_a' uses information from no_a and no_g only. Uses the parameters 'max_g_to_a' and
-                    'max_a' above. Applicable only when the library field is 'single'.
-                    (3) 'both' combines both options, using information from no_t, no_c, no_a, and no_g. Uses the
-                    parameters 'max_c_to_t', 'max_g_to_a' and 'max_a' above. Applicable only when the
+                    (2) 'both' combines c_to_t option, above, with g_to_a, using information from no_t, no_c, no_a, 
+                    and no_g. Uses the parameters 'max_c_to_t', 'max_g_to_a' and 'max_a' above. Applicable only when the
                     library field is 'single'.
                   max_coverage       a coverage threshold used to remove PCR duplicates. All positions for which
                     no_c > max_coverage are removed. This parameter can be one of the following:
