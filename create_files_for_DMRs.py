@@ -48,6 +48,7 @@ if mod_samples:
     data_dir = parameters["data_dir"] if "data_dir" in parameters else ""
     i = 0
     for sample in mod_samples:
+        print(f"Processing {sample}")
         mms = m.Mmsample()
         bisfile = data_dir + sample + ".cov"
         abbrev = mod_abbrev[i]
