@@ -1,13 +1,10 @@
 #!/usr/bin/python3
 
 import DMRs as d
-#import amsample as a
 import mmsample as m
 import tools as t
 import datetime
 import copy
-#import config_DMR_testing as config  
-#import config as rconfig
 import argparse
 import sys
 import os
@@ -21,7 +18,6 @@ argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
 argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
 argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
-#argParser.add_argument("-d", "--data_dir", help="directory for data files from RoAM process")
 argParser.add_argument("-du", "--dump_dir", help="directory for output txt files and pics")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
@@ -96,25 +92,6 @@ annot = False if parameters["noannot"] else config["options"].getboolean("annot"
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
-"""if "create_ancient_files" in stages:
-    data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
-    for sample in samples:
-        ams = a.Amsample()
-        filename = data_dir + sample + templ + ".txt"
-        ams.parse_infile(filename)
-        outfile = object_dir + sample + templ
-        t.save_object(outfile, ams)
-if "create_modern_files" in stages:
-    data_dir = parameters["data_dir"] if "data_dir" in parameters else config["paths"]["data_dir"]
-    for sample in mod_samples:
-        mms = m.Mmsample()
-        bisfile = data_dir + sample + ".cov"
-        if os.path.isfile(bisfile):
-            mms.bismark_to_mm(bisfile, gc_object, sample, mod_abbrev, mod_species, "", mod_method)
-            outfile = object_dir + sample + templ
-            t.save_object(outfile, mms)
-        else:
-            raise Exception(f"No file in {data_dir} matches {sample}")"""
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
     chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
@@ -146,9 +123,7 @@ if "DMR" in stages:
     if ref:
         ref = mms
     min_finite = min_fin[:]
-    #cProfile.run("(qt_up, qt_down) = dms.groupDMRs(samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=[0.8,0.8], min_CpGs=min_CpGs, delta=delta)", "data/logs/DMR_profile")
     (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref)
-    #cProfile.run("dms.annotate(gene_file, cgi_file)", "data/logs/annotate_profile")
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -161,10 +136,6 @@ if "fdr" in stages:
     
     samplist = []  # if dmr in stages, samplist already loaded
     for sample in samples:  
-    #for samps in (samples, mod_samples):
-        #for sample in samps:
-        #use filtered files
-        #infile = object_dir + templ + sample
         infile = object_dir + sample + templ
         print(f"loading sample {sample}")
         input_obj = t.load_object(infile)
@@ -199,7 +170,6 @@ if "fdr" in stages:
         samps = list(sim_obj_list.values()) + mod_samplist
         dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
     adjusted_DMR = dms.adjust_params(dmr_obj_list)
-    #if not ("DMR" in stages and report):
     if annot:
         adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
