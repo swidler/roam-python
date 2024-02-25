@@ -160,8 +160,26 @@ if "fdr" in stages:
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
             samp_copy.simulate(mms)
-            samp_copy.estimate_drate(ref=mms)
-            samp_copy.reconstruct_methylation(ref=mms)
+            method = sample.d_rate["method"]
+            min_cov = int(sample.d_rate["min_coverage"])
+            d_params = {}
+            if method == "reference":
+                d_params["ref"] = mms
+                d_params["min_beta"] = sample.d_rate["min_beta"]
+            else:
+                d_params["global_meth"] = sample.d_rate["global_meth"]
+            samp_copy.estimate_drate(method=method, min_cov=min_cov, **d_params)
+            method = sample.methylation["algorithm"]
+            win_size = sample.methylation["win_size"]
+            lcf = sample.methylation["lcf"]
+            if isinstance(lcf, list):
+                lcf = lcf[0]
+            m_params = {}
+            if method == "lin" or method == "log":
+                m_params["slope"] = sample.methylation["slope"]
+                if method == "lin":
+                    m_params["intercept"] = sample.methylation["intercept"]
+            samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, **m_params)
             #dump object to text file
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?
