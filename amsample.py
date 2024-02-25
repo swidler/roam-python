@@ -1180,6 +1180,8 @@ class Amsample(Chrom):
             slope=[1/self.d_rate["rate"]["global"]]
         if win_size == "auto":
             auto_win = True
+        elif isinstance(win_size, list):
+            auto_win = False
         else:
             win_size = re.split(",| ", win_size)
             win_size = [int(x) for x in win_size]
