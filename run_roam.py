@@ -20,7 +20,6 @@ argParser.add_argument("-co", "--config", help="path of config file")
 argParser.add_argument("-f", "--filename", help="path of bam input file")
 argParser.add_argument("-l", "--library", help="single or double stranded")
 argParser.add_argument("-n", "--name", help="sample name")
-argParser.add_argument("-a", "--abbrev", help="sample abbreviation")
 argParser.add_argument("-le", "--lengths", nargs="+", help="chrom lengths--should correspond with the list of chromosomes")
 argParser.add_argument("-s", "--species", help="sample species")
 argParser.add_argument("-c", "--chroms", nargs="+", help="list of chromosomes to use")
@@ -40,7 +39,6 @@ argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-b", "--bismark", help=".cov file for modern genome")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-mn", "--mname", help="modern reference sample name")
-argParser.add_argument("-ma", "--mabbrev", help="modern reference sample abbreviation")
 argParser.add_argument("-ms", "--mspecies", help="modern reference sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequencing method")
@@ -127,16 +125,12 @@ else:
 #def roam_pipeline(filename=cfg.filename, name=cfg.name, abbrev=cfg.abbrev, library=cfg.library):
 def roam_pipeline(**params):
     name=params["name"] if "name" in params else config["required"]["name"]
-    abbrev=params["abbrev"] if "abbrev" in params else config["required"]["abbrev"]
     if name == "name" or not name:
         print("Name is a required parameter")
         sys.exit(1)
-    if abbrev == "abbrev" or not abbrev:
-        print("Abbreviation is a required parameter")
-        sys.exit(1)
     #create Amsample object
-    ams = a.Amsample(name=name, abbrev=abbrev)
-    # eg: ams = a.Amsample(name="Ust_Ishim", abbrev="Ust")
+    ams = a.Amsample(name=name)
+    # eg: ams = a.Amsample(name="Ust_Ishim")
     stages = params["stages"[:]] if "stages" in params else config["basic"]["stages"].split(",") 
     stage = stages[0]
     if stage == "bam":
@@ -177,7 +171,6 @@ def roam_pipeline(**params):
                 bismark = params["bismark"] if "bismark" in params else config["files"]["bismark_infile"]
                 modern = params["modern"] if "modern" in params else config["files"]["modern_infile"]
                 mod_name = params["mname"] if "mname" in params else config["modern"]["mod_name"]
-                mod_abbrev = params["mabbrev"] if "mabbrev" in params else config["modern"]["mod_abbrev"]
                 mod_species = params["mspecies"] if "mspecies" in params else config["modern"]["mod_spec"]
                 mod_ref = params["mref"] if "mref" in params else config["modern"]["mod_ref"]
                 mod_method = params["mmethod"] if "mmethod" in params else config["modern"]["mod_method"]
@@ -186,7 +179,7 @@ def roam_pipeline(**params):
                 if recon_method == "histogram" or drate_method == "reference":
                     mms = m.Mmsample()
                     if bismark:
-                        mms.create_mms_from_bismark_file(bismark, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
+                        mms.create_mms_from_bismark_file(bismark, gc, mod_name, mod_species, mod_ref, mod_method)
                     elif modern:
                         mms.create_mms_from_text_file(modern)
                     else:
@@ -237,11 +230,10 @@ def roam_pipeline(**params):
 if filedir and not file_per_chrom:
     filenames = glob.glob(filedir+"/*.bam")
     for fn in filenames:
-        name = abbrev = fn.split("/")[-1].split(".")[0]
+        name = fn.split("/")[-1].split(".")[0]
         #roam_pipeline(filename=fn, name=name, abbrev=abbrev, library=library)
         parameters["filename"] = fn
         parameters["name"] = name
-        parameters["abbrev"] = abbrev
         roam_pipeline(**parameters)
 else:
     #roam_pipeline(filename=fn, name=name, abbrev=abbrev, library=library)
