@@ -10,7 +10,7 @@ import re
 class Mmsample(Chrom):
     """Modern methylation sample class
 
-    This class inherits from Chroms superclass and has attributes name, abbrev, reference,
+    This class inherits from Chroms superclass and has attributes name, reference,
     method, no_chrs, metadata, chr_names, coord_per_position, and methylation. metadata, chr_names, and methylation are
     lists. no_chrs is determined based on the length of chr_names. An mmsample object is 
     created (with empty defaults): mms = Mmsample(). The attributes can then be populated.
@@ -18,9 +18,8 @@ class Mmsample(Chrom):
     Methods:
     """
     
-    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position="", methylation=[], coverage=[]):
+    def __init__(self, name="unknown", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position="", methylation=[], coverage=[]):
         self.name = name
-        self.abbrev = abbrev
         self.species = species
         self.reference = reference
         self.method = method
@@ -32,7 +31,7 @@ class Mmsample(Chrom):
         self.no_chrs = len(chr_names)   
         
     def __repr__(self): #defines print of object
-        return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
+        return "name: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)
     
     def parse_infile(self, infile):
         """Parses mmsample object from a text file
@@ -49,8 +48,6 @@ class Mmsample(Chrom):
                 if i < 7: #first 7 lines are headers
                     if fields[0] == "Name":
                         self.name = fields[1]
-                    elif fields[0] == "Abbreviation":
-                        self.abbrev = fields[1]
                     elif fields[0] == "Species":
                         self.species = fields[1]
                     elif fields[0] == "Reference":
@@ -86,7 +83,7 @@ class Mmsample(Chrom):
                 i += 1
         self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
     
-    def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_abbrev, mod_spec, mod_ref, mod_method):
+    def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_spec, mod_ref, mod_method):
         """Converts Bismark result file (.cov) into mmsample object
         
         Input: empty Mmsample object, Bismark file name, gcoordinates object (reference) filename, modern sample specifics
@@ -99,7 +96,6 @@ class Mmsample(Chrom):
             print("File for modern sample must be .cov")
             sys.exit(1)
         self.name = mod_name
-        self.abbrev = mod_abbrev
         self.species = mod_spec
         self.reference = mod_ref
         self.method = mod_method
@@ -256,8 +252,8 @@ class Mmsample(Chrom):
     def create_mms_from_text_file(self, mod_infile):
         self.parse_infile(mod_infile)
         
-    def create_mms_from_bismark_file(self, bis_infile, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method):
-        self.bismark_to_mm(bis_infile, gc, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
+    def create_mms_from_bismark_file(self, bis_infile, gc, mod_name, mod_species, mod_ref, mod_method):
+        self.bismark_to_mm(bis_infile, gc, mod_name, mod_species, mod_ref, mod_method)
         
     def to_m(self, chroms=None):
         """Transforms methylation beta-values to M-values.
@@ -289,7 +285,7 @@ class Mmsample(Chrom):
         mname = re.sub("\s", "_", mname)
         fname = outdir + mname + "_" + desc + ".txt"
         with open(fname, "w") as fid:
-            fid.write(f"Name: {mname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\nMethod: {self.method}\n")
+            fid.write(f"Name: {mname}\nSpecies: {self.species}\nReference: {self.reference}\nMethod: {self.method}\n")
             fid.write(f"Coordinates per position: {self.coord_per_position}\n")
             fid.write(f"Chromosomes: {self.chr_names}\n")
             fid.write("Methylation:\n")
