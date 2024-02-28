@@ -225,7 +225,7 @@ def roam_pipeline(**params):
     
     #dump object to text file
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]
-    ams.dump(stage, dir=outdir, bed=bed, gc_object=gc)
+    ams.dump(stage, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
     
 if filedir and not file_per_chrom:
     filenames = glob.glob(filedir+"/*.bam")
