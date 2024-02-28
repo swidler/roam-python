@@ -47,12 +47,12 @@ Running the scripts
 
     To run RoAM, start by editing the variables in the config.ini file. These include input and output filenames, 
     sample name, a list of chromosomes, their respective lengths, various flags, and the the parts of the script to run. 
-    The first 4 variables, input (.bam) file, name, abbreviation, and library (single or double stranded) are required. 
+    The first 3 variables, input (.bam) file, name, and library (single or double stranded) are required. 
     The rest have defaults loaded, but be sure to put all necessary files in the proper directory 
     (default is the current directory).
     
     The script can also be run from the command line, using flags for the required parameters, as follows:
-    run_roam.py -f "path to bam file" -n "sample name" -a "sample abbreviation" -l "library--single or double"
+    run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"
     The rest of the parameters can be specified as well, to override defaults (strings, except where noted):
     -co path of config file (different config files can be used for different runs)
     -le chrom lengths, specified with no quotes or commas, eg -le 12345 23456 (must correspond with chromosome list, below)
@@ -75,7 +75,6 @@ Running the scripts
 	-b .cov file for modern genome 
 	-gc CpG file 
 	-mn modern reference sample name 
-	-ma modern reference sample abbreviation 
 	-ms modern reference sample species 
 	-mr modern sample reference genome 
 	-mm modern reference sample sequencing method
@@ -132,7 +131,6 @@ Running the scripts
 	-gc CpG file (for modern samples)
 	-ttemplate to match any extra text in sample filename
 	-mt template to match any extra text in modern sample filename
-	-ma modern sample abbreviation, a list specified with no quotes or commas (same length as modern samples)
 	-msp modern sample species
 	-mr modern sample reference genome
 	-mm modern sample sequencing method
@@ -149,7 +147,6 @@ Running the scripts
 	-s sample names, a list specified with no quotes or commas
 	-ms modern reference sample names (list like samples)
 	-mn modern reference sample name 
-	-ma modern reference sample abbreviation 
 	-msp modern reference sample species 
 	-mr modern sample reference genome 
 	-mm modern reference sample sequencing method
