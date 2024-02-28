@@ -1163,11 +1163,11 @@ class Amsample(Chrom):
                  for determine_winsize.
                function        to compute methylation as a function of the C->T ratio. Options are:
                  'histogram', where the function is computed by histogram matching to a reference methylome.
-                 'lin', where the function is: meth = slope * no_t / no_ct + intercept
-                 'log', where the function is: meth = tanh(slope * no_t / no_ct).
-               slope           a parameter used for the 'lin' and the 'log' functions. It can be a list with a 
+                 'linear', where the function is: meth = slope * no_t / no_ct + intercept
+                 'logistic', where the function is: meth = tanh(slope * no_t / no_ct).
+               slope           a parameter used for the 'linear' and the 'logistic' functions. It can be a list with a 
                single value (where the value is used for all chromosomes) or a value for each chromosome.
-               intercept       a parameter for used for the 'lin' function, and determines the intercept of the
+               intercept       a parameter for used for the 'linear' function, and determines the intercept of the
                  linear transformation. Can be a list with a single value (where the value is used for 
                  all chromosomes) or a value for each chromosome.
                ref             Mmsample object containing the beta-values of the reference.
@@ -1269,9 +1269,9 @@ class Amsample(Chrom):
                 for i in idx_finite[0]:
                     methi[i] = d[i]
                             
-            elif function == "log":
+            elif function == "logistic":
                 methi = np.tanh(slope[chrom]*c_to_t)
-            elif function == "lin":
+            elif function == "linear":
                 methi = slope[chrom]*c_to_t+intercept[chrom]
                 methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
             print(f"Average methylation: {np.nanmean(methi):.2f}")
