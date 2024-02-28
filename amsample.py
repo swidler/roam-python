@@ -1314,7 +1314,7 @@ class Amsample(Chrom):
             self.no_c[chrom] = tot_ct - self.no_t[chrom]
             print("done")
 
-    def dump(self, stage, chroms=None, dir="", bed=True, gc_object=""):
+    def dump(self, stage, chroms=None, dir="", bed=True, gc_object="", object_dir=""):
         """Dumps Amsample object to text file.
         
         Input: stage    name indicating which part of the process has been dumped, for use in file name.
@@ -1450,7 +1450,9 @@ class Amsample(Chrom):
                             for chrom in range(len(meth_bed)):
                                 for line in range(len(meth_bed[chrom])):
                                     bid.write(meth_bed[chrom][line])
-            
+        if stage == "meth":
+            outfile = object_dir + aname
+            t.save_object(outfile, self)
 
 
 
