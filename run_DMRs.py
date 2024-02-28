@@ -41,7 +41,6 @@ argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
 argParser.add_argument("-b", "--bismark", help=".cov file for modern genome")
 argParser.add_argument("-mo", "--modern", help="text file for modern genome")
 argParser.add_argument("-mn", "--mname", help="modern reference sample name")
-argParser.add_argument("-ma", "--mabbrev", help="modern reference sample abbreviation")
 argParser.add_argument("-msp", "--mspecies", help="modern reference sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequencing method")
@@ -77,7 +76,6 @@ delta = parameters["delta"] if "delta" in parameters else float(config["basic"][
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rconfig["files"]["bismark_infile"]
 modern = parameters["modern"] if "modern" in parameters else rconfig["files"]["modern_infile"]
 mod_name = parameters["mname"] if "mname" in parameters else rconfig["modern"]["mod_name"]
-mod_abbrev = parameters["mabbrev"] if "mabbrev" in parameters else rconfig["modern"]["mod_abbrev"]
 mod_species = parameters["mspecies"] if "mspecies" in parameters else rconfig["modern"]["mod_spec"]
 mod_ref = parameters["mref"] if "mref" in parameters else rconfig["modern"]["mod_ref"]
 mod_method = parameters["mmethod"] if "mmethod" in parameters else rconfig["modern"]["mod_method"]
@@ -114,7 +112,7 @@ elif "fdr" in stages or "permute" in stages or "permutstat" in stages or "plotme
 if "DMR" in stages or "fdr" in stages:
     mms = m.Mmsample()
     if bismark_infile:
-        mms.create_mms_from_bismark_file(bismark_infile, gc_object, mod_name, mod_abbrev, mod_species, mod_ref, mod_method)
+        mms.create_mms_from_bismark_file(bismark_infile, gc_object, mod_name, mod_species, mod_ref, mod_method)
     else:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
