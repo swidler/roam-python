@@ -62,7 +62,7 @@ Running the scripts
 	-cf set True for dir with one file per chromosome
 	-m mapping quality for read 
 	-q mapping quality for position
-	-rm method of reconstruction (can be histogram, lin, or log; default is histogram) 
+	-rm method of reconstruction (can be histogram, linear, or logistic; default is histogram) 
 	-st stages of process to be run, a list specified with no quotes or commas, eg -st bam diagnose
 	-o directory for saved (pickled) object files (include final / for all directories)
 	-fd directory for multiple input files 
