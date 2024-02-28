@@ -52,7 +52,7 @@ argParser.add_argument("-dm", "--dmethod", help="method of deamination rate calc
 argParser.add_argument("-mc", "--min_cov", help="minimum coverage of sites for deamination rate calculation")
 argParser.add_argument("-mb", "--min_beta", help="minimum beta value for reference method of deamination rate calculation")
 argParser.add_argument("-gm", "--global_meth", help="global methylation value for use with global method of deamination rate calculation")
-argParser.add_argument("-rm", "--rmethod", help="method of reconstruction (can be histogram, lin, or log)")
+argParser.add_argument("-rm", "--rmethod", help="method of reconstruction (can be histogram, linear, or logistic)")
 argParser.add_argument("-lcf", "--lcf", help="low coverage factor for methylation reconstruction")
 argParser.add_argument("-sl", "--slope", nargs="+", help="slope for linear/logistic methods of methylation reconstruction")
 argParser.add_argument("-in", "--intercept", nargs="+", help="intercept for linear method of methylation reconstruction")
@@ -91,10 +91,10 @@ def validate_input(**params):
         ):
         print("No modern reference file entered for histogram methylation reconstruction method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
     elif (
-        (recon_method == "lin" or recon_method == "log")
+        (recon_method == "linear" or recon_method == "logistic")
         and "slope" not in params and not config["meth"]["slope"]
         ):
-        raise Exception("No slope param provided when using 'lin' or 'log' method")
+        raise Exception("No slope param provided when using 'linear' or 'logistic' method")
         
      
     
