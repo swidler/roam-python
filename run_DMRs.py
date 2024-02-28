@@ -175,9 +175,9 @@ if "fdr" in stages:
             if isinstance(lcf, list):
                 lcf = lcf[0]
             m_params = {}
-            if method == "lin" or method == "log":
+            if method == "linear" or method == "logistic":
                 m_params["slope"] = sample.methylation["slope"]
-                if method == "lin":
+                if method == "linear":
                     m_params["intercept"] = sample.methylation["intercept"]
             samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, **m_params)
             #dump object to text file
