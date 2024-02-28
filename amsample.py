@@ -18,7 +18,7 @@ import sys
 class Amsample(Chrom):
     """Ancient methylation sample class
 
-    This class inherits from Chroms superclass and has attributes name, abbrev, species, reference,
+    This class inherits from Chroms superclass and has attributes name, species, reference,
     library, is_simulated, no_chrs, metadata, chr_names, coord_per_position, no_a, no_g, no_c, no_t,
     g_to_a, c_to_t, diagnostics, p_filters, methylation, and d_rate. The last 5 are
     dictionaries, while 8 of the previous 9 (metadata through c_to_t, excluding coord_per_position) are lists. 
@@ -26,9 +26,8 @@ class Amsample(Chrom):
         
     An amsample object is created (with empty defaults): ams = Amsample(). The attributes can then be populated.
     """
-    def __init__(self, name="unknown", abbrev="unk", species="unknown", reference="", library="", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
+    def __init__(self, name="unknown", species="unknown", reference="", library="", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
         self.name = name
-        self.abbrev = abbrev
         self.species = species
         self.reference = reference
         self.library = library
@@ -50,7 +49,7 @@ class Amsample(Chrom):
         self.no_chrs = len(chr_names)
 
     def __repr__(self): #defines print of object
-        return "name: %s\nabbrev: %s\nspecies: %s\nreference: %s\nlibrary: %s\nchr_names: %s\ncoord_per_position: %s\nno_a: %s\nno_c: %s\nno_g: %s\nno_t: %s\ng_to_a: %s \nc_to_t: %s\ndiagnostics: %s\np_filters: %s\nis_filtered: %s\nis_simulated: %s\nmethylation: %s\nd_rate: %s\nmetadata: %s\nno_chrs: %s" % (self.name, self.abbrev, self.species, self.reference, self.library, self.chr_names, self.coord_per_position, self.no_a, self.no_c, self.no_g, self.no_t, self.g_to_a, self.c_to_t, self.diagnostics, self.p_filters, self.is_filtered, self.is_simulated, self.methylation, self.d_rate, self.metadata, self.no_chrs)
+        return "name: %s\nspecies: %s\nreference: %s\nlibrary: %s\nchr_names: %s\ncoord_per_position: %s\nno_a: %s\nno_c: %s\nno_g: %s\nno_t: %s\ng_to_a: %s \nc_to_t: %s\ndiagnostics: %s\np_filters: %s\nis_filtered: %s\nis_simulated: %s\nmethylation: %s\nd_rate: %s\nmetadata: %s\nno_chrs: %s" % (self.name, self.species, self.reference, self.library, self.chr_names, self.coord_per_position, self.no_a, self.no_c, self.no_g, self.no_t, self.g_to_a, self.c_to_t, self.diagnostics, self.p_filters, self.is_filtered, self.is_simulated, self.methylation, self.d_rate, self.metadata, self.no_chrs)
 
     @staticmethod
     def find_indel(cig, seq, qual):
@@ -319,8 +318,6 @@ class Amsample(Chrom):
                 if i < 6: #first 6 lines are headers
                     if fields[0] == "Name" and (self.name == None or self.name == "unknown"):
                         self.name = fields[1]
-                    elif fields[0] == "Abbreviation" and (self.abbrev == None or self.abbrev == "unk"):
-                        self.abbrev = fields[1]
                     elif fields[0] == "Species":
                         self.species = fields[1]
                     elif fields[0] == "Reference":
@@ -1329,7 +1326,7 @@ class Amsample(Chrom):
         aname = re.sub("\s", "_", aname)
         fname = dir + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
-            fid.write(f"Name: {aname}\nAbbreviation: {self.abbrev}\nSpecies: {self.species}\nReference: {self.reference}\n")
+            fid.write(f"Name: {aname}\nSpecies: {self.species}\nReference: {self.reference}\n")
             fid.write(f"Library: {self.library}\n")
             fid.write(f"Chromosomes: {self.chr_names}\n")
             #filt = "" if self.is_filtered else "not "
@@ -1461,4 +1458,4 @@ class Amsample(Chrom):
 if __name__ == "__main__":
     #ams = Amsample(name="I1116", abbrev="1116")
     #ams = Amsample(name="Ust_Ishim", abbrev="Ust")
-    ams = Amsample(name="Altai_Neanderthal", abbrev="Alt")
+    ams = Amsample(name="Altai_Neanderthal")
