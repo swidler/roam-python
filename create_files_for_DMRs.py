@@ -15,7 +15,6 @@ argParser.add_argument("-d", "--data_dir", help="directory for data files from R
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-t", "--templ", help="template to match any extra text in sample filename")
 argParser.add_argument("-mt", "--mtempl", help="template to match any extra text in modern sample filename")
-argParser.add_argument("-ma", "--mabbrev", nargs="+", help="modern sample abbreviation")
 argParser.add_argument("-msp", "--mspecies", help="modern sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
@@ -31,7 +30,6 @@ templ = parameters["templ"] if "templ" in parameters else ""
 mtempl = parameters["mtempl"] if "mtempl" in parameters else ""
 object_dir = parameters["object_dir"] if "object_dir" in parameters else ""
 gc_object = parameters["gc_file"] if "gc_file" in parameters else ""
-mod_abbrev = parameters["mabbrev"] if "mabbrev" in parameters else []
 mod_species = parameters["mspecies"] if "mspecies" in parameters else ""
 mod_ref = parameters["mref"] if "mref" in parameters else ""
 mod_method = parameters["mmethod"] if "mmethod" in parameters else ""
@@ -51,9 +49,8 @@ if mod_samples:
         print(f"Processing {sample}")
         mms = m.Mmsample()
         bisfile = data_dir + sample + ".cov"
-        abbrev = mod_abbrev[i]
         if os.path.isfile(bisfile):
-            mms.bismark_to_mm(bisfile, gc_object, sample, abbrev, mod_species, mod_ref, mod_method)
+            mms.bismark_to_mm(bisfile, gc_object, sample, mod_species, mod_ref, mod_method)
             outfile = object_dir + sample + mtempl
             t.save_object(outfile, mms)
         else:
