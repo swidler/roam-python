@@ -525,20 +525,14 @@ class Amsample(Chrom):
             meth = min(max(meth,0),1)
         return meth
 
-    def diagnose(self, fname=None, span=5, strict=True, tolerance=1e-3, compare=True, max_c_to_t=0.25, max_g_to_a=0.25, max_coverage=100, low_coverage=1, logdir=None, picdir=None):
+    def diagnose(self, fname=None, span=5, tolerance=1e-3, low_coverage=1, logdir=None, picdir=None):
         """Computes basic statistics on each input chromosome, and recommends what thresholds to use when excluding 
             PCR duplicates and true mutations.
             
         Input:  fname        name and path of output file
                 span         parameter for outlier removal in the array no_ct
-                strict       when True, applies a stricter threshold on no_ct
                 tolerance    tolerance of BMM model convergence
-                compare      when True, compares diagnose's procedure of outlier removal to that of simple thresholds
-                max_c_to_t   simple threshold, removing all positions where no_t/no_ct > max_c_to_t
-                max_g_to_a   simple threshold for double-stranded libraries, removing all positions where 
-                    no_a/no_ga > max_g_to_a. 
-                max_coverage simple threshold determining the threshold for removing PCR duplicates
-                low_coverage 
+                
         Output: Amsample object with updated diagnostics and p_filters fields
         """
         if fname is None:
@@ -612,10 +606,29 @@ class Amsample(Chrom):
             nz_ct = np.copy(no_ct) #copy array
             for x in nt_zeros:
                 nz_ct[x] = np.nan
-            
+            N = np.histogram(nz_ct,bins=range(int(thresh)+2))
             more_to_remove = []
-            if strict:
-                print("in strict loop") #handle later
+            
+            imx = N[0].argmax()  # get index of N's max val
+            points = [*range(imx-1,imx+2)]
+            if points[0] == 0:
+                points = [x+1 for x in points]
+            p2 = np.polyfit(points,N[0][points],2)
+            mu = -.5*p2[1]/p2[0]
+            N0 = -.25*p2[1]**2/p2[0] + p2[2]
+            imu = np.ceil(mu)
+            idx = imu-1 + np.where(N[0][int(imu):-1]<.1*N0)[0][1]  # index 0 is 0 in python, so skip
+            delta = idx - mu
+            f = N[0][int(idx)]/N0
+            sig = delta/np.sqrt(2*np.log(1/f))
+            fid.write(f"\t     the distribution of [nt] is approximated as N(mu,sig)=N({mu},{sig})\n")
+            #take the threshold as the first value where the expectation is to get less than one count
+            total_counts = sum(N[0])
+            thresh = np.ceil(mu + sig*np.sqrt(2*np.log(total_counts/sig/np.sqrt(2*np.pi))))
+            fid.write(f"\t     Final threshold was set to {thresh}\n")
+            more_to_remove = np.where(no_ct>thresh)[0]
+            fid.write(f"\t     {len(more_to_remove):,d} positions ({100*len(more_to_remove)/len(no_ct):,.2f}%) removed as nt > {thresh:.0f}\n")
+            
             coverage_threshold[chrom] = thresh
             
             #plot the coverage
@@ -637,7 +650,7 @@ class Amsample(Chrom):
             plt.savefig(pic_file)
         
             #remove outliers
-            to_remove = [to_remove, more_to_remove] #more_to_remove gets vals in skipped strict loop
+            to_remove = [to_remove, more_to_remove]
             for x in to_remove:
                 for y in x:
                     no_ct[y] = np.nan
@@ -648,12 +661,13 @@ class Amsample(Chrom):
             #effective coverage
             eff_coverage[chrom] = np.nanmean(no_ct)
             fid.write(f"\t     Effective coverage: {eff_coverage[chrom]:.1f}\n")
-            max_c = float(max_coverage)
             
-            #compare to previous PCR-duplicate threshold
-            prev_to_remove = np.where(no_ct>max_c)[0]
-            fid.write(f"\t     COMPARISON: {len(prev_to_remove):,d} positions ({100*len(prev_to_remove)/len(no_ct):.2f}%) ")
-            fid.write(f"would have been removed if the PCR-duplicate threshold were {max_coverage}\n")
+            #max_c = float(max_coverage)
+            
+            #compare to previous PCR-duplicate threshold     REMOVE THESE LINES?
+            #prev_to_remove = np.where(no_ct>max_c)[0]
+            #fid.write(f"\t     COMPARISON: {len(prev_to_remove):,d} positions ({100*len(prev_to_remove)/len(no_ct):.2f}%) ")
+            #fid.write(f"would have been removed if the PCR-duplicate threshold were {max_coverage}\n")
             
             #report on the zero bin
             fid.write(f"\t{len(nt_zeros):,d} positions ({100*len(nt_zeros)/len(no_ct):.2f}%) have no_ct = 0\n")
@@ -693,46 +707,7 @@ class Amsample(Chrom):
                     #what happens with no threshold?
                     fid.write("\t\tIf no threshold is used (no positions removed), ")
                     fid.write(f"then {(w[1]+w[2])*no_pos_cover:.1f} false positives will be retained\n")
-                #compute positions removed using G->A and C->T
-                if compare:
-                    if np.isfinite(max_c_to_t):
-                        c2t_crit = [x for x in idx if no_t[x]>1 and no_t[x]/no_ct[x] >= max_c_to_t]
-                        fid.write("\t\tCOMPARISON: Using C->T ")
-                        fid.write(f"{len(c2t_crit):,d} positions are removed.\n")
-                    if self.library == "single": #test sections with this condition
-                        g2a_crit = [x for x in idx if (no_a[x]==1 and g_to_a[x]>=max_g_to_a) or no_a[x]>1]
-                        fid.write("\t\tCOMPARISON: Using G->A ")
-                        fid.write(f"{len(g2a_crit):,d} positions are removed.")
-                        if np.isfinite(max_c_to_t):
-                            g2a_additional = np.setdiff1d(g2a_crit, c2t_crit)
-                            fid.write(f" Of them, {len(g2a_additional):,d} positions were not removed ")
-                            fid.write("by the C->T ratio threshold.\n")
-                            if (more_to_remove.ndim>1):
-                                flat_remove = [x for y in more_to_remove for x in y] #flatten 2d list to do intersect
-                            else:
-                                flat_remove = more_to_remove
-                            crits = c2t_crit+g2a_crit
-                            in_both = list(set(crits).intersection(set(flat_remove)))
-                            fid.write("\t\tCOMPARISON: ")
-                            if len(in_both) == len(flat_remove):
-                                fid.write("All positions removed only by looking at [xt] ")
-                                fid.write(f"({len(flat_remove):,d}) also removed when looking at ")
-                                fid.write("both C->T and G->A.\n")
-                            else:
-                                fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
-                                fid.write(f"[xt], {len(in_both):,d} ({100*len(in_both)/len(more_to_remove):.1f}%)")
-                                fid.write(" also removed when looking at both C->T and G->A.\n")
-                        else:
-                            fid.write("\n")
-                        in_crit = list(set(g2a_crit).intersection(set(flat_remove)))
-                        fid.write("\t\tCOMPARISON: ")
-                        if len(in_crit) == len(flat_remove):
-                            fid.write("All positions removed only by looking at [xt] ")
-                            fid.write(f"({len(flat_remove):,d}) also removed when looking at G->A.\n")
-                        else:
-                            fid.write(f"Of the {len(flat_remove):,d} positions removed only by looking at ")
-                            fid.write(f"[xt], {len(in_crit):,d} ({100*len(in_crit)/len(flat_remove):.1f}%)")
-                            fid.write(" also removed when looking at G->A.\n")
+                
                 #remove the positions
                 for x in more_to_remove:
                     no_ct[x] = np.nan #assumes 1d array
@@ -800,7 +775,7 @@ class Amsample(Chrom):
         to_remove = np.unique(to_remove)
         return to_remove
 
-    def filter(self, max_c_to_t = None, min_t = 1, merge = True, fname = None, max_g_to_a = .25, max_a = 1, method = None, max_coverage = None, max_TsPerCoverage = None, logdir=None):
+    def filter(self, max_c_to_t = 0.25, merge = True, max_g_to_a = .25, method = None, use_max_TsPerCoverage = True, max_coverage = None,  fname = None, min_t = 1, max_a = 1, logdir=None):
         """Removes information from CpG sites that did not pass various quality control tests
         
         Input:    max_c_to_t         threshold used to identify sites with a true C->T mutation. All positions 
@@ -828,18 +803,16 @@ class Amsample(Chrom):
                     no_c > max_coverage are removed. This parameter can be one of the following:
                     (1) scalar, in which case it is used for all chromosomes.
                     (2)vector over chromosomes, with a different threshold for each chromosome.
-                  max_TsPerCoverage  a threshold used to identify sites with a true C->T mutation. All
-                    positions with a certain coverage no_t+no_c=C, where no_t > max_TsPerCoverage(C) are removed.
-                    This parameter is an array over chromosomes, with an array of max_TsPerCoverage for each
-                    coverage level in each chromosome.
+                  use_max_TsPerCoverage  max_TsPerCoverage is a threshold used to identify sites with a true C->T 
+                    mutation. All positions with a certain coverage no_t+no_c=C, where no_t > max_TsPerCoverage(C) 
+                    are removed. This parameter is an array over chromosomes, with an array of max_TsPerCoverage for 
+                    each coverage level in each chromosome. Default is to use this over user-entered max_c_to_t.
         Output: Amsample object with removed sites replaced with NaNs
         """
         #initialize
         no_chr = self.no_chrs
         if fname == None:
             fname = logdir+self.name+"_filter.txt"
-        is_c_to_t = False
-        is_ts_per_cov = False
         if max_coverage == None:
             max_coverage = self.p_filters["max_coverage"] if any(self.p_filters["max_coverage"]) else 100
         if method == None:
@@ -847,18 +820,10 @@ class Amsample(Chrom):
                 method = "both"
             else:
                 method = "c_to_t"
-        if max_TsPerCoverage is not None:
-            is_ts_per_cov = True
+        if use_max_TsPerCoverage:
+            max_TsPerCoverage = self.p_filters["max_TsPerCoverage"] if self.p_filters["max_TsPerCoverage"] else max_c_to_t
         else:
-            if max_c_to_t is not None:
-                max_TsPerCoverage = max_c_to_t
-            else:
-                max_TsPerCoverage = self.p_filters["max_TsPerCoverage"] if self.p_filters["max_TsPerCoverage"] else .25
-        if max_c_to_t is not None:
-            is_c_to_t = True
-        #'max_c_to_t' and 'max_TsPerCoverage' cannot be used at the same time
-        if is_c_to_t and is_ts_per_cov:
-            print("Both 'max_TsPerCoverage' and 'max_c_to_t' were used in the input")
+            max_TsPerCoverage = max_c_to_t
         #bring input parameters into standard form - max_coverage
         if np.isscalar(max_coverage):
             max_coverage = max_coverage * np.ones(no_chr)
@@ -867,7 +832,7 @@ class Amsample(Chrom):
             tmp_max = max_TsPerCoverage
         else:
             tmp_max = max_TsPerCoverage.copy() 
-        if is_c_to_t: #max_c_to_t
+        if not use_max_TsPerCoverage: #max_c_to_t
             if np.isscalar(max_TsPerCoverage): #single ratio
                 for chrom in range(no_chr):
                     max_TsPerCoverage[chrom] = math.ceil(tmp_max * range(max_coverage[chrom])-1)
