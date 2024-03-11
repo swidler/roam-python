@@ -174,7 +174,7 @@ def roam_pipeline(**params):
             max_g_to_a = params["max_g_to_a"] if "max_g_to_a" in params else config["filter"]["max_g_to_a"]
             merge = params["merge"] if "merge" in params else config["filter"].getboolean("merge")
             method = params["method"] if "method" in params else config["filter"]["method"]
-            ams.filter(logdir=logdir, max_c_to_t = max_c_to_t, merge = merge, max_g_to_a = max_g_to_a, method = method, use_max_TsPerCoverage = use_t)
+            ams.filter(logdir=logdir, max_c_to_t = float(max_c_to_t), merge = merge, max_g_to_a = float(max_g_to_a), method = method, use_max_TsPerCoverage = use_t)
         elif stage == "drate" or stage == "meth":
             if not mm_flag:
                 #create Mmsample object
