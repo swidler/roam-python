@@ -815,7 +815,7 @@ class Amsample(Chrom):
             fname = logdir+self.name+"_filter.txt"
         if max_coverage == None:
             max_coverage = self.p_filters["max_coverage"] if any(self.p_filters["max_coverage"]) else 100
-        if method == None:
+        if method == None or not method:
             if self.library == "single": #test this function on single stranded data
                 method = "both"
             else:
