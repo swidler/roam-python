@@ -315,7 +315,7 @@ class Amsample(Chrom):
                 fields = line.split(":")
                 if len(fields) > 1:
                     fields[1] = fields[1].lstrip() #remove leading space
-                if i < 6: #first 6 lines are headers
+                if i < 5: #first 5 lines are headers
                     if fields[0] == "Name" and (self.name == None or self.name == "unknown"):
                         self.name = fields[1]
                     elif fields[0] == "Species":
@@ -326,19 +326,19 @@ class Amsample(Chrom):
                         self.library = fields[1]
                     elif fields[0] == "Chromosomes":
                         self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
-                elif i == 6: #filtered line
+                elif i == 5: #filtered line
                     if "False" in line:
                         self.is_filtered = False
                         #flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     else:
                         self.is_filtered = True
-                elif i == 7: #p filters line
+                elif i == 6: #p filters line
                     if "False" in line:
                         flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     #else:
                         #self.is_filtered = True
-                elif i > 7:
-                    if fields[0] == "Method" and i == 8:
+                elif i > 6:
+                    if fields[0] == "Method" and i == 7:
                         self.p_filters["method"] = fields[1]
                         flag = 0  # fix for newer files with diagnostics for unfiltered
                     elif fields[0] == "max_coverage":
