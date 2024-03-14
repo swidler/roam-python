@@ -1190,6 +1190,7 @@ class Amsample(Chrom):
             c_to_t = no_t/no_ct
             if function == "histogram":
                 ref.merge()
+                ref.scale()
                 # hard-coded parameters
                 ref_bins = 100
                 sig_bins = 1000
