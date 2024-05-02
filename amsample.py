@@ -812,7 +812,7 @@ class Amsample(Chrom):
         #initialize
         no_chr = self.no_chrs
         if fname == None:
-            fname = logdir+self.name+"_filter.txt"
+            fname = logdir+self.name+"_filter_log.txt"
         if max_coverage == None:
             max_coverage = self.p_filters["max_coverage"] if any(self.p_filters["max_coverage"]) else 100
         if method == None or not method:
@@ -1232,9 +1232,9 @@ class Amsample(Chrom):
                 for i in idx_finite[0]:
                     methi[i] = d[i]
                             
-            elif function == "logistic":
+            elif function == "logistic" or function == "log":
                 methi = np.tanh(slope[chrom]*c_to_t)
-            elif function == "linear":
+            elif function == "linear" or function == "lin":
                 methi = slope[chrom]*c_to_t+intercept[chrom]
                 methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
             print(f"Average methylation: {np.nanmean(methi):.2f}")
