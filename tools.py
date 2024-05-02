@@ -34,7 +34,7 @@ def nanmerge(arr, operation):
         factor = 1
     elif operation == "max":
         for i in range(0,len(arr),2):
-            take_me = max(arr[i],arr[i+1])
+            take_me = np.nanmax(np.array([arr[i],arr[i+1]]))  # regular max function will always take nan
             result.append(take_me)
         return result
     for i in range(0,len(arr),2):
