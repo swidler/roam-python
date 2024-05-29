@@ -1038,9 +1038,9 @@ class Amsample(Chrom):
             print(f"Estimating deamination rate in {self.chr_names[chrom]}")
             
             #vectors of current chrom
-            no_t = self.no_t[chrom]
+            no_t = self.no_t[chrom][:]
             no_t = np.array(no_t) #convert to numpy array in order to add elementwise
-            no_c = self.no_c[chrom]
+            no_c = self.no_c[chrom][:]
             no_c = np.array(no_c)
             no_ct = no_t + no_c
 
