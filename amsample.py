@@ -108,17 +108,17 @@ class Amsample(Chrom):
         date = date.strftime("%c")
         print(f"Starting chromosome {chrom_name}: {date}")
         chrom_bam = bam.fetch(chrom_name)
-        tot_a_plus = np.zeros(chr_lengths[chrom])
-        tot_a_minus = np.zeros(chr_lengths[chrom])
-        tot_g_plus = np.zeros(chr_lengths[chrom])
-        tot_g_minus = np.zeros(chr_lengths[chrom])
-        tot_c_plus = np.zeros(chr_lengths[chrom])
-        tot_c_minus = np.zeros(chr_lengths[chrom])
-        tot_t_plus = np.zeros(chr_lengths[chrom])
-        tot_t_minus = np.zeros(chr_lengths[chrom])
+        tot_a_plus = np.zeros(chr_lengths[bam_chrom])
+        tot_a_minus = np.zeros(chr_lengths[bam_chrom])
+        tot_g_plus = np.zeros(chr_lengths[bam_chrom])
+        tot_g_minus = np.zeros(chr_lengths[bam_chrom])
+        tot_c_plus = np.zeros(chr_lengths[bam_chrom])
+        tot_c_minus = np.zeros(chr_lengths[bam_chrom])
+        tot_t_plus = np.zeros(chr_lengths[bam_chrom])
+        tot_t_minus = np.zeros(chr_lengths[bam_chrom])
         cpg_chrom = chrom_name
-        cpg_plus = gc.coords[chrom]-1
-        cpg_minus = gc.coords[chrom]
+        cpg_plus = gc.coords[bam_chrom]-1
+        cpg_minus = gc.coords[bam_chrom]
         for read in chrom_bam:
             if read.is_unmapped:
                 print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
@@ -141,8 +141,8 @@ class Amsample(Chrom):
                continue
             if len(cig) != 1:
                 (seq, qual) = self.find_indel(cig, seq, qual)
-            if pos + len(seq) > chr_lengths[chrom]:
-                print(f"Chrom {chrom_name} is {chr_lengths[chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
+            if pos + len(seq) > chr_lengths[bam_chrom]:
+                print(f"Chrom {chrom_name} is {chr_lengths[bam_chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
                 continue
             if trim_ends:
                 if strand == "+":
