@@ -284,10 +284,10 @@ class Amsample(Chrom):
                     sys.exit(1)
                 i += 1
             chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
-            for chrom in chrom_index:
-                chrom_name = chrom_names[chrom]
-                chrom_pos = input_index[chrom]
-                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
+            for chrom_num in chrom_index:
+                chrom_name = chrom_names[chrom_num]
+                chrom_pos = input_index[chrom_num]
+                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
             bam.close()  
         if len(self.no_t[-1])/len(gc.coords[chrom_num]) == 2:  # compare gc.coords of most recent chrom to no_t in last done chrom
             self.coord_per_position = "2"
