@@ -289,12 +289,12 @@ class Amsample(Chrom):
                 chrom_pos = input_index[chrom]
                 self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom)
             bam.close()  
-        if len(self.no_t[-1])/len(gc.coords[chrom_pos]) == 2:  # compare gc.coords of most recent chrom to no_t in last done chrom
+        if len(self.no_t[-1])/len(gc.coords[chrom_num]) == 2:  # compare gc.coords of most recent chrom to no_t in last done chrom
             self.coord_per_position = "2"
-        elif len(self.no_t[-1])/len(gc.coords[chrom_pos]) == 1:
+        elif len(self.no_t[-1])/len(gc.coords[chrom_num]) == 1:
             self.coord_per_position = "1"
         else:
-            print(f"ratio of chrom coords to cpg coords is {len(self.no_t[-1])/len(gc.coords[chrom_pos])}")
+            print(f"ratio of chrom coords to cpg coords is {len(self.no_t[-1])/len(gc.coords[chrom_num])}")
         self.no_chrs = len(chroms)
         #add object name
 
