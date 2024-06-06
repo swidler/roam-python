@@ -16,6 +16,7 @@ argParser.add_argument("-co", "--config", help="path of config file")
 argParser.add_argument("-rco", "--rconfig", help="path of RoAM config file")
 argParser.add_argument("-s", "--samples", nargs="+", help="sample names")
 argParser.add_argument("-ms", "--mod_samples", nargs="+", help="modern sample names")
+argParser.add_argument("-c", "--chroms", nargs="+", help="list of chromosomes")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
 argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
 argParser.add_argument("-du", "--dump_dir", help="directory for output txt files and pics")
@@ -24,6 +25,7 @@ argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
 argParser.add_argument("-cg", "--cgi_file", help="CGI file")
 argParser.add_argument("-c1", "--cust_file1", help="first custom bed file")
 argParser.add_argument("-c2", "--cust_file2", help="second custom bed file")
+argParser.add_argument("-pd", "--prom_def", nargs="+", help="promoter definition around TSS: a list of 2 values [before, after], where before is the number of nucleotides into the intergenic region, and after is the number of nucleotides")
 argParser.add_argument("-di", "--dmr_infile", help="pickled DMR file for use in fdr, permutations, and plots")
 argParser.add_argument("-dpi", "--dmp_infile", help="pickled DMR permutation file for use in permutstat")
 argParser.add_argument("-t", "--templ", help="template to match any extra text in sample filename")
@@ -31,10 +33,13 @@ argParser.add_argument("-st", "--stages", nargs="+", help="stages of process to 
 argParser.add_argument("-de", "--delta", type=float, help="minimum methylation difference between the two groups")
 argParser.add_argument("-mc", "--min_cpgs", type=int, help="DMRs whose number of CpGs is less than min_CpGs are filtered out")
 argParser.add_argument("-mq", "--min_qt", type=int, help="DMRs with Qt < min_qt are filtered out")
+argParser.add_argument("-mb", "--min_bases", type=int, help="DMRs shorter than min_bases are filtered out")
+argParser.add_argument("-mad", "--max_adj_dist", type=int, help="max distance between adjacent CpGs within the same DMR")
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="minimum number of ancient samples for which we require data")
 argParser.add_argument("-w", "--win_size", help="window size for smoothing")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr")
+argParser.add_argument("-th", "--thresh", type=float, help="FDR threshold")
 argParser.add_argument("-p", "--permutations", type=int, help="number of permutations to run")
 argParser.add_argument("-dmi", "--dmr_idx", type=int, help="index of DMR")  # index or name??
 argParser.add_argument("-dmc", "--dmr_chrom", help="chromosome of DMR")
@@ -61,6 +66,7 @@ rconfig.read(rconfile)
 
 samples = parameters["samples"[:]] if "samples" in parameters else config["basic"]["samples"].split(",")
 mod_samples = parameters["mod_samples"[:]] if "mod_samples" in parameters else config["basic"]["mod_samples"].split(",")
+chroms = parameters["chroms"[:]] if "chroms" in parameters else config["basic"]["chromosomes"].split(",")
 templ = parameters["templ"] if "templ" in parameters else config["files"]["templ"]
 object_dir = parameters["object_dir"] if "object_dir" in parameters else config["paths"]["object_dir"]
 stages = parameters["stages"[:]] if "stages" in parameters else config["basic"]["stages"].split(",")
@@ -72,6 +78,8 @@ lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to flo
 group_names = parameters["groups"[:]] if "groups" in parameters else config["basic"]["group_names"].split(",")
 min_CpGs = parameters["min_cpgs"] if "min_cpgs" in parameters else config["basic"].getint("min_CpGs")
 min_Qt = parameters["min_qt"] if "min_qt" in parameters else config["basic"].getint("min_Qt")
+min_bases = parameters["min_bases"] if "min_bases" in parameters else config["basic"].getint("min_bases")
+max_adj_dist = parameters["max_adj_dist"] if "max_adj_dist" in parameters else config["basic"].getint("max_adj_dist")
 delta = parameters["delta"] if "delta" in parameters else float(config["basic"]["delta"])
 bismark_infile = parameters["bismark"] if "bismark" in parameters else rconfig["files"]["bismark_infile"]
 modern = parameters["modern"] if "modern" in parameters else rconfig["files"]["modern_infile"]
@@ -83,16 +91,16 @@ gene_file = parameters["gene_file"] if "gene_file" in parameters else config["fi
 cgi_file = parameters["cgi_file"] if "cgi_file" in parameters else config["files"]["cgi_file"]
 cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else config["files"]["cust_file1"]
 cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else config["files"]["cust_file2"]
+prom_def = parameters["prom_def"[:]] if "prom_def" in parameters else config["basic"]["prom_def"].split(",")
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths"]["dump_dir"]
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
-# add param for permutations in permute?
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
-    chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
+    chr_names = chroms if chroms and chroms[0] != "" else gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     samplist = []
     #for the next step, all input files must be pickled
@@ -121,15 +129,16 @@ if "DMR" in stages:
     if ref:
         ref = mms
     min_finite = min_fin[:]
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
         if annot:
-            dms.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
+            dms.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2, prom_def=prom_def)  
         fname = dump_dir + f"DMRs_{time}.txt"
         dms.dump_DMR(fname)
 if "fdr" in stages:
+    win_size_orig = win_size  # save win_size from original groupDMRs process
     #create Mmsample object
     
     samplist = []  # if dmr in stages, samplist already loaded
@@ -147,9 +156,10 @@ if "fdr" in stages:
             mod_samplist.append(input_obj)
     dmr_obj_list = []
     gc = t.load_object(gc_object)
-    chr_names = gc.chr_names  # assumes user wants all chroms (or all but x)
+    chr_names = chroms if chroms and chroms[0] != "" else gc.chr_names  # assumes user wants all chroms (or all but x)
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
+    thresh = parameters["thresh"] if "thresh" in parameters else float(config["basic"]["thresh"])
     for perm in range(sim_permutations):
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
@@ -173,9 +183,9 @@ if "fdr" in stages:
             if isinstance(lcf, list):
                 lcf = lcf[0]
             m_params = {}
-            if method == "linear" or method == "logistic":
+            if method == "linear" or method == "lin" or method == "logistic" or method == "log":
                 m_params["slope"] = sample.methylation["slope"]
-                if method == "linear":
+                if method == "linear" or method == "lin":
                     m_params["intercept"] = sample.methylation["intercept"]
             samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, **m_params)
             #dump object to text file
@@ -184,10 +194,10 @@ if "fdr" in stages:
             #sample.dump(f"simeth_{perm}")  
         min_finite = min_fin[:]
         samps = list(sim_obj_list.values()) + mod_samplist
-        dmr_obj_list[perm].groupDMRs(win_size=win_size, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta)
-    adjusted_DMR = dms.adjust_params(dmr_obj_list)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, max_adj_dist=max_adj_dist, min_bases=min_bases)
+    adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh)
     if annot:
-        adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2)  
+        adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2, prom_def=prom_def)  
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
     adjusted_DMR.dump_DMR(fname)
     print("done")
