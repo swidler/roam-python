@@ -192,9 +192,12 @@ if "fdr" in stages:
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?
             #sample.dump(f"simeth_{perm}")  
+        ref = parameters["ref"] if "ref" in parameters else config["basic"].getboolean("ref")
+        if ref:
+            ref = mms
         min_finite = min_fin[:]
         samps = list(sim_obj_list.values()) + mod_samplist
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, max_adj_dist=max_adj_dist, min_bases=min_bases)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases)
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh)
     if annot:
         adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2, prom_def=prom_def)  
