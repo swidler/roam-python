@@ -242,8 +242,8 @@ class DMRs:
                     if win_mod:  # prob a silly condition
                         win_size[idx_mod,] = win_mod
                     
-                #same W for all chromosomes of an individual
-                elif win_size.ndim ==1:
+                #same W for all chromosomes of an individual  THIS ISN'T RIGHT
+                elif (type(win_size) == "list" and (np.array(win_size)).ndim == 1) or win_size.ndim ==1:
                     for samp in range(no_samples):
                         if ~np.isnan(win_size[samp]):
                             if not win_size[samp]%2: #win_size is even
@@ -527,7 +527,7 @@ class DMRs:
         
         Input: gene_bed   bed file with gene data 
                cgi_bed    bed file with CGI data
-               prom_def   promoter definition around TSS, a list of 2 values [before after], where before is the
+               prom_def   promoter definition around TSS, a list of 2 values [before, after], where before is the
                    number of nucleotides into the intergenic region, and after is the number of nucleotides 
                    into the gene
         Output: cDMR object with updated annotation
@@ -535,8 +535,8 @@ class DMRs:
         if gene_bed:
             genes = pbt.BedTool(gene_bed)
             genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
-            before = prom_def[0]
-            after = prom_def[1]
+            before = int(prom_def[0])
+            after = int(prom_def[1])
             proms = gint.Gintervals(chr_names=self.chromosomes)
             proms.calc_prom_coords(genes_no_dups, before, after)
             tss = gcoord.Gcoordinates(chr_names=self.chromosomes, description="TSS positions")
