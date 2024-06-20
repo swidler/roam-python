@@ -266,7 +266,7 @@ Inputs
 	-l low coverage factor, positions with coverage below this value will be filtered out for 
 	the corresponding sample (default: calculated automatically)
 	-sp number of permutations to run for fdr
-	-th FDR threshold (default: 0.5)
+	-th FDR threshold (default: 0.05)
 	-r flag for using histogram matching in the pooled methylation function (default: true)
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
