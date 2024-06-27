@@ -78,9 +78,9 @@ Running the scripts
     The script can also be run from the command line, using flags for the required parameters, 
     as follows:
     
-    	**run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"**
+    	run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"
     
-    **Important**: If the sample is aligned to any genome but hg19, it is important to modify the chromosome 
+    IMPORTANT: If the sample is aligned to any genome but hg19, it is important to modify the chromosome 
     lengths, either in the config or by using the -le parameter.
     The rest of the parameters can be specified as well, to override defaults (strings, except 
     where noted):
@@ -202,7 +202,7 @@ Running the DMR detection process
     variables in the config_DMR.ini file. These include directory and filenames, samples 
     and group names, parameters for grouping the DMRs, and the parts of the script to run.
     
-    	**run_DMRs.py -s sample1 sample2 -g group1 group2 -gc “CpG file path”**
+    	run_DMRs.py -s sample1 sample2 -g group1 group2 -gc “CpG file path”
     
 Inputs
 
