@@ -8,7 +8,7 @@ numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, ite
 
 RoAM can be operated either from the command line or by specifying the inputs in config.ini as detailed in this file.
 
-#Reconstructing ancient methylation algorithm
+# Reconstructing ancient methylation algorithm
 
 Input files:
 
@@ -77,8 +77,10 @@ Running the scripts
     
     The script can also be run from the command line, using flags for the required parameters, 
     as follows:
-    run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"
-    If the sample is aligned to any genome but hg19, it is important to modify the chromosome 
+    
+    	**run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"**
+    
+    **Important**: If the sample is aligned to any genome but hg19, it is important to modify the chromosome 
     lengths, either in the config or by using the -le parameter.
     The rest of the parameters can be specified as well, to override defaults (strings, except 
     where noted):
@@ -90,8 +92,8 @@ Running the scripts
 	eg -c chr1 chr2 chr3 	(default: chromosomes 1 to 22, X)
 	-t set True to trim ends during processing (default: false)
 	-cf set True for dir with exactly one file per chromosome (default: false)
-	-m mapping quality for read (default: 20)
-	-q mapping quality for position (default: 20)
+	-m minimum mapping quality for read (default: 20)
+	-q minimum mapping quality for position (default: 20)
 	-rm method of reconstruction (can be histogram, linear, or logistic; default is histogram) 
 	-st stages of process to be run, a list specified with no quotes or commas, 
 	eg -st bam diagnose Further details later in this document (default: all five stages)
@@ -117,7 +119,7 @@ Running the scripts
 	-dm method of deamination rate calculation (can be reference [default and 
 	highly recommended] or global)
 	-mc minimum coverage of sites for deamination rate calculation (default: 1)
-	-mb minimum beta value for reference method of deamination rate calculation (default: 1)
+	-mb minimum beta value to consider for the estimation in the reference method of deamination rate calculation (default: 1)
 	-gm global methylation value for use with global method of deamination rate calculation
 	-lcf low coverage factor for methylation reconstruction (default: 0.05)
 	-sl slope for linear/logistic methods of methylation reconstruction (default: 1/d_rate)
@@ -161,7 +163,7 @@ The stages
     
     Next, drate, estimates the deamination rate.
     
-    The last step, meth, computes methylation from c_to_t data, based on some function of 
+    The last step, meth, reconstructs methylation from c_to_t data, based on some function of 
     the C->T ratio (no_t/no_ct).
     
     When done adjusting the config file, run the run_roam.py script.
@@ -171,7 +173,7 @@ Warnings
     When running run_roam.py, there will be warnings about invalid values and divide by zeros. 
     They can be safely ignored.
     
-#Detect DMRs
+# Detect DMRs
 
 	This process receives samples divided into two groups and searches for DMRs between them.
 
@@ -200,7 +202,7 @@ Running the DMR detection process
     variables in the config_DMR.ini file. These include directory and filenames, samples 
     and group names, parameters for grouping the DMRs, and the parts of the script to run.
     
-    run_DMRs.py -s sample1 sample2 -g group1 group2 -gc “CpG file path”
+    	**run_DMRs.py -s sample1 sample2 -g group1 group2 -gc “CpG file path”**
     
 Inputs
 
@@ -212,7 +214,7 @@ Inputs
 	b. Groups (-g): a list with identical size to “samples” with allocation of the samples 
 	to the	groups that the process detect DMRs between. Groups should include ancient samples 
 	or	modern samples, but not both. 
-	For example: -s ust_ishim SF12 Altai_Neanderthal Denisovan -g MH MH AH AH.
+	For example: -s ust_ishim SF12 Altai_Neanderthal Denisovan -g modern_human modern_human archaic_human archaic_human.
 	c. The CpG file (-gc), identical to the file in methylation reconstruction.
 	
 	In addition to these three, modern reference methylation map: this will be used to 
@@ -246,10 +248,9 @@ Inputs
 	is the 	number of nucleotides into the intergenic region, and after is the number of 
 	nucleotides (default: [5000, 1000])
 	-di pickled DMR file for use in fdr, permutations, and plots
-	-dpi pickled DMR permutation file for use in permutstat
 	-t template to match any extra text in sample filename
 	-st stages of process to be run, a list specified with no quotes or commas
-	-de minimum methylation difference between the two groups to be considered a DMR
+	-de minimum methylation difference between the two groups to be considered a DMR (default 0.5)
 	-mc (min_CpGs) DMRs whose number of CpGs is less than this value are filtered out 
 	(default: 10)
 	-mq (min_qt) DMRs with Qmax < this value are filtered out (default: 0)
@@ -316,7 +317,11 @@ Extra functions
 	object directory (DMP_obj_<timestamp>) for use in the permutstat function.
     
     Permute is followed by the permutstat function, which calculates the statistical 
-    significance of the results of the permute step. It outputs a text file in the dump 
+    significance of the results of the permute step. 
+    
+    -dpi pickled DMR permutation file for use in permutstat
+	
+    It outputs a text file in the dump 
     directory (pstat_<timestamp>.txt) with the resulting statistics and p-values.
     
     The plotmethylation function creates a scatter plot of the mean methylation in each 
