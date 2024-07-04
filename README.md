@@ -94,7 +94,6 @@ Running the scripts
 	-cf set True for dir with exactly one file per chromosome (default: false)
 	-m minimum mapping quality for read (default: 20)
 	-q minimum mapping quality for position (default: 20)
-	-rm method of reconstruction (can be histogram, linear, or logistic; default is histogram) 
 	-st stages of process to be run, a list specified with no quotes or commas, 
 	eg -st bam diagnose Further details later in this document (default: all five stages)
 	-o directory for saved (pickled) object files (include final / for all directories) 
@@ -120,6 +119,7 @@ Running the scripts
 	highly recommended] or global)
 	-mc minimum coverage of sites for deamination rate calculation (default: 1)
 	-mb minimum beta value to consider for the estimation in the reference method of deamination rate calculation (default: 1)
+	-rm method of reconstruction (can be histogram, linear, or logistic; default is histogram) 
 	-gm global methylation value for use with global method of deamination rate calculation
 	-lcf low coverage factor for methylation reconstruction (default: 0.05)
 	-sl slope for linear/logistic methods of methylation reconstruction (default: 1/d_rate)
@@ -231,7 +231,7 @@ Inputs
 	-rco path of RoAM config file
 	-b .cov file for modern genome
 	-mo text file for modern genome
-	-ms modern reference sample names (list like samples)
+	-ms modern sample names (list like samples)
 	-mn modern reference sample name 
 	-msp modern reference sample species 
 	-mr modern sample reference genome 
