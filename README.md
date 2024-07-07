@@ -115,6 +115,12 @@ Running the scripts
 	-cpg flag for creating CpG file (default: false)
 	-cr reference genome assembly for CpG file
 	-no flag for not running the rest of RoAM after creating CpG file (default: false)
+	-u determines which threshold to use--from diagnose (if true), or user-entered (default: true)
+	-ct user-entered threshold used to identify sites with a true C->T mutation (used only if 
+	use_max_TsPerCoverage is false) (default: 0.25)
+	-mg merge two consecutive coordinates of every CpG position (default: true)
+	-ga threshold used to identify sites with a true C->T mutation. Only for library='single' (default: 0.25)
+	-me method used to remove true C->T mutations (default: c_to_t for library='double', otherwise both) 
 	-dm method of deamination rate calculation (can be reference [default and 
 	highly recommended] or global)
 	-mc minimum coverage of sites for deamination rate calculation (default: 1)
