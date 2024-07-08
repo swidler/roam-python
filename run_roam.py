@@ -202,7 +202,7 @@ def roam_pipeline(**params):
                     mms = ""
             if stage == "drate":
                 min_cov = params["min_cov"] if "min_cov" in params else config["drate"]["min_cov"]
-                min_beta = params["min_beta"] if "" in params else config["drate"]["min_beta"]
+                min_beta = params["min_beta"] if "min_beta" in params else config["drate"]["min_beta"]
                 global_meth = params["global_meth"] if "global_meth" in params else config["drate"]["global_meth"]
                 drate_params = {}
                 drate_params["min_cov"] = int(min_cov)
