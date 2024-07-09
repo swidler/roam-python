@@ -93,12 +93,7 @@ def validate_input(**params):
         and "modern" not in params and not config["files"]["modern_infile"]
         ):
         print("No modern reference file entered for histogram methylation reconstruction method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
-    elif (
-        (recon_method == "linear" or recon_method == "logistic")
-        and "slope" not in params and not config["meth"]["slope"]
-        ):
-        raise Exception("No slope param provided when using 'linear' or 'logistic' method")
-        
+      
      
     
     
