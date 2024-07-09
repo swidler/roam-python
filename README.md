@@ -4,7 +4,7 @@ information can be found in THE PAPER
 
 The following modules are required for RoAM and should be downloaded before using it:
 
-numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, matplotlib
+numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, matplotlib, screeninfo
 
 RoAM can be operated either from the command line or by specifying the inputs in config.ini as detailed in this file.
 
