@@ -396,6 +396,22 @@ class Amsample(Chrom):
                         no_positions = fields[1].split()
                         no_positions = [float(x) for x in no_positions] #convert all numbers to float (NaN is a float)
                         self.d_rate["rate"]["no_positions"] = no_positions
+                    elif fields[0] == "pi_u_global":
+                        self.d_rate["rate"]["pi_u_global"] = float(fields[1])
+                    elif fields[0] == "pi_u_dglobal":
+                        self.d_rate["rate"]["pi_u_dglobal"] = float(fields[1])
+                    elif fields[0] == "pi_u_local":
+                        pi_u_local = fields[1].split()
+                        pi_u_local = [float(x) for x in pi_u_local] #convert all numbers to float (NaN is a float)
+                        self.d_rate["rate"]["pi_u_local"] = pi_u_local
+                    elif fields[0] == "pi_u_dlocal":
+                        pi_u_dlocal = fields[1].split()
+                        pi_u_dlocal = [float(x) for x in pi_u_dlocal] #convert all numbers to float (NaN is a float)
+                        self.d_rate["rate"]["pi_u_dlocal"] = pi_u_dlocal
+                    elif fields[0] == "pi_u_no_positions":
+                        pi_u_no_positions = fields[1].split()
+                        pi_u_no_positions = [float(x) for x in pi_u_no_positions] #convert all numbers to float (NaN is a float)
+                        self.d_rate["rate"]["pi_u_no_positions"] = pi_u_no_positions
                     elif fields[0] == "Effective coverage":
                         eff_cov = fields[1].split()
                         eff_cov = [float(x) for x in eff_cov] #convert all numbers to float (NaN is float)
@@ -958,7 +974,7 @@ class Amsample(Chrom):
         #close file
         fid.close()
 
-    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1):
+    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1, max_beta=0, USER=True):
         """Estimates deamination rate
         
         Input: method        the method used to perform the estimation. Can be one of:
@@ -971,17 +987,28 @@ class Amsample(Chrom):
                min_cov       minimum coverage of sites that are used for the estimation.
                ref           Mmsample object containing the beta-values of the reference. Applicable for 
                   'method'='reference'.
-               min_beta      minimum beta value to take for the estimation. Applicable for 'method'='reference'.
+               min_beta      minimum beta value to take for estimating the deamination rate in methylated cytosines
+               (pi_m). Applicable for 'method'='reference'.
+               max_beta      maximum beta value to take for estimating the deamination rate in unmethylated cytosines
+               (pi_u). Applicable for 'method'='reference'. Only applicable when 'USER'='False'
         Output: Amsample object with udpated 'd_rate' field. This field is a dictionary with keys:
                   'rate', a dictionary that contains:
-                    'global' global deamination rate (computed from all chromosomes)
-                    'dglobal' STD of the global deamination rate (assuming binomial distribution)
-                    'local' local deamination rate, computed for each chromosome separately
-                    'dlocal' STD of the local deamination rate (assuming binomial distribution)
-                    'no_positions' in each chromosome, number of positions upon which deamination rate was computed
+                    'global' global deamination rate in methylated cytosines (computed from all chromosomes)
+                    'dglobal' STD of the global deamination rate in methylated cytosines (assuming binomial distribution)
+                    'local' local deamination rate in methylated cytosines, computed for each chromosome separately
+                    'dlocal' STD of the local deamination rate in methylated cytosines (assuming binomial distribution)
+                    'no_positions' in each chromosome, number of positions upon which deamination rate in methylated
+                    cytosines was computed
+                    'pi_u_global' global deamination rate in unmethylated cytosines (computed from all chromosomes)
+                    'pi_u_dglobal' STD of the global deamination rate in unmethylated cytosines (assuming binomial distribution)
+                    'pi_u_local' local deamination rate in unmethylated cytosines, computed for each chromosome separately
+                    'pi_u_dlocal' STD of the local deamination rate in unmethylated cytosines (assuming binomial distribution)
+                    'pi_u_no_positions' in each chromosome, number of positions upon which deamination rate in
+                    unmethylated cytosines was computed
                   and, based in the input, 'method', 'global_methylation', 'ref' (the name of the Mmsample object),
-                  'min_beta', and 'min'coverage'.
+                  'min_beta', 'max_beta', and 'min'coverage'.
         """
+        print("User: ", USER) #TODO: remove
         ref_params = {}
         global_params = {}
         if global_meth > 1: #can be dec or %
@@ -991,6 +1018,7 @@ class Amsample(Chrom):
         if min_beta > 1:
             min_beta = 0.01*min_beta
         ref_params["min_beta"] = min_beta
+        ref_params["max_beta"] = max_beta
         ref_params["min_coverage"] = min_cov
         global_params["min_coverage"] = min_cov
         if method == "global":
@@ -1008,6 +1036,7 @@ class Amsample(Chrom):
             print(f"\tglobal_methylation: {meth_params['global_methylation']:.2f}")
         elif method == "reference":
             print(f"\tmin_beta: {meth_params['min_beta']:.2f}")
+            print(f"\tmax_beta: {meth_params['max_beta']:.2f}")
         #if method == "global" or method == "reference":
         print(f"\tmin_coverage: {meth_params['min_coverage']:d}")
         
@@ -1023,12 +1052,22 @@ class Amsample(Chrom):
             meth_params["ref"].scale()
         
         #initialize
-        drate = {"global":np.nan, "dglobal":np.nan, "local":np.full((self.no_chrs),np.nan), "dlocal":np.full((self.no_chrs),np.nan), "no_positions":np.full((self.no_chrs),np.nan)}
+        if USER:
+            drate = {"global": np.nan, "dglobal": np.nan, "local": np.full((self.no_chrs), np.nan),
+                     "dlocal": np.full((self.no_chrs), np.nan), "no_positions": np.full((self.no_chrs), np.nan),}
+        elif not USER:
+            drate = {"global": np.nan, "dglobal": np.nan, "local": np.full((self.no_chrs), np.nan),
+                     "dlocal": np.full((self.no_chrs), np.nan), "no_positions": np.full((self.no_chrs), np.nan),
+                     "pi_u_global": np.nan, "pi_u_dglobal": np.nan, "pi_u_local": np.full((self.no_chrs), np.nan),
+                     "pi_u_dlocal": np.full((self.no_chrs), np.nan), "pi_u_no_positions": np.full((self.no_chrs), np.nan)}
         factor = 1
         if method == "global":
             factor = 1/meth_params["global_methylation"]
-        tot_t = 0
-        tot_ct = 0
+        pi_m_tot_t = 0
+        pi_m_tot_ct = 0
+        if not USER:
+            pi_u_tot_t = 0
+            pi_u_tot_ct = 0
         
         #loop on chromosomes
         for chrom in range(self.no_chrs):
@@ -1051,26 +1090,46 @@ class Amsample(Chrom):
                     continue
                 #Take only positions where {ref}>=min_beta
                 include = np.where(np.array(meth_params["ref"].get_methylation(self.chr_names[chrom])[1])>=meth_params["min_beta"])[0]
-                no_t = no_t[include]
-                no_ct = no_ct[include]
+                pi_m_no_t = no_t[include]
+                pi_m_no_ct = no_ct[include]
+
+                # Take only positions where {ref}<=max_beta: relevant only for nonUSER data
+                if not USER:
+                    include = np.where(np.array(meth_params["ref"].get_methylation(self.chr_names[chrom])[1])<=meth_params["max_beta"])[0]
+                    pi_u_no_t = no_t[include]
+                    pi_u_no_ct = no_ct[include]
 
             #remove positions that are not covered high enough
-            include = np.where(no_ct >= meth_params["min_coverage"])[0]
-            no_t = no_t[include]
-            no_ct = no_ct[include]
+            include = np.where(pi_m_no_ct >= meth_params["min_coverage"])[0]
+            pi_m_no_t = pi_m_no_t[include]
+            pi_m_no_ct = pi_m_no_ct[include]
+            if not USER:
+                include = np.where(pi_u_no_ct >= meth_params["min_coverage"])[0]
+                pi_u_no_t = pi_u_no_t[include]
+                pi_u_no_ct = pi_u_no_ct[include]
 
             #compute estimates based on the current chromosome
-            drate["local"][chrom] = factor * np.nansum(no_t)/np.nansum(no_ct)
-            drate["no_positions"][chrom] = sum(np.isfinite(no_t))
+            drate["local"][chrom] = factor * np.nansum(pi_m_no_t)/np.nansum(pi_m_no_ct)
+            drate["no_positions"][chrom] = sum(np.isfinite(pi_m_no_t))
             drate["dlocal"][chrom] = factor * math.sqrt(drate["local"][chrom]*(1-drate["local"][chrom])/drate["no_positions"][chrom])
+            if not USER:
+                drate["pi_u_local"][chrom] = factor * np.nansum(pi_u_no_t) / np.nansum(pi_u_no_ct)
+                drate["pi_u_no_positions"][chrom] = sum(np.isfinite(pi_u_no_t))
+                drate["pi_u_dlocal"][chrom] = factor * math.sqrt(drate["local"][chrom] * (1 - drate["pi_u_local"][chrom]) / drate["pi_u_no_positions"][chrom])
 
             #accumulate sums
-            tot_t = tot_t + np.nansum(no_t)
-            tot_ct = tot_ct + np.nansum(no_ct)
+            pi_m_tot_t = pi_m_tot_t + np.nansum(pi_m_no_t)
+            pi_m_tot_ct = pi_m_tot_ct + np.nansum(pi_m_no_ct)
+            if not USER:
+                pi_u_tot_t = pi_u_tot_t + np.nansum(pi_u_no_t)
+                pi_u_tot_ct = pi_u_tot_ct + np.nansum(pi_u_no_ct)
         
         #evaluate global degradation rate
-        drate["global"] = factor * tot_t/tot_ct
+        drate["global"] = factor * pi_m_tot_t/pi_m_tot_ct
         drate["dglobal"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/np.nansum(drate["no_positions"]))
+        if not USER:
+            drate["pi_u_global"] = factor * pi_u_tot_t / pi_u_tot_ct
+            drate["pi_u_dglobal"] = factor * math.sqrt(drate["pi_u_global"] * (1 - drate["pi_u_global"]) / np.nansum(drate["pi_u_no_positions"]))
 
         #plug vals into object
         if method == "reference":
@@ -1349,6 +1408,16 @@ class Amsample(Chrom):
                             fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
                         elif subkey == "no_positions":
                             fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+                        elif subkey == "pi_u_global":
+                            fid.write(f"\tpi_u_global: {self.d_rate['rate']['pi_u_global']}\n")
+                        elif subkey == "pi_u_dglobal":
+                            fid.write(f"\tpi_u_dglobal: {self.d_rate['rate']['pi_u_dglobal']}\n")
+                        elif subkey == "pi_u_local":
+                            fid.write(f"\tpi_u_local: {' '.join(map(str, self.d_rate['rate']['pi_u_local']))}\n")
+                        elif subkey == "pi_u_dlocal":
+                            fid.write(f"\tpi_u_dlocal: {' '.join(map(str, self.d_rate['rate']['pi_u_dlocal']))}\n")
+                        elif subkey == "pi_u_no_positions":
+                            fid.write(f"\tpi_u_no_positions: {' '.join(map(str, self.d_rate['rate']['pi_u_no_positions']))}\n")
             fid.write("Diagnostics: ")
             if self.diagnostics:
                 fid.write("True\n")
@@ -1426,4 +1495,12 @@ class Amsample(Chrom):
 if __name__ == "__main__":
     #ams = Amsample(name="I1116", abbrev="1116")
     #ams = Amsample(name="Ust_Ishim", abbrev="Ust")
-    ams = Amsample(name="Altai_Neanderthal")
+    #ams = Amsample(name="Altai_Neanderthal")
+
+    import mmsample as m
+    ams = Amsample()
+    ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/python_dumps/test_chag_chr1_filter.txt")
+    mms = m.Mmsample()
+    mms.create_mms_from_text_file("bone5.txt")
+    ams.estimate_drate(ref = mms, USER=True)
+    ams.dump("drate")
