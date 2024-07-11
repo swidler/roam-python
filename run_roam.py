@@ -73,7 +73,6 @@ parameters = dict(zip(keys, vals))
 confile = parameters["config"] if "config" in parameters else "config.ini"
 config = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
 config.read(confile)
-print(parameters) #TODO: remove
 
 # validate user input
 def validate_input(**params):
@@ -208,8 +207,6 @@ def roam_pipeline(**params):
                 min_beta = params["min_beta"] if "min_beta" in params else config["drate"]["min_beta"] #TODO: add max_beta
                 USER = False if not parameters["USER"] else config["basic"].getboolean("USER")
                 #USER = params["USER"] if "USER" in params else config["USER"]
-                print(USER) #TODO: remove
-                print(params["USER"]) #TODO: remove
                 global_meth = params["global_meth"] if "global_meth" in params else config["drate"]["global_meth"]
                 drate_params = {}
                 drate_params["min_cov"] = int(min_cov)
@@ -221,12 +218,11 @@ def roam_pipeline(**params):
                 drate_params["method"] = drate_method
                 drate_params["USER"] = USER
                 ams.estimate_drate(**drate_params)
-                print(ams.d_rate["rate"]["global"]) #TODO: remove
-                print(ams.d_rate["rate"]["pi_u_global"])  # TODO: remove
             elif stage == "meth":
                 lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
                 slope = params["slope"] if "slope" in params else config["meth"]["slope"]
                 intercept = params["intercept"] if "intercept" in params else config["meth"]["intercept"].split(",")
+                USER = False if not parameters["USER"] else config["basic"].getboolean("USER")
                 win_size = params["win_size"] if "win_size" in params else config["meth"]["win_size"]
                 win_method = params["win_method"] if "win_method" in params else config["meth"]["win_method"]
                 min_meth = params["min_meth"] if "min_meth" in params else config["meth"]["min_meth"]
@@ -242,7 +238,7 @@ def roam_pipeline(**params):
                 if max_width: win_params["max_width"] = int(max_width)
 
                 ams.reconstruct_methylation(ref=mms, function=recon_method, win_size=win_size, lcf=lcf, slope=slope,
-                                            intercept=intercept, winsize_alg=win_params)
+                                            intercept=intercept, winsize_alg=win_params, USER=USER)
 
     # dump object to text file
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]

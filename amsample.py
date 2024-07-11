@@ -15,6 +15,7 @@ import re
 import sys
 
 
+
 class Amsample(Chrom):
     """Ancient methylation sample class
 
@@ -991,6 +992,7 @@ class Amsample(Chrom):
                (pi_m). Applicable for 'method'='reference'.
                max_beta      maximum beta value to take for estimating the deamination rate in unmethylated cytosines
                (pi_u). Applicable for 'method'='reference'. Only applicable when 'USER'='False'
+               USER            whether the sample was USER-treated before sequencing
         Output: Amsample object with udpated 'd_rate' field. This field is a dictionary with keys:
                   'rate', a dictionary that contains:
                     'global' global deamination rate in methylated cytosines (computed from all chromosomes)
@@ -1008,7 +1010,6 @@ class Amsample(Chrom):
                   and, based in the input, 'method', 'global_methylation', 'ref' (the name of the Mmsample object),
                   'min_beta', 'max_beta', and 'min'coverage'.
         """
-        print("User: ", USER) #TODO: remove
         ref_params = {}
         global_params = {}
         if global_meth > 1: #can be dec or %
@@ -1174,7 +1175,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, USER=True, pi_m=None, pi_u=None):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1186,6 +1187,9 @@ class Amsample(Chrom):
                  'histogram', where the function is computed by histogram matching to a reference methylome.
                  'linear', where the function is: meth = slope * no_t / no_ct + intercept
                  'logistic', where the function is: meth = tanh(slope * no_t / no_ct).
+                 'HMM', where the function is computed by a two-state hidden markov model
+                 'binary', where the function is: meth = {0 for no_t/no_ct <= pi_u, NA for pi_u < no_t/no_ct < pi_m, and
+                 1 for no_t/no_ct >= pi_m
                slope           a parameter used for the 'linear' and the 'logistic' functions. It can be a list with a 
                single value (where the value is used for all chromosomes) or a value for each chromosome.
                intercept       a parameter for used for the 'linear' function, and determines the intercept of the
@@ -1193,12 +1197,34 @@ class Amsample(Chrom):
                  all chromosomes) or a value for each chromosome.
                ref             Mmsample object containing the beta-values of the reference.
                lcf             low coverage factor.
-               
-        Output: Amsample object with udpated methylation field.
+               USER            whether the sample was USER-treated before sequencing
+               pi_m            optional flag to replace deamination rate in methylated cytosines with specialty rate
+               pi_u            optional flag to replace deamination rate in unmethylated cytosines with specialty rate
+        Output: Amsample object with updated methylation field.
         """
         no_chr = self.no_chrs
-        if slope == None or slope == "":
-            slope=[1/self.d_rate["rate"]["global"]]
+
+        if pi_m is None:
+            pi_m = self.d_rate["rate"]["global"]
+        if pi_u is None:
+            if USER:
+                pi_u = 0
+            else:
+                pi_u = self.d_rate["rate"]["pi_u_global"]
+
+        if USER:
+            if slope == None or slope == "":
+                slope=[1/self.d_rate["rate"]["global"]]
+        else:
+            if function == 'linear':
+                slope = [1 / (pi_m - pi_u)]
+                intercept = [-1 * slope * pi_u]
+            elif function == 'logistic':
+                slope = [2 / (pi_m - pi_u)]
+                intercept = [- (pi_m + pi_u) / (pi_m - pi_u)]
+            else:
+                slope = [0]
+
         if win_size == "auto":
             auto_win = True
         elif isinstance(win_size, list):
@@ -1290,9 +1316,37 @@ class Amsample(Chrom):
                 d = dict(zip(idx_finite[0], tmp))
                 for i in idx_finite[0]:
                     methi[i] = d[i]
-                            
+            elif function == "HMM":
+                import pandas as pd
+                from hmmlearn import hmm
+                index = range(len(c_to_t))
+                df = pd.DataFrame({'c2t': c_to_t, 'index': index, })
+                df = df[~df['c2t'].isna()]
+                X = np.array(df['c2t']).reshape(-1, 1)
+                model = hmm.GaussianHMM(n_components=2, covariance_type='tied', n_iter=100, random_state=7,   # covariance_type was "spherical" at some point - not sure why but pretty sure it shouldn't be
+                                        verbose=True, init_params='stc', params='stc')
+                model.means_ = np.array([pi_u, pi_m]).reshape(-1, 1)
+                model.fit(X)
+                methi = model.predict(X)
+                df['methi'] = methi
+                df2 = pd.DataFrame({'index': index})
+                df = df.merge(df2, how="outer", on="index")
+                df = df.sort_values(by="index")
+                methi = list(df['methi'])
+            elif function == "binary" or function == "bin":
+                if USER:
+                    print("Binary function is not supported for USER-treated samples")
+                else:
+                    methi = np.empty(len(c_to_t))
+                    methi[:] = np.nan
+                    methi[c_to_t >= pi_m] = 1
+                    methi[c_to_t <= pi_u] = 0
             elif function == "logistic" or function == "log":
-                methi = np.tanh(slope[chrom]*c_to_t)
+                if USER:
+                    methi = np.tanh(slope[chrom]*c_to_t)
+                else:
+                    methi = 0.5 * (1 + np.tanh(slope[chrom] * c_to_t + intercept[chrom]))
+                    methi = np.maximum(methi, 0)
             elif function == "linear" or function == "lin":
                 methi = slope[chrom]*c_to_t+intercept[chrom]
                 methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
@@ -1499,8 +1553,10 @@ if __name__ == "__main__":
 
     import mmsample as m
     ams = Amsample()
-    ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/python_dumps/test_chag_chr1_filter.txt")
+    ams.parse_infile("/sci/home/krystal_castle/workbench/new_roam/roam-python/test_9_7_drate.txt")
+    #ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/python_dumps/test_chag_chr1_filter.txt")
     mms = m.Mmsample()
     mms.create_mms_from_text_file("bone5.txt")
-    ams.estimate_drate(ref = mms, USER=True)
+    #ams.estimate_drate(ref = mms, USER=True)
+    ams.reconstruct_methylation(ref=mms, USER=False)
     ams.dump("drate")
