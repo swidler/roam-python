@@ -206,7 +206,7 @@ class Amsample(Chrom):
         
         self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, USER=True, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
         
         Input: 
@@ -226,6 +226,7 @@ class Amsample(Chrom):
         """
         self.library = library
         self.species = species
+        self.USER = USER
         self.chr_names = [None]*(len(chroms))
         self.no_t = [[]]*(len(chroms))
         self.no_c = [[]]*(len(chroms))
@@ -316,7 +317,7 @@ class Amsample(Chrom):
                 fields = line.split(":")
                 if len(fields) > 1:
                     fields[1] = fields[1].lstrip() #remove leading space
-                if i < 5: #first 5 lines are headers
+                if i < 6: #first 5 lines are headers
                     if fields[0] == "Name" and (self.name == None or self.name == "unknown"):
                         self.name = fields[1]
                     elif fields[0] == "Species":
@@ -325,20 +326,22 @@ class Amsample(Chrom):
                         self.reference = fields[1]
                     elif fields[0] == "Library":
                         self.library = fields[1]
+                    elif fields[0] == "USER":
+                        self.USER = fields[1]
                     elif fields[0] == "Chromosomes":
                         self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
-                elif i == 5: #filtered line
+                elif i == 6: #filtered line
                     if "False" in line:
                         self.is_filtered = False
                         #flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     else:
                         self.is_filtered = True
-                elif i == 6: #p filters line
+                elif i == 7: #p filters line
                     if "False" in line:
                         flag = 1 #no first set of chr lines for unfiltered except in new diagnose, fixed below
                     #else:
                         #self.is_filtered = True
-                elif i > 6:
+                elif i > 7:
                     if fields[0] == "Method" and i == 7:
                         self.p_filters["method"] = fields[1]
                         flag = 0  # fix for newer files with diagnostics for unfiltered
@@ -1010,6 +1013,11 @@ class Amsample(Chrom):
                   and, based in the input, 'method', 'global_methylation', 'ref' (the name of the Mmsample object),
                   'min_beta', 'max_beta', and 'min'coverage'.
         """
+        if self.USER != USER:
+            print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
+                  USER attribute of amsample object has been overwritten""")
+            self.USER = USER
+
         ref_params = {}
         global_params = {}
         if global_meth > 1: #can be dec or %
@@ -1204,13 +1212,21 @@ class Amsample(Chrom):
         """
         no_chr = self.no_chrs
 
-        if pi_m is None:
+        if self.USER != USER:
+            print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
+                  USER attribute of amsample object has been overwritten""")
+            self.USER = USER
+
+        if pi_m:
+            self.d_rate["rate"]["global"] = pi_m
+            self.d_rate["method"] = "specified"
+        else:
             pi_m = self.d_rate["rate"]["global"]
-        if pi_u is None:
-            if USER:
-                pi_u = 0
-            else:
-                pi_u = self.d_rate["rate"]["pi_u_global"]
+
+        if pi_u:
+            self.d_rate["rate"]["pi_u_global"] = pi_u
+        else:
+            pi_u = self.d_rate["rate"]["pi_u_global"]
 
         if USER:
             if slope == None or slope == "":
@@ -1407,6 +1423,7 @@ class Amsample(Chrom):
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nSpecies: {self.species}\nReference: {self.reference}\n")
             fid.write(f"Library: {self.library}\n")
+            fid.write(f"USER: {self.USER}\n")
             fid.write(f"Chromosomes: {self.chr_names}\n")
             #filt = "" if self.is_filtered else "not "
             #fid.write(f"This sample is {filt}filtered\n")
@@ -1552,11 +1569,28 @@ if __name__ == "__main__":
     #ams = Amsample(name="Altai_Neanderthal")
 
     import mmsample as m
-    ams = Amsample()
-    ams.parse_infile("/sci/home/krystal_castle/workbench/new_roam/roam-python/test_9_7_drate.txt")
+    #ams = Amsample()
+    #ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/test/test_11_7_hist_alt_meth.txt")
     #ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/python_dumps/test_chag_chr1_filter.txt")
     mms = m.Mmsample()
     mms.create_mms_from_text_file("bone5.txt")
     #ams.estimate_drate(ref = mms, USER=True)
-    ams.reconstruct_methylation(ref=mms, USER=False)
-    ams.dump("drate")
+    #ams.reconstruct_methylation(ref=mms, USER=False)
+    #ams.dump("drate")
+
+    import DMRs as d
+
+    gc = t.load_object("/sci/labs/lirancarmel/krystal_castle/backup/test/cpg_coords.P")
+    samplist = []
+    # for the next step, all input files must be pickled
+    for sample in ["test_altai_hist", "test_ust_hist"]:
+        if sample:
+            infile = "/sci/labs/lirancarmel/krystal_castle/backup/test/" + sample
+            print(f"loading sample {sample}")
+            input_obj = t.load_object(infile)
+            samplist.append(input_obj)
+
+    dms = d.DMRs()
+    (qt_up, qt_down) = dms.groupDMRs(win_size='meth', lcf='meth', samples=samplist, sample_groups=["Neanderthal", "AMH"], 
+                                     chroms=['chr1'], min_finite=[1,1], min_CpGs=10, delta=0.5, ref=mms, coord= gc,
+                                     max_adj_dist=1000, min_bases=100, no_pool=True)

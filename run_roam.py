@@ -105,6 +105,7 @@ file_per_chrom = parameters["chrom_file"] if "chrom_file" in parameters else con
 bed = False if parameters["nobed"] else config["files"].getboolean("bed")
 species = parameters["species"] if "species" in parameters else config["basic"]["species"]
 chroms = parameters["chroms"] if "chroms" in parameters else config["basic"]["chroms"].split(",")
+USER = False if not parameters["USER"] else config["basic"].getboolean("USER")
 genome_file = parameters["genome"] if "genome" in parameters else config["files"]["genome_file"]
 object_dir = parameters["objectdir"] if "objectdir" in parameters else config["paths"]["object_dir"]
 lengths = parameters["lengths"] if "lengths" in parameters else config["basic"]["chr_lengths"].split(",")
@@ -150,7 +151,7 @@ def roam_pipeline(**params):
         qual = int(params["qual"]) if "qual" in params else int(config["basic"]["qual_thresh"])
 
         # populate object from bam file
-        ams.bam_to_am(filename=filename, library=library, chr_lengths=lengths, species=species, trim_ends=trim,
+        ams.bam_to_am(filename=filename, library=library, USER=USER, chr_lengths=lengths, species=species, trim_ends=trim,
                       chroms=chroms, filedir=filedir, file_per_chrom=file_per_chrom, mapq_thresh=mapq, qual_thresh=qual,
                       gc_object=gc)
         # eg: ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
@@ -205,8 +206,6 @@ def roam_pipeline(**params):
             if stage == "drate":
                 min_cov = params["min_cov"] if "min_cov" in params else config["drate"]["min_cov"]
                 min_beta = params["min_beta"] if "min_beta" in params else config["drate"]["min_beta"] #TODO: add max_beta
-                USER = False if not parameters["USER"] else config["basic"].getboolean("USER")
-                #USER = params["USER"] if "USER" in params else config["USER"]
                 global_meth = params["global_meth"] if "global_meth" in params else config["drate"]["global_meth"]
                 drate_params = {}
                 drate_params["min_cov"] = int(min_cov)
@@ -222,7 +221,6 @@ def roam_pipeline(**params):
                 lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
                 slope = params["slope"] if "slope" in params else config["meth"]["slope"]
                 intercept = params["intercept"] if "intercept" in params else config["meth"]["intercept"].split(",")
-                USER = False if not parameters["USER"] else config["basic"].getboolean("USER")
                 win_size = params["win_size"] if "win_size" in params else config["meth"]["win_size"]
                 win_method = params["win_method"] if "win_method" in params else config["meth"]["win_method"]
                 min_meth = params["min_meth"] if "min_meth" in params else config["meth"]["min_meth"]

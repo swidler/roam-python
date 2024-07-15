@@ -435,16 +435,16 @@ class DMRs:
                         meth_err[grp, :] = dmm
                 else:
                     if no_pool:
-                        #if group_sizes[grp][1] == 1:
-                        #    meth_stat[grp, :] = samples[giS[grp][0]].methylation['methylation'][chrom]
-                        #    meth_err[grp, :] = 0
-                        #else:
-                        meths = list()
-                        for member in range(len(giS[grp])):
-                            meths.append(samples[giS[grp][member]].methylation['methylation'][chrom])
-                        meths = np.array(meths)
-                        meth_stat[grp, :] = np.nanmean(meths, axis=0)
-                        meth_err[grp, :] = np.nanstd(meths, axis=0)
+                        if group_sizes[grp][1] == 1:
+                            meth_stat[grp, :] = samples[giS[grp][0]].methylation['methylation'][chrom]
+                            meth_err[grp, :] = 0.2
+                        else:
+                            meths = list()
+                            for member in range(len(giS[grp])):
+                                meths.append(samples[giS[grp][member]].methylation['methylation'][chrom])
+                            meths = np.array(meths)
+                            meth_stat[grp, :] = np.nanmean(meths, axis=0)
+                            meth_err[grp, :] = np.nanstd(meths, axis=0)
                     else:
                         [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                         #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
@@ -454,7 +454,6 @@ class DMRs:
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
             idm = np.sqrt(meth_err[0]**2 + meth_err[1]**2)
-            idm = np.maximum(0.2, idm) #added by Krystal to avoid idm only being zeros
             lt_up = (diffi - delta)/idm
             lt_down = (-diffi - delta)/idm
             not_nans = np.isfinite(lt_up)
