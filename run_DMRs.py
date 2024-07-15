@@ -52,6 +52,7 @@ argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequenc
 argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
+argParser.add_argument("-np", "--no_pool", help="flag for pulling methylation from the amSample object rather than pooling", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -95,6 +96,7 @@ prom_def = parameters["prom_def"[:]] if "prom_def" in parameters else config["ba
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths"]["dump_dir"]
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
+no_pool = True if parameters["no_pool"] else config["options"].getboolean("no_pool")
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
@@ -129,7 +131,8 @@ if "DMR" in stages:
     if ref:
         ref = mms
     min_finite = min_fin[:]
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases)
+    print(chr_names)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, no_pool=no_pool)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:

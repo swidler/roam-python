@@ -131,7 +131,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, no_pool=False):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -433,15 +433,28 @@ class DMRs:
                         # Assign mm and dmm to m and dm respectively
                         meth_stat[grp, :] = mm
                         meth_err[grp, :] = dmm
-                else:  
-                    [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                    #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                    meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
-                    meth_err[grp,:] = dma[0]  # ditto
+                else:
+                    if no_pool:
+                        #if group_sizes[grp][1] == 1:
+                        #    meth_stat[grp, :] = samples[giS[grp][0]].methylation['methylation'][chrom]
+                        #    meth_err[grp, :] = 0
+                        #else:
+                        meths = list()
+                        for member in range(len(giS[grp])):
+                            meths.append(samples[giS[grp][member]].methylation['methylation'][chrom])
+                        meths = np.array(meths)
+                        meth_stat[grp, :] = np.nanmean(meths, axis=0)
+                        meth_err[grp, :] = np.nanstd(meths, axis=0)
+                    else:
+                        [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                        #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
+                        meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
+                        meth_err[grp,:] = dma[0]  # ditto
             # compute the two statistics
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
             idm = np.sqrt(meth_err[0]**2 + meth_err[1]**2)
+            idm = np.maximum(0.2, idm) #added by Krystal to avoid idm only being zeros
             lt_up = (diffi - delta)/idm
             lt_down = (-diffi - delta)/idm
             not_nans = np.isfinite(lt_up)
