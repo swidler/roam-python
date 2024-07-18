@@ -58,7 +58,7 @@ args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
 vals = [vars(args)[x] for x in keys]
 parameters = dict(zip(keys, vals))
-confile = parameters["config"] if "config" in parameters else "config_DMR.ini"
+confile = parameters["config"] if "config" in parameters else "test_config_DMR.ini"
 config = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
 config.read(confile)
 rconfile = parameters["rconfig"] if "rconfig" in parameters else "config.ini"
@@ -173,13 +173,17 @@ if "fdr" in stages:
             samp_copy.simulate(mms)
             method = sample.d_rate["method"]
             min_cov = int(sample.d_rate["min_coverage"])
-            d_params = {}
-            if method == "reference":
-                d_params["ref"] = mms
-                d_params["min_beta"] = sample.d_rate["min_beta"]
+            USER = sample.USER
+            if method != "specified":
+                d_params = {}
+                if method == "reference":
+                    d_params["ref"] = mms
+                    d_params["min_beta"] = sample.d_rate["min_beta"]
+                else:
+                    d_params["global_meth"] = sample.d_rate["global_meth"]
+                samp_copy.estimate_drate(method=method, min_cov=min_cov, USER=USER, **d_params)
             else:
-                d_params["global_meth"] = sample.d_rate["global_meth"]
-            samp_copy.estimate_drate(method=method, min_cov=min_cov, **d_params)
+                print("drate taken from object rather than estimated")
             method = sample.methylation["algorithm"]
             win_size = sample.methylation["win_size"]
             lcf = sample.methylation["lcf"]
@@ -190,7 +194,7 @@ if "fdr" in stages:
                 m_params["slope"] = sample.methylation["slope"]
                 if method == "linear" or method == "lin":
                     m_params["intercept"] = sample.methylation["intercept"]
-            samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, **m_params)
+            samp_copy.reconstruct_methylation(ref=mms, function=method, USER=USER, win_size=win_size, lcf=lcf, **m_params)
             #dump object to text file
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?

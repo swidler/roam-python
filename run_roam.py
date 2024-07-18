@@ -54,6 +54,8 @@ argParser.add_argument("-rm", "--rmethod", help="method of reconstruction (can b
 argParser.add_argument("-lcf", "--lcf", help="low coverage factor for methylation reconstruction")
 argParser.add_argument("-sl", "--slope", nargs="+", help="slope for linear/logistic methods of methylation reconstruction")
 argParser.add_argument("-in", "--intercept", nargs="+", help="intercept for linear method of methylation reconstruction")
+argParser.add_argument("-pi_m", "--pi_m", help="deamination rate in methylated cytosines")
+argParser.add_argument("-pi_u", "--pi_u", help="deamination rate in unmethylated cytosines")
 argParser.add_argument("-w", "--win_size", help="window size for reconstruction of methylation--'auto' or list of 1 val or 1 for each chrom")
 argParser.add_argument("-wm", "--win_method", help="window size calculation method--'prob' or 'relerror'")
 argParser.add_argument("-min", "--min_meth", help="minimum methylation level to detect")
@@ -221,6 +223,16 @@ def roam_pipeline(**params):
                 lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
                 slope = params["slope"] if "slope" in params else config["meth"]["slope"]
                 intercept = params["intercept"] if "intercept" in params else config["meth"]["intercept"].split(",")
+                pi_m = params["pi_m"] if "pi_m" in params else config["meth"]["pi_m"]
+                if pi_m == 'None':
+                    pi_m = None
+                else:
+                    pi_m = float(pi_m)
+                pi_u = params["pi_u"] if "pi_u" in params else config["meth"]["pi_u"]
+                if pi_u == 'None':
+                    pi_u = None
+                else:
+                    pi_u = float(pi_u)
                 win_size = params["win_size"] if "win_size" in params else config["meth"]["win_size"]
                 win_method = params["win_method"] if "win_method" in params else config["meth"]["win_method"]
                 min_meth = params["min_meth"] if "min_meth" in params else config["meth"]["min_meth"]
@@ -236,7 +248,7 @@ def roam_pipeline(**params):
                 if max_width: win_params["max_width"] = int(max_width)
 
                 ams.reconstruct_methylation(ref=mms, function=recon_method, win_size=win_size, lcf=lcf, slope=slope,
-                                            intercept=intercept, winsize_alg=win_params, USER=USER)
+                                            intercept=intercept, winsize_alg=win_params, USER=USER, pi_m=pi_m, pi_u=pi_u)
 
     # dump object to text file
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]

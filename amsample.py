@@ -27,11 +27,12 @@ class Amsample(Chrom):
         
     An amsample object is created (with empty defaults): ams = Amsample(). The attributes can then be populated.
     """
-    def __init__(self, name="unknown", species="unknown", reference="", library="", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
+    def __init__(self, name="unknown", species="unknown", reference="", library="", USER = "", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
         self.name = name
         self.species = species
         self.reference = reference
         self.library = library
+        self.USER = USER
         self.chr_names = chr_names
         self.coord_per_position = coord_per_position
         self.no_a = copy.deepcopy(no_a)  # if these are just assigned (not copied), when creating 2 objects, these
@@ -327,7 +328,10 @@ class Amsample(Chrom):
                     elif fields[0] == "Library":
                         self.library = fields[1]
                     elif fields[0] == "USER":
-                        self.USER = fields[1]
+                        if "False" in line:
+                            self.USER = False
+                        else:
+                            self.USER = True
                     elif fields[0] == "Chromosomes":
                         self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
                 elif i == 6: #filtered line
@@ -1013,9 +1017,12 @@ class Amsample(Chrom):
                   and, based in the input, 'method', 'global_methylation', 'ref' (the name of the Mmsample object),
                   'min_beta', 'max_beta', and 'min'coverage'.
         """
-        if self.USER != USER:
-            print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
-                  USER attribute of amsample object has been overwritten""")
+        if hasattr(self, 'USER'):
+            if self.USER != USER:
+                print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
+                      USER attribute of amsample object has been overwritten""")
+                self.USER = USER
+        else:
             self.USER = USER
 
         ref_params = {}
@@ -1061,11 +1068,7 @@ class Amsample(Chrom):
             meth_params["ref"].scale()
         
         #initialize
-        if USER:
-            drate = {"global": np.nan, "dglobal": np.nan, "local": np.full((self.no_chrs), np.nan),
-                     "dlocal": np.full((self.no_chrs), np.nan), "no_positions": np.full((self.no_chrs), np.nan),}
-        elif not USER:
-            drate = {"global": np.nan, "dglobal": np.nan, "local": np.full((self.no_chrs), np.nan),
+        drate = {"global": np.nan, "dglobal": np.nan, "local": np.full((self.no_chrs), np.nan),
                      "dlocal": np.full((self.no_chrs), np.nan), "no_positions": np.full((self.no_chrs), np.nan),
                      "pi_u_global": np.nan, "pi_u_dglobal": np.nan, "pi_u_local": np.full((self.no_chrs), np.nan),
                      "pi_u_dlocal": np.full((self.no_chrs), np.nan), "pi_u_no_positions": np.full((self.no_chrs), np.nan)}
@@ -1121,6 +1124,10 @@ class Amsample(Chrom):
             drate["local"][chrom] = factor * np.nansum(pi_m_no_t)/np.nansum(pi_m_no_ct)
             drate["no_positions"][chrom] = sum(np.isfinite(pi_m_no_t))
             drate["dlocal"][chrom] = factor * math.sqrt(drate["local"][chrom]*(1-drate["local"][chrom])/drate["no_positions"][chrom])
+            if USER:
+                drate["pi_u_local"][chrom] = 0
+                drate["pi_u_no_positions"][chrom] = 0
+                drate["pi_u_dlocal"][chrom] = 0
             if not USER:
                 drate["pi_u_local"][chrom] = factor * np.nansum(pi_u_no_t) / np.nansum(pi_u_no_ct)
                 drate["pi_u_no_positions"][chrom] = sum(np.isfinite(pi_u_no_t))
@@ -1136,6 +1143,9 @@ class Amsample(Chrom):
         #evaluate global degradation rate
         drate["global"] = factor * pi_m_tot_t/pi_m_tot_ct
         drate["dglobal"] = factor * math.sqrt(drate["global"] * (1-drate["global"])/np.nansum(drate["no_positions"]))
+        if USER:
+            drate["pi_u_global"] = 0
+            drate["pi_u_dglobal"] = 0
         if not USER:
             drate["pi_u_global"] = factor * pi_u_tot_t / pi_u_tot_ct
             drate["pi_u_dglobal"] = factor * math.sqrt(drate["pi_u_global"] * (1 - drate["pi_u_global"]) / np.nansum(drate["pi_u_no_positions"]))
@@ -1145,7 +1155,7 @@ class Amsample(Chrom):
             self.d_rate = {"method":"reference", "rate":drate, "ref":meth_params["ref"].name, "min_beta":meth_params["min_beta"], "min_coverage":meth_params["min_coverage"]}
         elif method == "global":
             self.d_rate = {"method":"global", "rate":drate, "global_methylation":meth_params["global_methylation"], "min_coverage":meth_params["min_coverage"]}
-    
+
     def determine_winsize(self, chrom, method="prob", min_meth=0.2, p0=0.01, k_recip=1/2.5, max_width=31):
         """Estimates the optimal window size in cases that collecting data from a window is required.
         
@@ -1212,19 +1222,23 @@ class Amsample(Chrom):
         """
         no_chr = self.no_chrs
 
-        if self.USER != USER:
-            print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
-                  USER attribute of amsample object has been overwritten""")
-            self.USER = USER
+        if hasattr(self, 'USER'):
+            if self.USER != USER:
+                print("""Warning: USER attribute of amsample object does not match USER parameter in config file.
+                      USER attribute of amsample object has been overwritten""")
+                self.USER = USER
+        else:
+            self.USER = USER   
 
-        if pi_m:
+        if pi_m is not None:
             self.d_rate["rate"]["global"] = pi_m
             self.d_rate["method"] = "specified"
         else:
             pi_m = self.d_rate["rate"]["global"]
 
-        if pi_u:
+        if pi_u is not None:
             self.d_rate["rate"]["pi_u_global"] = pi_u
+            self.d_rate["method"] = "specified"
         else:
             pi_u = self.d_rate["rate"]["pi_u_global"]
 
@@ -1387,6 +1401,11 @@ class Amsample(Chrom):
         mms.scale()
         mms.merge()
         degrad_rate = self.d_rate["rate"]["global"]
+        unmeth_degrad_rate = 0
+        #unmeth_degrad_rate = self.d_rate["rate"]["pi_u_global"]
+        #if self.USER:
+       #     if unmeth_degrad_rate != 0:
+       #         print("Warning! Sample is USER-treated but pi_u is not 0. Results will not be accurate")
         #parameters needed for the simulation
         meth_map = mms.get_methylation(chrom=chrom)[1]
 
@@ -1402,7 +1421,7 @@ class Amsample(Chrom):
             #ct_int = [int(x) for x in ct_float] #nec?
             meth_float = [0 if i in uniq_nan_idx else meth_map[chrom][i] for i in range(len(meth_map[chrom]))]
             #no_t = np.random.binomial(ct_int, degrad_rate*np.array(meth_float))  # np.array?
-            no_t = np.random.binomial(ct_float, degrad_rate*np.array(meth_float))  # np.array?
+            no_t = np.random.binomial(ct_float, degrad_rate*np.array(meth_float) + unmeth_degrad_rate*(1-np.array(meth_float)))  # np.array?
             no_t_fl = no_t.astype(float)
             no_t_fl[list(uniq_nan_idx)] = np.nan
             self.no_t[chrom] = no_t_fl
@@ -1569,28 +1588,33 @@ if __name__ == "__main__":
     #ams = Amsample(name="Altai_Neanderthal")
 
     import mmsample as m
-    #ams = Amsample()
-    #ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/test/test_11_7_hist_alt_meth.txt")
+    ams = Amsample()
+    ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/test/test_15_7_hist_alt_meth.txt")
     #ams.parse_infile("/sci/labs/lirancarmel/krystal_castle/backup/python_dumps/test_chag_chr1_filter.txt")
     mms = m.Mmsample()
     mms.create_mms_from_text_file("bone5.txt")
     #ams.estimate_drate(ref = mms, USER=True)
-    #ams.reconstruct_methylation(ref=mms, USER=False)
+    ams.reconstruct_methylation(ref=mms, pi_m=0.0172, pi_u=0)
     #ams.dump("drate")
 
     import DMRs as d
 
-    gc = t.load_object("/sci/labs/lirancarmel/krystal_castle/backup/test/cpg_coords.P")
-    samplist = []
-    # for the next step, all input files must be pickled
-    for sample in ["test_altai_hist", "test_ust_hist"]:
-        if sample:
-            infile = "/sci/labs/lirancarmel/krystal_castle/backup/test/" + sample
-            print(f"loading sample {sample}")
-            input_obj = t.load_object(infile)
-            samplist.append(input_obj)
+    # sample = t.load_object("/sci/labs/lirancarmel/krystal_castle/backup/test/test_altai_hist")
+    # samp_copy = copy.deepcopy(sample)
+    # samp_copy.simulate(mms)
+    # samp_copy.estimate_drate()
 
-    dms = d.DMRs()
-    (qt_up, qt_down) = dms.groupDMRs(win_size='meth', lcf='meth', samples=samplist, sample_groups=["Neanderthal", "AMH"], 
-                                     chroms=['chr1'], min_finite=[1,1], min_CpGs=10, delta=0.5, ref=mms, coord= gc,
-                                     max_adj_dist=1000, min_bases=100, no_pool=True)
+    # gc = t.load_object("/sci/labs/lirancarmel/krystal_castle/backup/test/cpg_coords.P")
+    # samplist = []
+    # # for the next step, all input files must be pickled
+    # for sample in ["test_altai_hist", "test_ust_hist"]:
+    #     if sample:
+    #         infile = "/sci/labs/lirancarmel/krystal_castle/backup/test/" + sample
+    #         print(f"loading sample {sample}")
+    #         input_obj = t.load_object(infile)
+    #         samplist.append(input_obj)
+    #
+    # dms = d.DMRs()
+    # (qt_up, qt_down) = dms.groupDMRs(win_size='meth', lcf='meth', samples=samplist, sample_groups=["Neanderthal", "AMH"],
+    #                                  chroms=['chr1'], min_finite=[1,1], min_CpGs=10, delta=0.5, ref=mms, coord= gc,
+    #                                  max_adj_dist=1000, min_bases=100, no_pool=True)
