@@ -1401,12 +1401,11 @@ class Amsample(Chrom):
         mms.scale()
         mms.merge()
         degrad_rate = self.d_rate["rate"]["global"]
-        unmeth_degrad_rate = 0
-        #unmeth_degrad_rate = self.d_rate["rate"]["pi_u_global"]
-        #if self.USER:
-       #     if unmeth_degrad_rate != 0:
-       #         print("Warning! Sample is USER-treated but pi_u is not 0. Results will not be accurate")
-        #parameters needed for the simulation
+        unmeth_degrad_rate = self.d_rate["rate"]["pi_u_global"]
+        if self.USER:
+           if unmeth_degrad_rate != 0:
+               print("Warning! Sample is USER-treated but pi_u is not 0. Results will not be accurate")
+        # parameters needed for the simulation
         meth_map = mms.get_methylation(chrom=chrom)[1]
 
         for chrom in range(self.no_chrs):

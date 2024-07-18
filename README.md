@@ -85,6 +85,7 @@ Running the scripts
     The rest of the parameters can be specified as well, to override defaults (strings, except 
     where noted):
     -co path of config file (different config files can be used for different runs)
+    -nu set False for samples that were not USER-treated (default: true)
     -le chromosome lengths, specified with no quotes or commas, eg -le 12345 23456 (must 
     correspond with chromosome list, below) (default: chromosome lengths of hg19).
 	-s sample species (default: human)
@@ -130,6 +131,8 @@ Running the scripts
 	-lcf low coverage factor for methylation reconstruction (default: 0.05)
 	-sl slope for linear/logistic methods of methylation reconstruction (default: 1/d_rate)
 	-in intercept for linear method of methylation reconstruction (default: 0)
+    -pi_m deamination rate in methylated cytosines. Give as input at meth stage to override the rate calculated by drate stage
+	-pi_u deamination rate in unmethylated cytosines. Give as input at meth stage to override the rate calculated by drate stage
 	-w window size for reconstruction of methylation--'auto' or list of 1 val or 1 for each 
 	chromosome (default: auto)
 	-wm window size calculation method--'prob' or 'relerror' (default: prob)
@@ -144,7 +147,7 @@ Outputs
 	If the process runs to the final stage, two main outputs are given: a bed file 
 	(<sample>_meth.bed) with the methylation values per position, and a pickled file that 
 	can be 	used for the DMR detection process. The process has five stages: "bam", "diagnose", 
-	"filter", "drate", and "meth". These stages can be 	specified in the config file and from 
+	"filter", "drate", and "meth". These stages can be specified in the config file and from 
 	the command line (input -st), allowing the user to choose whether to run the full algorithm, 
 	or just several stages. When the script ends (after the last requested stage), it outputs 
 	a text file for the last stage completed. This file, in the format <sample>_<stage>.txt, 
@@ -214,12 +217,12 @@ Inputs
 
 	Three inputs are required for the process to work:
 	a. Samples (-s): a list of all the samples that the process should compare. They should 
-	be	specified with no quotes or commas. The algorithm will use the pickled files with the 
+	be specified with no quotes or commas. The algorithm will use the pickled files with the 
 	same name (or with any extra text specified in the templ parameter) from the object 
 	directory for the corresponding samples.
 	b. Groups (-g): a list with identical size to “samples” with allocation of the samples 
-	to the	groups that the process detect DMRs between. Groups should include ancient samples 
-	or	modern samples, but not both. 
+	to thegroups that the process detect DMRs between. Groups should include ancient samples 
+	or modern samples, but not both. 
 	For example: -s ust_ishim SF12 Altai_Neanderthal Denisovan -g modern_human modern_human archaic_human archaic_human.
 	c. The CpG file (-gc), identical to the file in methylation reconstruction.
 	
@@ -277,13 +280,14 @@ Inputs
 	-r flag for using histogram matching in the pooled methylation function (default: true)
 	-re flag for logging info--use when logging not desired
 	-an flag for running annotation--use when annotation not desired
+    -np flag for pooling methylation--use when a simple mean of meth vectors is desired
     
     The stages are DMR and fdr. (Extra functions that can be used here are permute, 
     permutstat, and plotmethylation. For more details see “extra functions”).
     
     The DMR step compares the methylation of the samples and finds differentially methylated 
     regions. It creates 2 text files in the specified dump directory (DMR_gen_<timestamp>.txt 
-    lists input parameters and results, while DMRs_<timestamp> has the data in tab separated 
+    lists input parameters and results, while DMRs_<timestamp>.txt has the data in tab separated 
     format), and a pickled file of the DMR object in the specified object directory 
     (DMR_obj_<timestamp>), for use by the subsequent stages. It also outputs a log file in 
     the current dir (DMR_log.txt) with info about the parameters used and DMRs found.
@@ -291,8 +295,7 @@ Inputs
     The fdr (False Detection Rate) step filters the DMRs to the desired FDR level. It also 
     notes the thresholds used at the end of the DMR_log file created in the DMR step. It 
     outputs 2 text files in the dump directory (filtered_DMR_gen_<timestamp>.txt and
-    filtered_DMRs_<timestamp>, 
-    as above), and a log file in the current dir with info about the thresholds and the ratio 
+    filtered_DMRs_<timestamp>.txt, as above), and a log file in the current dir with info about the thresholds and the ratio 
     obtained for each combination.
     
     When done adjusting the config file, run the run_DMRs.py script.    
@@ -300,13 +303,13 @@ Inputs
 Outputs
     
 	The algorithm provides a table with a list of all the DMRs detected and details about 
-	them. It also	outputs a pickle file that can be used later for the extra functions.
+	them. It also outputs a pickle file that can be used later for the extra functions.
 
 Extra functions
 
 	We provide extra functions for users who wish deeper analysis of the data and/or to plot 
 	mean methylation of the DMRs. To operate them, change the parameter “stages” to the 
-	corresponding	term.
+	corresponding term.
 	
 	The permute function scrambles up the DMR groups and detects “permuted DMRs” to validate
 	the DMRs found. The input for the function is the pickled output of the DMR detection 
