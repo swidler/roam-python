@@ -283,7 +283,7 @@ Inputs
     
     The DMR step compares the methylation of the samples and finds differentially methylated 
     regions. It creates 2 text files in the specified dump directory (DMR_gen_<timestamp>.txt 
-    lists input parameters and results, while DMRs_<timestamp> has the data in tab separated 
+    lists input parameters and results, while DMRs_<timestamp>.txt has the data in tab separated 
     format), and a pickled file of the DMR object in the specified object directory 
     (DMR_obj_<timestamp>), for use by the subsequent stages. It also outputs a log file in 
     the current dir (DMR_log.txt) with info about the parameters used and DMRs found.
@@ -291,9 +291,8 @@ Inputs
     The fdr (False Detection Rate) step filters the DMRs to the desired FDR level. It also 
     notes the thresholds used at the end of the DMR_log file created in the DMR step. It 
     outputs 2 text files in the dump directory (filtered_DMR_gen_<timestamp>.txt and
-    filtered_DMRs_<timestamp>, 
-    as above), and a log file in the current dir with info about the thresholds and the ratio 
-    obtained for each combination.
+    filtered_DMRs_<timestamp>.txt, as above), and a log file in the current dir with info about 
+    the thresholds and the ratio obtained for each combination.
     
     When done adjusting the config file, run the run_DMRs.py script.    
     
