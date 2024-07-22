@@ -98,6 +98,12 @@ annot = False if parameters["noannot"] else config["options"].getboolean("annot"
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M")
+if not samples or samples[0] == "":
+    print("Samples is a required parameter")
+    sys.exit(1)
+if not group_names or group_names[0] == "":
+    print("Group names is a required parameter")
+    sys.exit(1)
 if "DMR" in stages or "permute" in stages or "plot" in stages:
     gc = t.load_object(gc_object)
     chr_names = chroms if chroms and chroms[0] != "" else gc.chr_names  # assumes user wants all chroms (or all but x)
