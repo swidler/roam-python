@@ -775,7 +775,7 @@ class Amsample(Chrom):
         to_remove = np.unique(to_remove)
         return to_remove
 
-    def filter(self, max_c_to_t = 0.25, merge = True, max_g_to_a = .25, method = None, use_max_TsPerCoverage = True, max_coverage = None,  fname = None, min_t = 1, max_a = 1, logdir=None):
+    def filter(self, max_c_to_t = 0.25, merge = True, max_g_to_a = .25, method = None, use_diagnose_filter = True, max_coverage = None,  fname = None, min_t = 1, max_a = 1, logdir=None):
         """Removes information from CpG sites that did not pass various quality control tests
         
         Input:    max_c_to_t         threshold used to identify sites with a true C->T mutation. All positions 
@@ -803,10 +803,11 @@ class Amsample(Chrom):
                     no_c > max_coverage are removed. This parameter can be one of the following:
                     (1) scalar, in which case it is used for all chromosomes.
                     (2)vector over chromosomes, with a different threshold for each chromosome.
-                  use_max_TsPerCoverage  max_TsPerCoverage is a threshold used to identify sites with a true C->T 
-                    mutation. All positions with a certain coverage no_t+no_c=C, where no_t > max_TsPerCoverage(C) 
-                    are removed. This parameter is an array over chromosomes, with an array of max_TsPerCoverage for 
-                    each coverage level in each chromosome. Default is to use this over user-entered max_c_to_t.
+                  use_diagnose_filter  max_TsPerCoverage is a threshold determined in the diagnose stage that is 
+                    used to identify sites with a true C->T mutation. All positions with a certain coverage 
+                    no_t+no_c=C, where no_t > max_TsPerCoverage(C) are removed. This variable is an array over 
+                    chromosomes, with an array of max_TsPerCoverage for each coverage level in each chromosome. 
+                    Default (True) is to use this over user-entered max_c_to_t.
         Output: Amsample object with removed sites replaced with NaNs
         """
         #initialize
@@ -820,7 +821,7 @@ class Amsample(Chrom):
                 method = "both"
             else:
                 method = "c_to_t"
-        if use_max_TsPerCoverage:
+        if use_diagnose_filter:
             max_TsPerCoverage = self.p_filters["max_TsPerCoverage"] if self.p_filters["max_TsPerCoverage"] else max_c_to_t
         else:
             max_TsPerCoverage = max_c_to_t
@@ -832,7 +833,7 @@ class Amsample(Chrom):
             tmp_max = max_TsPerCoverage
         else:
             tmp_max = max_TsPerCoverage.copy() 
-        if not use_max_TsPerCoverage: #max_c_to_t
+        if not use_diagnose_filter: #max_c_to_t
             if np.isscalar(max_TsPerCoverage): #single ratio
                 for chrom in range(no_chr):
                     max_TsPerCoverage[chrom] = math.ceil(tmp_max * range(max_coverage[chrom])-1)
