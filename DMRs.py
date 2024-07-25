@@ -826,7 +826,7 @@ class DMRs:
         Input: DMR object, iterator
         Output: text file in format DMRs_<time>.txt (directory currently hard-coded).
         """
-        fname_gen = fname.replace("DMRs", "DMR_gen")
+        fname_gen = fname.replace("DMRs_", "DMR_gen_")
         with open(fname_gen, "w") as fid:
             fid.write(f"Samples: {self.samples}\n")
             fid.write(f"Group Assignment: {self.groups['group_nums']}\nGroup Naming: {self.groups['group_names']}\n")
