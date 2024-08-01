@@ -11,6 +11,7 @@ import gcoordinates as gcoord
 import copy
 import math
 import random
+import re
 import matplotlib.pyplot as plt
 
 class DMRs:
@@ -188,6 +189,10 @@ class DMRs:
             is_auto_win = True
             is_meth_win = False
         else:
+            if type(win_size) == str:
+                win_size = re.split(",", win_size)
+            if type(win_size) == list:
+                win_size = [int(x) for x in win_size]
             is_auto_win = False
             is_meth_win = False
         if type(lcf) == str and lcf == "meth":  # buggy?
