@@ -3,7 +3,9 @@ RoAM is a flexible tool including two pipelines allowing (1) the reconstruction 
 information can be found in BIORXIV_LINK.
 
 The following modules are required for RoAM and should be downloaded before using it:
-numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, matplotlib, screeninfo
+
+	numpy, math, scipy, copy, pysam, Bio, gzip, datetime, glob, re, pickle, sys, itertools, pybedtools, 
+ 	matplotlib, screeninfo
 
 RoAM can be operated either from the command line or by specifying input parameters in config.ini.
 
@@ -11,21 +13,23 @@ RoAM can be operated either from the command line or by specifying input paramet
 
 Input files:
 
-1. BAM file with the reads of an ancient genome, and the corresponding BAI file.
-   	Examples:
-   		Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622
-		SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940
-   	If there is no BAI file, it can be created using samtools:
+1. BAM file with the reads of an ancient genome, and the corresponding BAI file  
+   Examples:  
+   &emsp;Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622  
+   &emsp;SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940  
+   If there is no BAI file, it can be created using samtools:
+   
    		samtools index <file>.bam <file>.bam.bai
    	(In later versions of samtools, don't specify output file name.)
 
    	To index all bam files in a directory, use the indexing script:
+   
 		./create_bai.sh <directory>/*.bam
 		
-3. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file).
-   	hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
+3. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file)  
+   hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
 		
-4. CpG coordinates
+4. CpG coordinates  
 	If you are using the Hg19 human genome version, a pickled object containing all CpG
 	coordinates in the right format already exists. Download it from
 	http://carmelab.huji.ac.il/data.html and unzip into the objects subdirectory of the script
@@ -37,7 +41,7 @@ Input files:
 	<species_with_underscores>_cpg_coords.P. In order to create the file without running the 
 	rest of RoAM, add the --no_roam flag to the input parameters.
     
-5. Reference DNA methylation map
+5. Reference DNA methylation map  
 	Typically, this would be a present-day methylation map generated from the same tissue
 	as the ancient sample.
 	When reconstructing methylation from a bone sample using the Hg19 human genome version,
@@ -48,213 +52,209 @@ Input files:
 	but it is highly recommended, as it allows for more accurate estimation of deamination
 	rate.
 	
-Running the scripts:
-
-	To run the process, start by editing the variables in the config.ini file (or edit 
+Running the scripts:  
+	&emsp;To run the process, start by editing the variables in the config.ini file (or edit 
 	the command line parameters). These include input and output filenames, sample name,
  	a list of chromosomes, their respective lengths, various flags, and the the parts
-  	of the script to run. 
-    
-	The first 3 variables, filename (input .bam file), name (identifier of the sample),
+  	of the script to run.  
+	&emsp;The first 3 variables, filename (input .bam file), name (identifier of the sample),
  	and library (single or double stranded) are required. If instead of one BAM file, the
   	directory contains (exactly) one file per chromosome, the filename param can be
    	skipped. In this case, change the file_per_chrom flag to TRUE. The filenames should
-    	be in the format <your label>_chr<chrom>.bam. 
-	Please note: if there is more than one file for a given chromosome, only one will be read. 
+    	be in the format <your_label>_chr<chrom\>.bam.  
+	Please note: if there is more than one file for a given chromosome, only one will be read.  
 	Alternatively, the directory can have multiple bamfiles that do not correspond to
- 	specific chromosomes, in which case this flag should not be changed from its default value
-  	(FALSE). ** It is unclear what would happen in this last scenario. Which of the BAM files would be read? **
-    
-	The rest of the parameters have defaults loaded, but be sure to put all necessary files in 
-	the proper directory (default is the current directory).
-    
-	When done adjusting the config file, run the run_roam.py script. The script can also be run
+ 	specific chromosomes, in which case the file_per_chrom flag should not be changed from its default value
+  	(FALSE), and all files will be read.  
+	&emsp;The rest of the parameters have defaults loaded, but be sure to put all necessary files in 
+	the proper directory (default is the current directory).      
+	&emsp;When done adjusting the config file, run the run_roam.py script. The script can also be run
  	from the command line, using flags for the required parameters,	as follows:
-    
-    	run_roam.py -f "path to bam file" -n "sample name" -l "library--single or double"
-    
-	IMPORTANT: If the sample is aligned to any genome version but Hg19, it is important to
+  
+  	run_roam.py -f <path to bam file> -n <sample name> -l library <single or double>  
+   **OR**
+   
+  	run_roam.py --filename <path to bam file> --name <sample name> --library <single or double>
+      
+IMPORTANT: If the sample is aligned to any genome version but Hg19, it is important to
  	modify the chromosome lengths, either in the config file or by using the -le parameter.
 	The rest of the parameters can be specified as well, to override defaults (strings, except 
 	where noted):
  
- 	-co path of config file (different config files can be used for different runs).
-    	-le chromosome lengths, specified with no quotes or commas, eg -le 12345 23456 (must 
+ 	-co, --config path of config file (different config files can be used for different runs).
+	-le, --lengths chromosome lengths, specified with no quotes or commas, eg -le 12345 23456 (must 
 		correspond to chromosome list below) (default: chromosome lengths of hg19).
-	-s taxonomical classification of the ancient sample (default: human).
-	-c list of chromosomes to use, a list specified with no quotes or commas, 
+	-s, --species taxonomical classification of the ancient sample (default: human).
+	-c, --chroms list of chromosomes to use, a list specified with no quotes or commas, 
 		e.g., -c chr1 chr2 chr3 (default: chromosomes 1 to 22, X).
-	-t set to TRUE to trim read ends during processing (default: FALSE).
-	-cf set TRUE for directory with exactly one file per chromosome (default: FALSE).
-	-m minimum mapping quality for a read (default: 20).
-	-q minimum mapping quality for a position (default: 20).
-	-st stages of process to be run, a list specified with no quotes or commas, 
+	-t, --trim set to TRUE to trim read ends during processing (default: FALSE).
+	-cf, --chrom_file set to TRUE for directory with exactly one file per chromosome (default: FALSE).
+	-m, --mapq minimum mapping quality for a read (default: 20).
+	-q, --qual minimum mapping quality for a position (default: 20).
+	-st, --stages stages of process to be run, a list specified with no quotes or commas, 
 		e.g., -st bam diagnose.
   		Further details later in this document (default: all five stages)
-	-o directory for saved (pickled) object files (include final / for all directories) **What does this mean (the part in parenthesis)?**
-		(default: current directory)
-	-fd directory for multiple input BAM files (default: current directory).
-	-od output directory (default: current directory).
-	-ld directory for log files (default: current directory).
-	-pd directory for images (default: current directory).
-	-g path for the reference genome assembly file, e.g., hg19.fa.gz
+	-o, --objectdir directory for saved (pickled) object files (include final / for all directories, e.g. dir/, not dir) 
+		(default: current directory)ץ
+	-fd, --filedir directory for multiple input BAM files (default: current directory).
+	-od, --outdir output directory (default: current directory).
+	-ld, --logdir directory for log files (default: current directory).
+	-pd, --picdir directory for images (default: current directory).
+	-g, --genome path for the reference genome assembly file, e.g., hg19.fa.gz
  		(default: hg19.fa.gz in current directory).
-	-tf path for the object saved in text format. ** default **
-	-mo file for Reference DNA methylation map (TXT format).
-	-b file for Reference DNA methylation map (COV format). 
-	-gc CpG coordinates file.
-	-mn sample name of reference DNA methylation map (default:empty).
-	-ms taxonomical classification of reference DNA methylation map (default:empty).
-	-mr reference genome of reference DNA methylation map (default:empty).
-	-mm sequencing method of reference DNA methylation map (default:empty).
-	-bed flag for bed file (use this flag when bed file output is not desired)
- 		(default: FALSE). **unclear**
-	-cpg flag for creating CpG coordinates file (default: FALSE). **above it says that the flag is called --create_cpg**
-	-cr genome assembly verstion for CpG coordinates file. ** when would this be
+	-tf, --text_in path for the object saved in text format. This must be specified when not running the bam stage.
+	-mo, --modern file for Reference DNA methylation map (.txt file).
+	-b, --bismark file for Reference DNA methylation map (.cov file--unzipped!). 
+	-gc, --gc_file CpG coordinates file.
+	-mn, --mname sample name of reference DNA methylation map (default:empty).
+	-ms, --mspecies taxonomical classification of reference DNA methylation map (default:empty).
+	-mr, --mref reference genome of reference DNA methylation map (default:empty).
+	-mm, --mmethod sequencing method of reference DNA methylation map (default:empty).
+	-bed, --nobed flag for not using bed file (use this flag, with no value following it, when bed file output is 
+ 		not desired).
+	-cpg, --create_cpg flag for creating CpG coordinates file (use this flag, with no value following it, to create file).
+	-cr, --cpg_ref genome assembly version for CpG coordinates file. ** when would this be
  		different than the regular genome assembly? **
-	-no flag for not running the rest of RoAM after creating CpG file (default: FALSE). ** above this is indicated as --no_roam **
-	-u determines whether filtering thresholds would be taken from diagnose (TRUE),
+	-no, --no_roam flag for not running the rest of RoAM after creating CpG file (use this flag, with no value following 
+ 		it, to stop RoAM process after file creation).
+	-u, --use_diag_filt determines whether filtering thresholds would be taken from diagnose (TRUE),
  		or would be user-defined (FALSE) (default: TRUE).
-	-ct user-defined threshold to identify sites with a true C->T mutation (used only
- 		if use_diagnose_filter is FALSE) (default: 0.25). ** what is use_diagnose_filter? **
-	-mg merge information from the two strands for each CpG position (default: TRUE).
-	-ga threshold used to identify sites with a true C->T mutation. Only relevant when
+	-ct, --max_c_to_t user-defined threshold to identify sites with a true C->T mutation (used only
+ 		if use_diag_filt is FALSE) (default: 0.25).
+	-mg, --merge merge information from the two strands for each CpG position (default: TRUE).
+	-ga, --max_g_to_a threshold used to identify sites with a true C->T mutation. Only relevant when
  		library='single' (default: 0.25).
-	-me method used to remove true C->T mutations (default: c_to_t for library='double',
+	-me, --method method used to remove true C->T mutations (default: c_to_t for library='double',
  		otherwise both).
-	-dm method of estimating deamination rate (can be reference [default and 
+	-dm, --dmethod method of estimating deamination rate (can be reference [default and 
 		highly recommended] or global).
-	-mc minimum coverage of sites used for estimation of deamination rate
+	-mc, --min_cov minimum coverage of sites used for estimation of deamination rate
  		(default: 1).
-	-mb minimum beta value of sites used to estimate deamination rate in the
+	-mb, --min_beta minimum beta value of sites used to estimate deamination rate in the
  		reference method (default: 1).
-	-rm method of DNA methylation reconstruction (can be histogram, linear, or
+	-rm, --rmethod method of DNA methylation reconstruction (can be histogram, linear, or
  		logistic; default is histogram).
-	-gm global methylation value. Used when method of estimating deamination rate
+	-gm, --global_meth global methylation value. Used when method of estimating deamination rate
  		is global.
-	-lcf low coverage factor for methylation reconstruction (default: 0.05).
-	-sl slope for linear/logistic methods of methylation reconstruction
+	-lcf, --lcf low coverage factor for methylation reconstruction (default: 0.05).
+	-sl, --slope slope for linear/logistic methods of methylation reconstruction
  		(default: 1/deamination_rate).
-	-in intercept for linear method of methylation reconstruction (default: 0).
-	-w window size used for DNA methylation reconstruction. Can be
- 		--'auto' or a list of one value for each chromosome (default: auto).
-	-wm method for computing window size. Can be --'prob' or 'relerror'
+	-in, --intercept intercept for linear method of methylation reconstruction (default: 0).
+	-w, --win_size window size used for DNA methylation reconstruction. Can be 'auto' (without quotation marks) 
+ 		or a list of one value for each chromosome (default: auto).
+	-wm, --win_method method for computing window size. Can be 'prob' or 'relerror' (without quotation marks)
  		(default: prob).
-	-min parameter for computing window size. The minimum methylation level
+	-min, --min_meth parameter for computing window size. The minimum methylation level
  		to detect (default: 0.2).
-	-p parameter for computing window size when the method is prob (default: 0.01).
-	-k parameter for computing window size when the method is relerror 
-		(default: 1/2.5)
-	-max maximum window size (default: 31).
+	-p, --p0 parameter for computing window size when the method is prob (default: 0.01).
+	-k, --k parameter for computing window size when the method is relerror 
+		(default: 1/2.5)ץ
+	-max, --max_width maximum window size (default: 31).
 	
-Outputs:
-	
-	If the pipeline runs to the final stage, two main outputs are produced: a BED file 
-	(<sample>_meth.bed) with the methylation values per position, and a pickled file that 
-	can be used for the DMR detection process.
- 	The pipeline has five stages: "bam", "diagnose", "filter", "drate", and "meth".
+Outputs:  
+	&emsp;If the pipeline runs to the final stage, two main outputs are produced: a BED file 
+	(<sample\>\_meth.bed) with the methylation values per position, and a pickled file that 
+	can be used for the DMR detection process.  
+ 	&emsp;The pipeline has five stages: "bam", "diagnose", "filter", "drate", and "meth".
   	These stages can be specified in the config file and from the command line (input -st),
    	allowing the user to choose whether to run the full pipeline, or just several stages.
     	When the script ends (after the last requested stage), it outputs a text file for the
-     	last stage completed. This file, in the format <sample>_<stage>.txt, 
+     	last stage completed. This file, in the format <sample\>_<stage\>.txt, 
 	can be found in the specified output directory and can be used as input for later stages. 
     
-The stages:
-    
-    	The first stage, "bam", performs the conversion of BAM file(s) to amSample object(s). It is a 
+The stages:  
+    	&emsp;The first stage, "bam", performs the conversion of BAM file(s) to amSample object(s). It is a 
 	prerequisite to the other stages. It can be run by itself or with the other stages, and would
-	typically not be be run more than once per sample.
-    
-	The "diagnose" stage evaluates basic statistics of each input chromosome, and computes
+	typically not be be run more than once per sample.  
+	&emsp;The "diagnose" stage evaluates basic statistics of each input chromosome, and computes
     	recommended values of parameters that are later used (in the "filter" stage) to remove PCR
     	duplicates and positions that are suspected as true mutations. The information is recorded
-    	in a text file in the specified log directory, in the format <sample>_diagnostics.txt. It
+    	in a text file in the specified log directory, in the format <sample\>_diagnostics.txt. It
     	also generates various plots for sanity checks. These are stored as PNG files in the directory
-    	specified in the config.ini file.
-    
-    	The "filter" stage excludes from the analysis CpG sites are suspected to not have gone through
+    	specified in the config.ini file.  
+    	&emsp;The "filter" stage excludes from the analysis CpG sites that are suspected not to have gone through
     	deamination, but rather to represent true C->T mutations or to have biased counts due
     	to PCR duplication errors. In this stage, counts from the two strands of each CpG are merged.
     	The details of what sites have been removed are stored in a file in the specified log 
-    	directory, in the format <sample>_filter.txt.
-    
-    	The "drate" stage estimates the deamination rate.
-    
-    	The "meth" stage carries out the actual reconstruction of the premortem DNA methylation
-    	from the C->T ratio, which is simply the quotient #Ts/(#Ts + #Cs).
-    
-    	When done adjusting the config file, run the run_roam.py script.
-    
-Warnings:
+    	directory, in the format <sample\>_filter.txt.  
+    	&emsp;The "drate" stage estimates the deamination rate.  
+    	&emsp;The "meth" stage carries out the actual reconstruction of the premortem DNA methylation
+    	from the C->T ratio, which is simply the quotient #Ts/(#Ts + #Cs).  
 
-    	When running run_roam.py, there will be warnings about invalid values and divide by zeros. 
+When done adjusting the config file, run the run_roam.py script.
+    
+Warnings:  
+    	&emsp;When running run_roam.py, there will be warnings about invalid values and divide by zeros. 
     	They can be safely ignored.
     
-# Pipeline 2: Detect DMRs separating two groups of samples
+# Pipeline 2: Detect DMRs between two groups of samples
 
 This pipeline receives a list of DNA methylation samples, divided into two groups, and searches
 for DMRs between them. Each group can contain ancient samples or modern samples, but not a mixture
 of both. 
 
-Preparing modern samples:
-
-	If one of the groups is made of modern samples, these samples should first be
- 	converted from COV (Bismark output) format to a format that is appropriate for RoAM.
+Preparing modern samples:  
+	&emsp;If one of the groups is made of modern samples, these samples should first be
+ 	converted from .cov (Bismark output) format to a format that is appropriate for RoAM.
   	To this end, run the create_files_for_DMRs.py script, using the following input 
-	parameters (quoted strings, unless otherwise noted):
+	parameters (unquoted strings, unless otherwise noted):
 	
-	-ms sample names, a list specified with no quotes or commas (mandatory).
-	-gc CpG coordinates file (mandatory).
-	-o directory for saved output (pickled) object files (include final /) (optional) ** what is the meaning of the parenthesis. What is the default? **
-	-d directory for data files generated by RoAM (include final /) (optional) ** what is the meaning of the parenthesis. Default? **
-	-mt template to match any extra text in modern sample filename (optional). ** I didn't understand **
-	-msp modern samples taxonomic classification (optional).
-	-mr modern samples reference genome version (optional).
-	-mm modern samples sequencing method (optional).
+	-ms, --mod_samples sample names, a list specified with no quotes or commas (mandatory).
+	-gc, --gc_file CpG coordinates file (mandatory).
+	-o, --object_dir directory for saved output (pickled) object files (include final /, e.g dir/, not dir) (optional, 
+ 		defaults to current dir).
+	-d, --data_dir directory for data files generated by RoAM (include final /, e.g dir/, not dir) (optional, defaults 
+ 		to current dir).
+	-mt, --mtempl template to match any extra text in modern sample filename (optional). ** I didn't understand **
+	-msp, --mspecies modern samples taxonomic classification (optional).
+	-mr, --mref modern samples reference genome version (optional).
+	-mm, --mmethod modern samples sequencing method (optional).
 		
-	The last three parameters should all be identical for all all modern samples, otherwise the pipeline
+The last three parameters should all be identical for all all modern samples, otherwise the pipeline
  	cannot be run.
 
-Running the DMR detection pipeline:
-
-    	The DMR detection pipeline has a similar flow to the DNA methylation reconstruction pipeline.
+Running the DMR detection pipeline:  
+    	&emsp;The DMR detection pipeline has a similar flow to the DNA methylation reconstruction pipeline.
      	First edit the parameters in the config_DMR.ini file, or designate them in the command line.
       	These include directory and filenames, samples and group names, parameters for grouping the
-	DMRs, and the parts of the script to run.
-
- 	When done adjusting the config file, run the run_DMRs.py script. The script can also be run
+	DMRs, and the parts of the script to run.  
+ 	&emsp;When done adjusting the config file, run the run_DMRs.py script. The script can also be run
  	from the command line, using flags for the required parameters,	as follows:
-    
-    	run_DMRs.py -s sample1 sample2 -g group1 group2 -gc “CpG file path”
-     	(and additional parameter below).
+      
+	run_DMRs.py -s <sample1 sample2> -g <group1 group2> -gc <CpG file path>  
+   **OR**
+       
+	run_DMRs.py --samples <sample1 sample2> --groups <group1 group2> --gc_file <CpG file path>  
+   (and additional parameters below).
     
 Inputs:
 
-	Three input variables are required:
-	1. 	Samples (-s): a list of all the samples that are used in the analysis. They
+Three input variables are required:
+1. 	Samples (-s): a list of all the samples that are used in the analysis. They
  		should be specified with no quotes or commas. The algorithm will use the pickled
    		files with the same name (or with any extra text specified in the template parameter)
      		from the object directory.
-	2.	Groups (-g): a list with identical size to “samples”, with allocation of the samples 
+2.	Groups (-g): a list with identical size to “samples”, with allocation of the samples 
 		to the two groups that are compared. For example:
-  			-s ust_ishim SF12 Altai_Neanderthal Denisovan -g modern_human modern_human
-     									archaic_human archaic_human
-    		Each group may contain either ancient samples or modern samples, but not a
+
+		-s ust_ishim SF12 Altai_Neanderthal Denisovan -g modern_human modern_human archaic_human archaic_human
+
+   	Each group may contain either ancient samples or modern samples, but not a
       		mixture of both.
-	3.	The CpG coordinates file (-gc), identical to this input in the DNA methylation
+3.	The CpG coordinates file (-gc), identical to this input in the DNA methylation
  		reconstruction pipeline.
 	
-	Apart from these three mandatory paramters, a modern reference methylation map can be
+Apart from these three mandatory paramters, a modern reference methylation map can be
  	provided, similar to the DNA methylation reconstruction pipeline. This reference is used
   	for the simulations. Lust like in the DNA methylation reconstruction pipeline, this file
-   	can be provided as a COV Bismark output (-b) or as a text file (-mo), as described earlier
+   	can be provided as a .cov Bismark output (-b) or as a .txt file (-mo), as described earlier
     	(the bone1 reference modern human bone DNA methylation can be found in
      	http://carmelab.huji.ac.il/data.html). If no reference is provided, RoAM will use the
       	reference defined in the config file of the DNA methylation reconstruction pipeline, and
        	its path can be specified with the parameter -rco. If no such config file exists, simulations
-	would not be able to run.
+	will not be able to run.
     
-    	Other optional parameters can be specified as follows:
+Other optional parameters can be specified as follows:
      
 	-co path of config file (different config files can be used for different runs).
 	-rco path of the config file of the DNA methylation reconstruction pipeline.
