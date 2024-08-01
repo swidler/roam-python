@@ -190,7 +190,7 @@ class DMRs:
             is_meth_win = False
         else:
             if type(win_size) == str:
-                win_size = re.split(",", win_size)
+                win_size = re.split(",| ", win_size)
             if type(win_size) == list:
                 win_size = [int(x) for x in win_size]
             is_auto_win = False
