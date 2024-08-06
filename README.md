@@ -26,31 +26,33 @@ Input files:
    
 		./create_bai.sh <directory>/*.bam
 		
-3. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file)  
+2. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file)  
    hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
 		
-4. CpG coordinates  
+3. CpG coordinates  
 	If you are using the Hg19 human genome version, a pickled object containing all CpG
 	coordinates in the right format already exists. Download it from
 	http://carmelab.huji.ac.il/data.html and unzip into the objects subdirectory of the script
 	directory.
 	To create a CpG file that corresponds to another reference genome version, make sure 
 	to download the assembly file in fa.gz format. When running RoAM, use the --create_cpg flag 
-	and include the path of the assembly file in the config.ini or in the command line. 
+	and include the path of the assembly file in the config.ini or using the command line
+	parameter -gc (--gc_file). 
 	The cpg file will be created and stored in the objects directory, using the format
 	<species_with_underscores>_cpg_coords.P. In order to create the file without running the 
 	rest of RoAM, add the --no_roam flag to the input parameters.
     
-5. Reference DNA methylation map  
+4. Reference DNA methylation map  
 	Typically, this would be a present-day methylation map generated from the same tissue
 	as the ancient sample.
 	When reconstructing methylation from a bone sample using the Hg19 human genome version,
-	a reference DNA methylation map (called bone1.zip) can be downloaded from
-	http://carmelab.huji.ac.il/data.html and unzip into the script directory.
-	Alternatively, use a Bismark output file in COV format which you should specify in the 
-	config file or in the command line. The modern reference is not strictly required, 
-	but it is highly recommended, as it allows for more accurate estimation of deamination
-	rate.
+	a reference DNA methylation map (called bone5.zip) can be downloaded from
+	http://carmelab.huji.ac.il/data.html and unzipped into the script directory.
+	Alternatively, use your own .txt file, specified in the config file or using the command line
+	parameter -mo (--modern), or a .cov format file (e.g from Bismark output), which you should
+	specify in the config file or using the command line parameter -b (--bismark).
+	The modern reference is not strictly required, but it is highly recommended, as it allows
+	for more accurate estimation of deamination rate.
 	
 Running the scripts:  
 	&emsp;To run the process, start by editing the variables in the config.ini file (or edit 
@@ -271,9 +273,11 @@ Other optional parameters can be specified as follows:
 	-du, --dump_dir directory for output txt files and pictures.
 	-gc, --gc_file CpG cooridantes file.
 	-ge, --gene_file sorted BED file with genes and their coordinates (for DMR annotation). 
- 		By default, this file is UCSC_Genes_sorted.txt, which is in the repository.
+ 		By default, this file is UCSC_Genes_sorted.txt, a gene list from UCSC using Hg19,
+   		which is in the repository.
 	-cg, --cgi_file BED file with CpG island coordinates (for DMR annotation).
- 		By default, this file is UCSC_CGIs.txt, which is in the repository.
+ 		By default, this file is UCSC_CGIs.txt, a CpG island list from UCSC using Hg19, 
+   		which is in the repository.
 	-c1, --cust_file1 first custom BED file (for DMR annotation).
 	-c2, --cust_file2 second custom BED file (for DMR annotation).
 	-pd, --prom_def promoter definition: a list of two values [before, after], defining the promotoer as
@@ -282,7 +286,9 @@ Other optional parameters can be specified as follows:
 	-di, --dmr_infile pickled DMR file for use in fdr, permutations, and plots.
 	-t, --templ template for extra text (beyond default filename) in sample filename: <sample_name><templ>. 
  		For example, for filename ancient_human_trial1 using sample name ancient_human, set templ to _trial1 (optional). 
-	-st, --stages stages of the pipelibe to be run, a list specified with no quotes or commas.
+	-st, --stages stages of the pipelibe to be run, a list specified with no quotes or commas, 
+		e.g., -st DMR.
+  		Further details later in this document (default: both stages)
 	-de, --delta minimum methylation difference between the two groups to be considered as a DMR (default 0.5).
 	-mc, --min_CpGs DMRs with fewer CpGs than this value are filtered out (default: 10).
 	-mq, --min_qt DMRs with Qmax lower than this value are filtered out (default: 0).
