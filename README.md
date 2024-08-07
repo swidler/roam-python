@@ -243,7 +243,7 @@ Apart from these three mandatory paramters, a modern reference methylation map c
  	provided, similar to the DNA methylation reconstruction pipeline. This reference is used
   	for the simulations. Lust like in the DNA methylation reconstruction pipeline, this file
    	can be provided as a .cov Bismark output (-b) or as a .txt file (-mo), as described earlier
-    	(the bone1 reference modern human bone DNA methylation can be found in
+    	(the bone2 reference modern human bone DNA methylation can be found in
      	http://carmelab.huji.ac.il/data.html). If no reference is provided, RoAM will use the
       	reference defined in the config file of the DNA methylation reconstruction pipeline, and
        	its path can be specified with the parameter -rco. If no such config file exists, simulations
