@@ -46,7 +46,7 @@ Input files:
 	Typically, this would be a present-day methylation map generated from the same tissue
 	as the ancient sample.
 	When reconstructing methylation from a bone sample using the Hg19 human genome version,
-	a reference DNA methylation map (called bone5.zip) can be downloaded from
+	a reference DNA methylation map (called bone2.zip) can be downloaded from
 	http://carmelab.huji.ac.il/data.html and unzipped into the script directory.
 	Alternatively, use your own .txt file, specified in the config file or using the command line
 	parameter -mo (--modern), or a .cov format file (e.g from Bismark output), which you should
@@ -108,10 +108,6 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
 	-mo, --modern file for Reference DNA methylation map (.txt file).
 	-b, --bismark file for Reference DNA methylation map (.cov file--unzipped!). 
 	-gc, --gc_file CpG coordinates file.
-	-mn, --mname sample name of reference DNA methylation map (default:empty).
-	-ms, --mspecies taxonomical classification of reference DNA methylation map (default:empty).
-	-mr, --mref reference genome of reference DNA methylation map (default:empty).
-	-mm, --mmethod sequencing method of reference DNA methylation map (default:empty).
 	-bed, --nobed flag for not using bed file (use this flag, with no value following it, when bed file output is 
  		not desired).
 	-cpg, --create_cpg flag for creating CpG coordinates file (use this flag, with no value following it, to create file).
@@ -208,9 +204,6 @@ Preparing modern samples:
  		to current dir).
 	-mt, --mtempl template for extra text (beyond default filename) in modern sample filename: <sample_name><mtempl>. 
  		For example, for filename modern_human_trial1 using sample name modern_human, set mtempl to _trial1 (optional). 
-	-msp, --mspecies modern samples taxonomic classification (optional).
-	-mr, --mref modern samples reference genome version (optional).
-	-mm, --mmethod modern samples sequencing method (optional).
 		
 The last three parameters should all be identical for all all modern samples, otherwise the pipeline
  	cannot be run.
@@ -263,10 +256,6 @@ Other optional parameters can be specified as follows:
 	-b, --bismark .cov file of modern reference methylation map.
 	-mo, --modern .txt file of modern reference methylation map.
 	-ms, --mod_samples modern methylation sample names (list like samples).
-	-mn, --mname modern reference methylation sample name.
-	-msp, --mspecies modern reference methylation sample species.
-	-mr, --mref modern reference methylation sample genome version.
-	-mm, --mmethod modern reference methylation sample sequencing method.
 	-c, --chroms list of chromosome names.
 	-o, --object_dir directory for saved output (pickled) object files (include final / for all 
  		directories, e.g dir/, not dir).
