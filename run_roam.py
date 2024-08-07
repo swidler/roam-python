@@ -82,7 +82,7 @@ def validate_input(**params):
         and "bismark" not in params and not config["files"]["bismark_infile"]
         and "modern" not in params and not config["files"]["modern_infile"]
         ):
-        print("No modern reference file entered for reference deamination method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
+        print("No modern reference file entered for reference deamination method. Using default for hg19. Please make sure bone2.txt is in the current directory or specify a reference file.")
     elif drate_method == "global":
         print("We highly recommend using the reference method for deamination rate calculation.")
         if "global_meth" not in params and not config["drate"]["global_meth"]:
@@ -92,7 +92,7 @@ def validate_input(**params):
         and "bismark" not in params and not config["files"]["bismark_infile"]
         and "modern" not in params and not config["files"]["modern_infile"]
         ):
-        print("No modern reference file entered for histogram methylation reconstruction method. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
+        print("No modern reference file entered for histogram methylation reconstruction method. Using default for hg19. Please make sure bone2.txt is in the current directory or specify a reference file.")
       
      
     
@@ -188,8 +188,8 @@ def roam_pipeline(**params):
                     elif modern:
                         mms.create_mms_from_text_file(modern)
                     else:
-                        print("No modern reference file entered. Using default for hg19. Please make sure bone5.txt is in the current directory or specify a reference file.")
-                        mms.create_mms_from_text_file("bone5.txt")
+                        print("No modern reference file entered. Using default for hg19. Please make sure bone2.txt is in the current directory or specify a reference file.")
+                        mms.create_mms_from_text_file("bone2.txt")
                     mm_flag += 1
                 elif drate_method == "global" and stage == "drate":
                     print("We highly recommend using the reference method for deamination rate calculation.")
