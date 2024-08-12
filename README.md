@@ -257,7 +257,7 @@ Other optional parameters can be specified as follows:
 	-mo, --modern .txt file of modern reference methylation map.
 	-ms, --mod_samples modern methylation sample names (list like samples).
 	-c, --chroms list of chromosome names.
-	-o, --object_dir directory for saved output (pickled) object files (include final / for all 
+	-o, --object_dir directory for input and output (pickled) object files (include final / for all 
  		directories, e.g dir/, not dir).
 	-du, --dump_dir directory for output txt files and pictures.
 	-gc, --gc_file CpG cooridantes file.
