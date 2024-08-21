@@ -49,7 +49,7 @@ argParser.add_argument("-mn", "--mname", help="modern reference sample name")
 argParser.add_argument("-msp", "--mspecies", help="modern reference sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequencing method")
-argParser.add_argument("-r", "--ref", help="reference genome for use in histogram matching")
+argParser.add_argument("-r", "--noref", help="flag for using reference genome for histogram matching", action="store_true")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
 
@@ -97,7 +97,7 @@ report = False if parameters["noreport"] else config["options"].getboolean("repo
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
 
 time = datetime.datetime.now()
-time = time.strftime("%d-%m-%Y_%H.%M")
+time = time.strftime("%d-%m-%Y_%H.%M.%S")
 if not samples or samples[0] == "":
     print("Samples is a required parameter")
     sys.exit(1)
@@ -131,7 +131,7 @@ if "DMR" in stages or "fdr" in stages:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
     import cProfile
-    ref = parameters["ref"] if "ref" in parameters else config["basic"].getboolean("ref")
+    ref = False if parameters["noref"] else config["basic"].getboolean("ref")
     if ref:
         ref = mms
     min_finite = min_fin[:]
@@ -198,7 +198,7 @@ if "fdr" in stages:
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?
             #sample.dump(f"simeth_{perm}")  
-        ref = parameters["ref"] if "ref" in parameters else config["basic"].getboolean("ref")
+        ref = False if parameters["noref"] else config["basic"].getboolean("ref")
         if ref:
             ref = mms
         min_finite = min_fin[:]
