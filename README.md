@@ -275,7 +275,8 @@ Other optional parameters can be specified as follows:
 		the corresponding sample (default: calculated automatically).
 	-sp, --sim_permutations number of permutations to run for fdr.
 	-th, --thresh FDR threshold (default: 0.05).
-	-r, --ref flag for using histogram matching in the pooled methylation function (default: True).
+	-r, --noref flag for using histogram matching in the pooled methylation function (use this flag, with no value 
+ 		following it, when histogram matching not desired).
 	-re, --noreport flag for logging info (use this flag, with no value following it, when logging not desired).
 	-an, --noannot flag for running annotation, (use this flag, with no value following it, when annotation not desired).
     
