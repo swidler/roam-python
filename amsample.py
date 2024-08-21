@@ -1139,7 +1139,10 @@ class Amsample(Chrom):
         Output: Amsample object with udpated methylation field.
         """
         no_chr = self.no_chrs
-        if slope == None or slope == "":
+        if isinstance(slope, np.ndarray):
+            if len(slope) == 0:
+                slope=[1/self.d_rate["rate"]["global"]]
+        elif slope == None or slope == "":
             slope=[1/self.d_rate["rate"]["global"]]
         if win_size == "auto":
             auto_win = True
