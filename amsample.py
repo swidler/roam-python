@@ -831,6 +831,7 @@ class Amsample(Chrom):
         #bring input parameters into standard form - max_TsPerCoverage
         if np.isscalar(max_TsPerCoverage):
             tmp_max = max_TsPerCoverage
+            max_TsPerCoverage = self.p_filters["max_TsPerCoverage"]
         else:
             tmp_max = max_TsPerCoverage.copy() 
         if not use_diagnose_filter: #max_c_to_t
