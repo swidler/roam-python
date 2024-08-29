@@ -60,8 +60,8 @@ argParser.add_argument("-min", "--min_meth", help="minimum methylation level to 
 argParser.add_argument("-p", "--p0", help="param used in winsize calculation for win_method = prob")
 argParser.add_argument("-k", "--k", help="reciprocal of param used in winsize calculation for win_method = relerror")
 argParser.add_argument("-max", "--max_width", help="maximum window size")
-argParser.add_argument("-u", "--use_diag_filt", help="determines which threshold to use")
-argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if use_diagnose_filter False")
+argParser.add_argument("-nd", "--no_diag_filt", help="flag to use user-specified c_to_t threshold", action="store_true")
+argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if no_diagnose_filter specified")
 argParser.add_argument("-mg", "--merge", help="merge two consecutive coordinates of every CpG position")
 argParser.add_argument("-ga", "--max_g_to_a", help="for library = single")
 argParser.add_argument("-me", "--method", help="set c_to_t or both to override default: both for library 'single', else c_to_t")
@@ -164,7 +164,7 @@ def roam_pipeline(**params):
         if stage == "diagnose":
             ams.diagnose(picdir=picdir, logdir=logdir)
         elif stage == "filter":
-            use_t = params["use_diag_filt"] if "use_diag_filt" in params else config["filter"].getboolean("use_diagnose_filter")
+            use_t = False if params["no_diag_filt"] else config["filter"].getboolean("use_diagnose_filter")
             max_c_to_t = params["max_c_to_t"] if "max_c_to_t" in params else config["filter"]["max_c_to_t"]
             max_g_to_a = params["max_g_to_a"] if "max_g_to_a" in params else config["filter"]["max_g_to_a"]
             merge = params["merge"] if "merge" in params else config["filter"].getboolean("merge")
