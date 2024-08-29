@@ -836,10 +836,10 @@ class Amsample(Chrom):
         if not use_diagnose_filter: #max_c_to_t
             if np.isscalar(max_TsPerCoverage): #single ratio
                 for chrom in range(no_chr):
-                    max_TsPerCoverage[chrom] = math.ceil(tmp_max * range(max_coverage[chrom])-1)
+                    max_TsPerCoverage[chrom] = np.floor(tmp_max * np.array(range(1, max_coverage[chrom]+1))).astype(int)
             else: #ratio per chrom or per coverage per chrom
                 for chrom in range(no_chr):
-                    max_TsPerCoverage[chrom] = math.ceil(tmp_max[chrom] * range(max_coverage[chrom])-1)
+                    max_TsPerCoverage[chrom] = np.floor(tmp_max * np.array(range(1, max_coverage[chrom]+1))).astype(int)
         else: #max_TsPerCoverage or default
             if np.isscalar(max_TsPerCoverage): #single number
                 for chrom in range(no_chr):
