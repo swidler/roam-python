@@ -855,9 +855,9 @@ class DMRs:
         samp_names = ""
         group_names = ""
         for samp in self.samples:
-            samp_names += samp + " average methylation\t"
+            samp_names += samp + "_average_methylation\t"
         for group in self.groups['group_names']:
-            group_names += group + " meth statistic\t"
+            group_names += group + "_meth_statistic\t"
         with open(fname, "w") as fid:
             #fid.write("cDMRs:\n")
             c1 = ""
@@ -874,7 +874,7 @@ class DMRs:
                         cg = "in_CGI\t"  
                     if self.cDMRs[chrom].annotation[0]['in_gene'] != "N/A":
                         g = "in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n"            
-            fid.write(f"Chrom\tDMR#\tout of\tGenomic start\tGenomic end\tCpG start\tCpG end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}{c1}{c2}{cg}{g}")
+            fid.write(f"Chrom\tDMR#\tout_of\tGenomic_start\tGenomic_end\tCpG_start\tCpG_end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}{c1}{c2}{cg}{g}")
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
                     
