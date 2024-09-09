@@ -23,8 +23,8 @@ argParser.add_argument("-n", "--name", help="sample name")
 argParser.add_argument("-le", "--lengths", nargs="+", help="chrom lengths--should correspond with the list of chromosomes")
 argParser.add_argument("-s", "--species", help="sample species")
 argParser.add_argument("-c", "--chroms", nargs="+", help="list of chromosomes to use")
-argParser.add_argument("-t", "--trim", help="set True to trim ends during processing")
-argParser.add_argument("-cf", "--chrom_file", help="set True for dir with one file per chromosome")
+argParser.add_argument("-t", "--trim", help="flag to trim ends during processing", action="store_true")
+argParser.add_argument("-cf", "--chrom_file", help="use this flag for dir with one file per chromosome", action="store_true")
 argParser.add_argument("-m", "--mapq", help="mapping quality for read")
 argParser.add_argument("-q", "--qual", help="mapping quality for position")
 argParser.add_argument("-st", "--stages", nargs="+", help="stages of process to be run (bam diagnose filter drate meth)")
@@ -62,7 +62,7 @@ argParser.add_argument("-k", "--k", help="reciprocal of param used in winsize ca
 argParser.add_argument("-max", "--max_width", help="maximum window size")
 argParser.add_argument("-nd", "--no_diag_filt", help="flag to use user-specified c_to_t threshold", action="store_true")
 argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if no_diagnose_filter specified")
-argParser.add_argument("-mg", "--merge", help="merge two consecutive coordinates of every CpG position")
+argParser.add_argument("-mg", "--no_merge", help="flag for not merging two consecutive coordinates of every CpG position", action="store_true")
 argParser.add_argument("-ga", "--max_g_to_a", help="for library = single")
 argParser.add_argument("-me", "--method", help="set c_to_t or both to override default: both for library 'single', else c_to_t")
 
@@ -100,7 +100,7 @@ def validate_input(**params):
     
 validate_input(**parameters)
 filedir = parameters["filedir"] if "filedir" in parameters else config["paths"]["filedir"]
-file_per_chrom = parameters["chrom_file"] if "chrom_file" in parameters else config["basic"].getboolean("file_per_chrom")
+file_per_chrom = True if parameters["chrom_file"] else config["basic"].getboolean("file_per_chrom")
 bed = False if parameters["nobed"] else config["files"].getboolean("bed")
 species = parameters["species"] if "species" in parameters else config["basic"]["species"]
 chroms = parameters["chroms"] if "chroms" in parameters else config["basic"]["chroms"].split(",")
@@ -143,7 +143,7 @@ def roam_pipeline(**params):
         if library == "strands" or not library:
             print("library is a required parameter")
             sys.exit(1)
-        trim = params["trim"] if "trim" in params else config["basic"].getboolean("trim_ends")
+        trim = True if params["trim"] else config["basic"].getboolean("trim_ends")
         mapq = int(params["mapq"]) if "mapq" in params else int(config["basic"]["mapq_thresh"])
         qual = int(params["qual"]) if "qual" in params else int(config["basic"]["qual_thresh"])
         
@@ -167,7 +167,7 @@ def roam_pipeline(**params):
             use_t = False if params["no_diag_filt"] else config["filter"].getboolean("use_diagnose_filter")
             max_c_to_t = params["max_c_to_t"] if "max_c_to_t" in params else config["filter"]["max_c_to_t"]
             max_g_to_a = params["max_g_to_a"] if "max_g_to_a" in params else config["filter"]["max_g_to_a"]
-            merge = params["merge"] if "merge" in params else config["filter"].getboolean("merge")
+            merge = False if params["no_merge"] else config["filter"].getboolean("merge")
             method = params["method"] if "method" in params else config["filter"]["method"]
             ams.filter(logdir=logdir, max_c_to_t = float(max_c_to_t), merge = merge, max_g_to_a = float(max_g_to_a), method = method, use_diagnose_filter = use_t)
         elif stage == "drate" or stage == "meth":
