@@ -89,8 +89,8 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
 	-s, --species taxonomical classification of the ancient sample (default: human).
 	-c, --chroms list of chromosomes to use, a list specified with no quotes or commas, 
 		e.g., -c chr1 chr2 chr3 (default: chromosomes 1 to 22, X).
-	-t, --trim set to True to trim read ends during processing (default: False).
-	-cf, --chrom_file set to True for directory with exactly one file per chromosome (default: False).
+	-t, --trim flag to trim read ends during processing.
+	-cf, --chrom_file use this flag for directory with exactly one file per chromosome.
 	-m, --mapq minimum mapping quality for a read (default: 20).
 	-q, --qual minimum mapping quality for a position (default: 20).
 	-st, --stages stages of process to be run, a list specified with no quotes or commas, 
@@ -114,11 +114,10 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
 	-cr, --cpg_ref genome assembly version for CpG coordinates file.
 	-no, --no_roam flag for not running the rest of RoAM after creating CpG file (use this flag, with no value following 
  		it, to stop RoAM process after file creation).
-	-u, --use_diag_filt determines whether filtering thresholds would be taken from diagnose (True),
- 		or would be user-defined (False) (default: True).
+	-nd, --no_diag_filt flag to use user-specified c_to_t threshold.
 	-ct, --max_c_to_t user-defined threshold to identify sites with a true C->T mutation (used only
  		if use_diag_filt is False) (default: 0.25).
-	-mg, --merge merge information from the two strands for each CpG position (default: True).
+	-mg, --no_merge flag for not merging information from the two strands for each CpG position.
 	-ga, --max_g_to_a threshold used to identify sites with a true C->T mutation. Only relevant when
  		library='single' (default: 0.25).
 	-me, --method method used to remove true C->T mutations (default: c_to_t for library='double',
