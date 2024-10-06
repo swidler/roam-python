@@ -858,7 +858,7 @@ class Amsample(Chrom):
         for chrom in range(no_chr):
             vec = max_TsPerCoverage[chrom] 
             vec = [min_t if x < min_t else x for x in vec]
-            vec[0:min_t-1] = range(1,min_t) #min_t for a given coverage can't be more than the coverage
+            vec[0:max(0,min_t-1)] = range(1,min_t) #min_t for a given coverage can't be more than the coverage
             max_TsPerCoverage[chrom] = vec
         f_ams = self #don't need to worry abt overwriting, since output has diff filename
         f_ams.p_filters["method"] = method
