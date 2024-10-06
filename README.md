@@ -117,6 +117,7 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
 	-nd, --no_diag_filt flag to use user-specified c_to_t threshold.
 	-ct, --max_c_to_t user-defined threshold to identify sites with a true C->T mutation (used only
  		if use_diag_filt is False) (default: 0.25).
+	-mt, --min_t CpG positions with no_t <= min_t are not filtered out even if they meet other filtering criteria (default: 1).
 	-mg, --no_merge flag for not merging information from the two strands for each CpG position.
 	-ga, --max_g_to_a threshold used to identify sites with a true C->T mutation. Only relevant when
  		library='single' (default: 0.25).
