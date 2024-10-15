@@ -1117,7 +1117,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto"):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1136,7 +1136,9 @@ class Amsample(Chrom):
                  all chromosomes) or a value for each chromosome.
                ref             Mmsample object containing the beta-values of the reference.
                lcf             low coverage factor.
-               
+               local_win_size  smaller window size for finer filtering with low coverage. If 'skip',
+                   this step is not done. If 'auto' (default), a recommended window size is used. Otherwise, 
+                   the user-entered value is used.
         Output: Amsample object with udpated methylation field.
         """
         no_chr = self.no_chrs
@@ -1190,7 +1192,21 @@ class Amsample(Chrom):
             (no_t, no_ct) = self.smooth(chrom, int(win_size[chrom]))
             #remove regions with particularly low coverage
             lct = t.find_low_coverage_thresh(no_ct, lcf)
-            no_ct = [np.nan if x < lct else x for x in no_ct]
+            #LOOK MORE LOCALLY
+            if local_win_size == "skip":
+                no_ct = [np.nan if x < lct else x for x in no_ct]
+            else:
+                if local_win_size == "auto":
+                    local_win = np.ceil((win_size[chrom]-1)/3) //2 *2 +1 ## window third of the size of original window
+                else:
+                    int(local_win_size)
+                    if not local_win_size%2: # should be odd
+                        local_win = local_win_size + 1
+                    else:
+                         local_win =  local_win_size
+                mno_ct = np.array(self.smooth(chrom, int(local_win))[1]) ## no_ct smoothed over a local window
+                no_ct = [np.nan if ((mno_ct[i] < np.ceil(lct/win_size[chrom])) | (no_ct[i] < lct)) else no_ct[i] for i in range(len(no_ct))]
+                
             #compute methylation
             c_to_t = no_t/no_ct
             if function == "histogram":
