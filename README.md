@@ -147,6 +147,9 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
 	-k, --k parameter for computing window size when the method is relerror 
 		(default: 1/2.5).
 	-max, --max_width maximum window size (default: 31).
+	-lws, --loc_win_size smaller window size for finer filtering with low coverage. Can be 'skip'  (without 
+		quotation marks) to ignore this step, 'auto' (without quotation marks), or the desired size. 
+		(default: 'auto')
 	
 Outputs:  
 	&emsp;If the pipeline runs to the final stage, two main outputs are produced: a BED file 
