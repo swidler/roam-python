@@ -60,6 +60,7 @@ argParser.add_argument("-min", "--min_meth", help="minimum methylation level to 
 argParser.add_argument("-p", "--p0", help="param used in winsize calculation for win_method = prob")
 argParser.add_argument("-k", "--k", help="reciprocal of param used in winsize calculation for win_method = relerror")
 argParser.add_argument("-max", "--max_width", help="maximum window size")
+argParser.add_argument("-lws", "--loc_win_size", help="local window size")
 argParser.add_argument("-nd", "--no_diag_filt", help="flag to use user-specified c_to_t threshold", action="store_true")
 argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if no_diagnose_filter specified")
 argParser.add_argument("-mt", "--min_t", help="the filter 'max_c_to_t' is applied only to positions where no_t > min_t")
@@ -220,6 +221,7 @@ def roam_pipeline(**params):
                 p0 = params["p0"] if "p0" in params else config["meth"]["p0"]
                 k_recip = np.reciprocal(float(params["k"])) if "k" in params else np.reciprocal(float(config["meth"]["k"]))
                 max_width = params["max_width"] if "max_width" in params else config["meth"]["max_width"]
+                loc_win = params["loc_win_size"] if "loc_win_size" in params else config["meth"]["loc_win_size"]
                 win_params = {}
                 if win_method: win_params["method"] = win_method
                 if min_meth: win_params["min_meth"] = float(min_meth)
@@ -227,7 +229,7 @@ def roam_pipeline(**params):
                 if k_recip: win_params["k_recip"] = float(k_recip)
                 if max_width: win_params["max_width"] = int(max_width)
                 
-                ams.reconstruct_methylation(ref=mms, function=recon_method, win_size=win_size, lcf=lcf, slope=slope, intercept=intercept, winsize_alg=win_params)
+                ams.reconstruct_methylation(ref=mms, function=recon_method, win_size=win_size, lcf=lcf, slope=slope, intercept=intercept, local_win_size=loc_win, winsize_alg=win_params)
                 
     
     #dump object to text file
