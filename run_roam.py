@@ -62,7 +62,8 @@ argParser.add_argument("-k", "--k", help="reciprocal of param used in winsize ca
 argParser.add_argument("-max", "--max_width", help="maximum window size")
 argParser.add_argument("-lws", "--loc_win_size", help="local window size")
 argParser.add_argument("-nd", "--no_diag_filt", help="flag to use user-specified c_to_t threshold", action="store_true")
-argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if no_diagnose_filter specified")
+argParser.add_argument("-ct", "--max_c_to_t", help="will be used only if no_diagnose_filter or thresh_upper specified")
+argParser.add_argument("-up", "--thresh_upper", help="flag to use user-specified c_to_t threshold as upper limit", action="store_true")
 argParser.add_argument("-mt", "--min_t", help="the filter 'max_c_to_t' is applied only to positions where no_t > min_t")
 argParser.add_argument("-mg", "--no_merge", help="flag for not merging two consecutive coordinates of every CpG position", action="store_true")
 argParser.add_argument("-ga", "--max_g_to_a", help="for library = single")
@@ -168,11 +169,12 @@ def roam_pipeline(**params):
         elif stage == "filter":
             use_t = False if params["no_diag_filt"] else config["filter"].getboolean("use_diagnose_filter")
             max_c_to_t = params["max_c_to_t"] if "max_c_to_t" in params else config["filter"]["max_c_to_t"]
+            upper = True if params["thresh_upper"] else config["filter"].getboolean("thresh_upper")
             min_t = params["min_t"] if "min_t" in params else config["filter"]["min_t"]
             max_g_to_a = params["max_g_to_a"] if "max_g_to_a" in params else config["filter"]["max_g_to_a"]
             merge = False if params["no_merge"] else config["filter"].getboolean("merge")
             method = params["method"] if "method" in params else config["filter"]["method"]
-            ams.filter(logdir=logdir, max_c_to_t = float(max_c_to_t), merge = merge, max_g_to_a = float(max_g_to_a), method = method, use_diagnose_filter = use_t, min_t = int(min_t))
+            ams.filter(logdir=logdir, max_c_to_t = float(max_c_to_t), merge = merge, max_g_to_a = float(max_g_to_a), method = method, use_diagnose_filter = use_t, min_t = int(min_t), thresh_as_upper=upper)
         elif stage == "drate" or stage == "meth":
             if not mm_flag:
                 #create Mmsample object
