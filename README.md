@@ -116,7 +116,8 @@ IMPORTANT: If the sample is aligned to any genome version but Hg19, it is import
  		it, to stop RoAM process after file creation).
 	-nd, --no_diag_filt flag to use user-specified c_to_t threshold.
 	-ct, --max_c_to_t user-defined threshold to identify sites with a true C->T mutation (used only
- 		if use_diag_filt is False) (default: 0.25).
+ 		if no_diag_filt or thresh_upper is specified) (default: 0.25).
+ 	-up, --thresh_upper flag to use user-specified c_to_t threshold as upper limit of diagnose filter
 	-mt, --min_t CpG positions with no_t <= min_t are not filtered out even if they meet other filtering criteria (default: 1).
 	-mg, --no_merge flag for not merging information from the two strands for each CpG position.
 	-ga, --max_g_to_a threshold used to identify sites with a true C->T mutation. Only relevant when
