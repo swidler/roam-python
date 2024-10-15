@@ -841,7 +841,7 @@ class Amsample(Chrom):
             max_TsPerCoverage = self.p_filters["max_TsPerCoverage"]
             for chrom in range(no_chr):
                 covlist=np.array([c for c in range(1,max_coverage[chrom]+1)])
-                ratios=np.array([max_c_to_t if (r > tmp_max) else r for r in (np.array(max_TsPerCoverage[chrom])/covlist)])
+                ratios=np.array([max_c_to_t if (r > max_c_to_t) else r for r in (np.array(max_TsPerCoverage[chrom])/covlist)])
                 max_TsPerCoverage[chrom] = np.floor(ratios * covlist).astype(int)
         else: 
             if not use_diagnose_filter: #max_c_to_t
