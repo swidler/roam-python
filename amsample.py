@@ -1199,7 +1199,7 @@ class Amsample(Chrom):
                 if local_win_size == "auto":
                     local_win = np.ceil((win_size[chrom]-1)/3) //2 *2 +1 ## window third of the size of original window
                 else:
-                    int(local_win_size)
+                    local_win_size = int(local_win_size)
                     if not local_win_size%2: # should be odd
                         local_win = local_win_size + 1
                     else:
