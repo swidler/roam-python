@@ -714,7 +714,7 @@ class Amsample(Chrom):
                 for x in more_to_remove:
                     no_t[x] = np.nan
             # ###patch from 27.10.2024 (Chen)
-            th_c2g = np.append(np.array([th_c2g[ti+1] if (th_c2g[ti] > th_c2g[ti+1]) else th_c2g[ti] for ti in range(len(th_c2g)-1)]) , np.array([th_c2g[-1]])) ## makes it a monotonically non-decreasing function
+            th_c2g = np.minimum.accumulate(th_c2g[::-1])[::-1] ## makes it a monotonically non-decreasing function
             th_c2g = np.append(np.array([th_c2g[0]]), np.array([th_c2g[ti-1] + 1 if (th_c2g[ti] - th_c2g[ti-1] > 1) else th_c2g[ti] for ti in range(1, len(th_c2g))])) ## makes the steps no bigger than 1
             c_to_t_threshold[chrom] = th_c2g
 
