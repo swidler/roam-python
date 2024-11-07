@@ -37,7 +37,7 @@ Input files:
 	To create a CpG file that corresponds to another reference genome version, make sure 
 	to download the assembly file in fa.gz format. When running RoAM, use the --create_cpg flag 
 	and include the path of the assembly file in the config.ini or using the command line
-	parameter -gc (--gc_file). 
+	parameter -g (--genome). 
 	The cpg file will be created and stored in the objects directory, using the format
 	<species_with_underscores>_cpg_coords.P. In order to create the file without running the 
 	rest of RoAM, add the --no_roam flag to the input parameters.
