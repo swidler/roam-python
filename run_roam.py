@@ -11,6 +11,7 @@ import sys
 import configparser as cp
 import gcoordinates as gcoord
 import numpy as np
+import os
 
 
 
@@ -236,6 +237,8 @@ def roam_pipeline(**params):
     
     #dump object to text file
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     ams.dump(stage, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
     
 if filedir and not file_per_chrom:
