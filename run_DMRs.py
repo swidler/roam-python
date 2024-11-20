@@ -96,6 +96,10 @@ dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
 
+if not os.path.exists(dump_dir):
+        os.makedirs(dump_dir)
+    
+
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M.%S")
 if not samples or samples[0] == "":
