@@ -5,6 +5,7 @@ import amsample as a
 import gcoordinates as g
 import tools as t
 import gintervals as gint
+import cProfile
 
 #mms = m.Mmsample()
 #mms.parse_infile("/mnt/x/ref_bone5_take2.txt")
@@ -15,17 +16,22 @@ import gintervals as gint
 #gc.parse_infile("/mnt/x/cpg_coords.txt")
 #infile = "objects/bone_5"
 #mms = t.load_object(infile)
-#ams = a.Amsample()
+ams = a.Amsample()
 #ams.parse_infile("../../I1116.txt")
-#outfile = "objects/I1116"
+ams.parse_infile("data/matlab_dumps/I1116_meth.txt")
+outfile = "objects/I1116"
 #t.save_object(outfile, ams)
 #infile = "objects/I1116"
 #ams = t.load_object(infile)
-#infile = "objects/cpg_coords"
+#infile = "objects/cpg_coords.P"
 #gc = t.load_object(infile)
 #region = "chr5:89887654-987645387"
 #meth = mms.region_methylation(region, gc)
 #meth = ams.region_methylation(region, gc)
 #print(f"meth is {meth}")
-chroms = ["chr1", "chr2", "chr3"]
-gin = gint.Gintervals(chr_names=chroms)
+#chroms = ["chr1", "chr2", "chr3"]
+#gin = gint.Gintervals(chr_names=chroms)
+mms = m.Mmsample()
+#mms.create_mms_from_text_file()
+#mms.create_mms_from_bismark_file()
+#mms.dump("bed_test")
