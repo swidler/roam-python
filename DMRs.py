@@ -848,7 +848,7 @@ class DMRs:
                         s_name = self.samples[i]
                         fid.write(f"\t\t{s_name}: {sample}\n")
                         i += 1
-                elif key == "ref":
+                elif key == "ref" and self.algorithm[key] != False:
                     fid.write(f"\tref: {self.algorithm['ref'].name}\n")
                 else:
                     fid.write(f"\t{key}: {self.algorithm[key]}\n")
