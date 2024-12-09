@@ -51,6 +51,9 @@ Input files:
 	Alternatively, use your own .txt file, specified in the config file or using the command line
 	parameter -mo (--modern), or a .cov format file (e.g from Bismark output), which you should
 	specify in the config file or using the command line parameter -b (--bismark).
+	If you are creating your own CpG file based on Hg19, download the bone2.cov.zip file from 
+	http://carmelab.huji.ac.il/data.html and specify its path in the config file or using the command line 
+	parameter -b (--bismark).
 	The modern reference is not strictly required, but it is highly recommended, as it allows
 	for more accurate estimation of deamination rate.
 	
