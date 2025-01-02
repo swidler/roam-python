@@ -16,6 +16,8 @@ class Chrom:
         for chrom in chr_name:
             if "chr" not in chrom and any("chr" in x for x in self.chr_names):  # if chr in self.chr_names, make sure input chrom has "chr"
                 chrom = "chr" + chrom
+            elif "chr" in chrom and all("chr" not in x for x in self.chr_names):  # if chr_names don't have "chr", remove it from input chrom
+                chrom = chrom.replace('chr', '')
             if chrom not in self.chr_names:
                 result.append(np.nan) #returns NaN as index of nonexistent chrom
             else:
