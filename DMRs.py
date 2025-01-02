@@ -429,7 +429,8 @@ class DMRs:
                     mij_bar = np.zeros((len(mod_idx), no_pos))
                     wij = np.zeros((len(mod_idx), no_pos))
                     for samp in range(len(mod_idx)):
-                        [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(chrom, [int(x) for x in [win_size[mod_idx[samp], chrom]]])
+                        idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
+                        [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
                         Wj = np.nansum(wij, axis=0)
                         # Calculate mm
                         mm = np.sum(wij * mij_bar, axis=0) / Wj
