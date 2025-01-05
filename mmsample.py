@@ -186,7 +186,7 @@ class Mmsample(Chrom):
                      
         print(f"found {unmatched_counter} unmatched positions and {matched_counter} matched positions") 
         print(f"proportion matched: {matched_counter/chr_lengths}")   
-        self.chr_names = list(chr_names.keys())            
+        self.chr_names = self.chr_names = list(sorted(chr_names, key=lambda x: chr_names[x]))  # list chrom names by index order
         self.methylation = meth
         self.coverage = cov  
 
