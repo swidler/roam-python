@@ -188,7 +188,8 @@ class Mmsample(Chrom):
         print(f"proportion matched: {matched_counter/chr_lengths}")   
         self.chr_names = gc.chr_names  # list chrom names as they appear in coord file
         self.methylation = meth
-        self.coverage = cov  
+        self.coverage = cov
+        self.no_chrs = len(self.chr_names)
 
     def scale(self):
         """Converts all values to be between 0 and 1
@@ -211,6 +212,35 @@ class Mmsample(Chrom):
             self.methylation[ind] = t.nanmerge(self.methylation[ind], "average")
             self.coverage[ind] = t.nanmerge(self.coverage[ind], "sum")
         self.coord_per_position = "1"
+
+    def simulate_modern(self, mms, chrom=None):
+        """Simulates methylation values in modern DNA based on the coverage of a Mmsample object,
+            assuming a methylation given by reference Mmsample object.
+        
+        Input: mms            Mmsample object that contains the reference methylation.
+               
+        Output: Mmsample object with modified methylation values, based on simulation.
+        """
+        #make sure methylation in {mms} is scaled to [0,1]
+        mms.scale()
+        mms.merge()
+        #parameters needed for the simulation
+        meth_map = mms.get_methylation(chrom=chrom)[1]
+    
+        for chrom in range(self.no_chrs):
+            print(f"Processing {self.chr_names[chrom]} ... ")
+            cov = self.coverage[chrom]
+            cov_nan_idx = np.argwhere(np.isnan(cov))
+            meth_nan_idx = np.argwhere(np.isnan(meth_map[chrom]))
+            tot_nan_idx = np.concatenate((cov_nan_idx, meth_nan_idx))
+            uniq_nan_idx = set(tot_nan_idx.flatten())
+            cov_float = [0 if i in uniq_nan_idx else cov[i] for i in range(len(cov))]
+            meth_float = [0 if i in uniq_nan_idx else meth_map[chrom][i] for i in range(len(meth_map[chrom]))]
+            no_methylated = np.random.binomial(cov_float, np.array(meth_float))  # np.array?
+            no_methylated_fl = no_methylated.astype(float)
+            no_methylated_fl[list(uniq_nan_idx)] = np.nan
+            self.methylation[chrom] = no_methylated_fl/cov
+            print("done")
 
     def region_methylation(self, region, gc, standardize=True): 
         """Computes methylation in a region as a simple average of the values in all CpGs in the region
