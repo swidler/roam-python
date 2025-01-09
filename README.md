@@ -247,6 +247,7 @@ Other optional parameters can be specified as follows:
 	-o, --object_dir directory for input and output (pickled) object files (include final / for all 
  		directories, e.g dir/, not dir).
 	-du, --dump_dir directory for output txt files and pictures.
+	-lo, --log_dir directory for logging txt files.
 	-gc, --gc_file CpG cooridantes file.
 	-ge, --gene_file sorted BED file with genes and their coordinates (for DMR annotation). 
  		By default, this file is UCSC_Genes_sorted.txt, a gene list from UCSC using Hg19,
