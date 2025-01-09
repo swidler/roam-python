@@ -999,7 +999,7 @@ class DMRs:
            samples = [samples[x] for x in pos_flat]
         t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
         
-    def adjust_params(self, sim_dmrs, thresh=0.05, fname="DMR_log.txt", report=True):
+    def adjust_params(self, sim_dmrs, thresh=0.05, fname="DMR_log.txt", report=True, statfile="fdr_stats.txt"):
         """Finds parameters values that achieve a desired FDR
 
         Input: observed DMRs
@@ -1015,7 +1015,7 @@ class DMRs:
         # observed number of DMRs
         obs_noDMRs = self.noDMRs()[0]
         # finding the largest value of the parameters
-        with open("fdr_stats.txt", "w") as fid:
+        with open(statfile, "w") as fid:
             fid.write("cpg\tqt\tcounter\tmean sim_counter\tratio\n")
             for cpg in range(max([max(self.cDMRs[x].no_CpGs) for x in range(len(self.cDMRs))])+1):  # why +1?
                 for qt in range(int(np.ceil(max([max(self.cDMRs[x].max_Qt) for x in range(len(self.cDMRs))]))+1)):
