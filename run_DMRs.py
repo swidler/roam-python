@@ -20,6 +20,7 @@ argParser.add_argument("-c", "--chroms", nargs="+", help="list of chromosomes")
 argParser.add_argument("-g", "--groups", nargs="+", help="group names--should correspond with samples")
 argParser.add_argument("-o", "--object_dir", help="directory for saved (pickled) object files (include final /)")
 argParser.add_argument("-du", "--dump_dir", help="directory for output txt files and pics")
+argParser.add_argument("-lo", "--log_dir", help="directory for logging txt files")
 argParser.add_argument("-gc", "--gc_file", help="CpG file")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
 argParser.add_argument("-cg", "--cgi_file", help="CGI file")
@@ -93,11 +94,14 @@ cust_file1 = parameters["cust_file1"] if "cust_file1" in parameters else config[
 cust_file2 = parameters["cust_file2"] if "cust_file2" in parameters else config["files"]["cust_file2"]
 prom_def = parameters["prom_def"[:]] if "prom_def" in parameters else config["basic"]["prom_def"].split(",")
 dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths"]["dump_dir"]
+log_dir = parameters["log_dir"] if "log_dir" in parameters else config["paths"]["log_dir"]
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
 
 if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
+if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
     
 
 time = datetime.datetime.now()
@@ -139,7 +143,8 @@ if "DMR" in stages:
     if ref:
         ref = mms
     min_finite = min_fin[:]
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases)
+    logfile = log_dir + f"DMR_log_{time}.txt"
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, fname=logfile)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -170,6 +175,7 @@ if "fdr" in stages:
     chr_names = [x for x in chr_names if "X" not in x]  # remove chrx from list
     sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
     thresh = parameters["thresh"] if "thresh" in parameters else float(config["basic"]["thresh"])
+    logfile = log_dir + f"fdr_DMR_log_{time}.txt"
     for perm in range(sim_permutations):
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
@@ -203,7 +209,7 @@ if "fdr" in stages:
             del samp_copy  # will this fix memory errors?
             #sample.dump(f"simeth_{perm}")  
         for sample in mod_samplist:
-            print(f"sample {sample.name}, perm {perm}\\n")
+            print(f"sample {sample.name}, perm {perm}\n")
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
             samp_copy.simulate_modern(mms)
@@ -215,8 +221,9 @@ if "fdr" in stages:
             ref = mms
         min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases)
-    adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, fname=logfile)
+    statfile = log_dir + f"fdr_stats_{time}.txt"
+    adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
     if annot:
         adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2, prom_def=prom_def)  
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
