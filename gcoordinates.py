@@ -127,3 +127,17 @@ class Gcoordinates(Chrom):
             self.coords[chrom] = np.asarray(tss)
             self.strand[chrom] = np.asarray(strands)
             self.metadata.append(metadata)
+
+
+    def personalize_gc(self, name, object_dir, toadd, torem):
+        outfile = object_dir + name.replace(" ","_") + "_personalized_cpg_coords.P"
+        for chrom in range(self.no_chrs):
+            # find the correct chromosome in toadd
+            add_idx = toadd.index([self.chr_names[chrom]])[0]
+            # find the correct chromosome in torem
+            rem_idx = torem.index([self.chr_names[chrom]])[0]
+            # add new positions to gc.coords and sort
+            self.coords[chrom] = np.array(sorted(set(np.append(self.coords[chrom], np.array(toadd.coords[add_idx])))))
+            # remove lost positions from gc.coords
+            self.coords[chrom] = np.setdiff1d(self.coords[chrom], np.array(torem.coords[rem_idx]))
+            t.save_object(outfile, self)
