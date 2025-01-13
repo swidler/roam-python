@@ -153,7 +153,16 @@ if "DMR" in stages:
         fname = dump_dir + f"DMRs_{time}.txt"
         dms.dump_DMR(fname)
 if "fdr" in stages:
-    win_size_orig = win_size  # save win_size from original groupDMRs process
+    alg_props = dms.algorithm
+    win_size_orig = alg_props["win_size"]  # save values from original groupDMRs process
+    delta =  alg_props["delta"]
+    min_Qt =  alg_props["min_Qt"]
+    lcf_orig =  alg_props["lcf"]
+    min_finite =  alg_props["min_finite"]
+    min_CpGs =  alg_props["min_CpGs"]
+    max_adj_dist =  alg_props["max_adj_dist"]
+    min_bases =  alg_props["min_bases"]
+    ref =  alg_props["ref"]
     #create Mmsample object
     
     samplist = []  # if dmr in stages, samplist already loaded
@@ -216,12 +225,12 @@ if "fdr" in stages:
             #dump object to text file
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?       
-        ref = False if parameters["noref"] else config["basic"].getboolean("ref")
-        if ref:
-            ref = mms
-        min_finite = min_fin[:]
+        #ref = False if parameters["noref"] else config["basic"].getboolean("ref")
+        #if ref:
+        #    ref = mms
+        #min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
     if annot:
