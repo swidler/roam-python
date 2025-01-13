@@ -144,7 +144,7 @@ if "DMR" in stages:
         ref = mms
     min_finite = min_fin[:]
     logfile = log_dir + f"DMR_log_{time}.txt"
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, fname=logfile)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -221,7 +221,7 @@ if "fdr" in stages:
             ref = mms
         min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, fname=logfile)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
     if annot:
