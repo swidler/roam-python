@@ -1017,8 +1017,8 @@ class DMRs:
         # finding the largest value of the parameters
         with open(statfile, "w") as fid:
             fid.write("cpg\tqt\tcounter\tmean sim_counter\tratio\n")
-            for cpg in range(sim_dmrs.algorithm["min_CpGs"], max([max(self.cDMRs[x].no_CpGs) for x in range(len(self.cDMRs))])+1):  # why +1?
-                for qt in range(sim_dmrs.algorithm["min_Qt"], int(np.ceil(max([max(self.cDMRs[x].max_Qt) for x in range(len(self.cDMRs))]))+1)):
+            for cpg in range(sim_dmrs[0].algorithm["min_CpGs"], max([max(self.cDMRs[x].no_CpGs) for x in range(len(self.cDMRs))])+1):  # why +1?
+                for qt in range(sim_dmrs[0].algorithm["min_Qt"], int(np.ceil(max([max(self.cDMRs[x].max_Qt) for x in range(len(self.cDMRs))]))+1)):
                     counter = 0 
                     sim_counter = np.zeros(len(sim_dmrs))
                     # make a grid search, using jumps of 1 (currently fixed default), picking the parameters that obey 
