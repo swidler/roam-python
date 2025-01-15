@@ -333,7 +333,7 @@ class DMRs:
             sep = "-" * len(line)
             fid.write(f"\t{line}\n\t{sep}\n")
             #line by line
-            no_rows = max(group_sizes)[1]
+            no_rows = max([x[1] for x in group_sizes])
             for row in range(no_rows):
                 line = "|"
                 idx = [np.nan for x in group_names]
