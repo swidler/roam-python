@@ -304,7 +304,11 @@ The stages:
       	This stage outputs two text files in the dump directory (filtered_DMR_gen_<timestamp\>.txt and
     	filtered_DMRs_<timestamp\>.txt, as above), and a log file in the current dir with info about 
     	the thresholds and the ratio of the number of observed to the mean number of simulated, DMRs,
-     	obtained for each combination of parameters.
+     	obtained for each combination of parameters. Please note: the DMR parameters (win_size, 
+     	delta, min_Qt, lcf, min_finite, min_CpGs, max_adj_dist, min_bases, ref) in the fdr stage must
+     	match those of the original DMR results. Therefore, any new parameters sent by the user are not
+     	considered.  
+     	
     
 When done adjusting the config file, run the run_DMRs.py script.    
     
