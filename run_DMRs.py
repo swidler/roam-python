@@ -232,6 +232,7 @@ if "fdr" in stages:
         samps = list(sim_obj_list.values())
         dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
     statfile = log_dir + f"fdr_stats_{time}.txt"
+    print(f"Running fdr calculation on {DMR_obj_infile}")
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
     if annot:
         adjusted_DMR.annotate(gene_file, cgi_file, cust_bed1=cust_file1, cust_bed2=cust_file2, prom_def=prom_def)  
