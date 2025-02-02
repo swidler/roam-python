@@ -25,22 +25,3 @@ class Chrom:
                 result.append(index)
         return result
 
-    def get_methylation(self, chrom=None):
-        """gets the methylation vector for a specific chromosome.
-        
-        Input: chromomosome index or name of chromosome. If absent, methylation
-        from all chromosomes is returned.
-        Output: chromosome name(s) and corresponding methylation, each as a list (returned in a tuple).
-        """
-        # todo: add option to take a list of specific chromosomes
-        
-        if isinstance(chrom, str): #chrom name entered
-            if "chr" not in self.chr_names[0]:  # make sure format of chroms matches (assumes all or no chroms will start "chr")
-                chrom = chrom.removeprefix("chr")
-            index = self.chr_names.index(chrom) #get index of chrom by name
-            result = (chrom, self.methylation[index])
-        elif isinstance(chrom, int): #chrom index entered
-            result = (self.chr_names[chrom], self.methylation[chrom])
-        elif not chrom: #no input, get methylation for all chroms
-            result = (self.chr_names, self.methylation)
-        return result
