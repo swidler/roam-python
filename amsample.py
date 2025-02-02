@@ -500,6 +500,26 @@ class Amsample(Chrom):
         no_ct = t.nanconv(no_ct, tpl, "same")
         return(no_t, no_ct)
 
+    def get_methylation(self, chrom=None):
+        """gets the methylation vector for a specific chromosome.
+        
+        Input: chromomosome index or name of chromosome. If absent, methylation
+        from all chromosomes is returned.
+        Output: chromosome name(s) and corresponding methylation, each as a list (returned in a tuple).
+        """
+        # todo: add option to take a list of specific chromosomes
+        
+        if isinstance(chrom, str): #chrom name entered
+            if "chr" not in self.chr_names[0]:  # make sure format of chroms matches (assumes all or no chroms will start "chr")
+                chrom = chrom.removeprefix("chr")
+            index = self.chr_names.index(chrom) #get index of chrom by name
+            result = (chrom, self.methylation["methylation"][index])
+        elif isinstance(chrom, int): #chrom index entered
+            result = (self.chr_names[chrom], self.methylation["methylation"][chrom])
+        elif not chrom: #no input, get methylation for all chroms
+            result = (self.chr_names, self.methylation["methylation"])
+        return result
+
     def region_methylation(self, region, gc, standardize=True):
         """Computes methylation in a specific region
         
@@ -518,7 +538,9 @@ class Amsample(Chrom):
         no_t = np.nansum(self.no_t[chr_ind][cpg_start:cpg_end+1])
         no_ct = no_t + np.nansum(self.no_c[chr_ind][cpg_start:cpg_end+1])
         if self.methylation:
-            meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
+            #meth = self.methylation["slope"][chr_ind] * no_t / no_ct + self.methylation["intercept"][chr_ind]
+            meth = self.get_methylation(chrom) #get methylation for chrom
+            meth = np.nanmean(meth[1][cpg_start:cpg_end+1]) #compute average methylation
         else:  # used for DMRs (pooled_methylation) for samples that are pre-reconstruct_methylation
             meth = no_t/(no_ct * self.d_rate["rate"]["global"])  # slope = 1/global drate, ignore intercept
         if not np.isnan(meth):
