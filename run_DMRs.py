@@ -9,6 +9,8 @@ import argparse
 import sys
 import os
 import configparser as cp
+from chroms import Chrom
+import numpy as np
 
 # params from config can be specified on the command line
 argParser = argparse.ArgumentParser()
@@ -185,6 +187,33 @@ if "fdr" in stages:
     sim_permutations = parameters["sim_permutations"] if "sim_permutations" in parameters else config["permute"].getint("sim_permutations")
     thresh = parameters["thresh"] if "thresh" in parameters else float(config["basic"]["thresh"])
     logfile = log_dir + f"fdr_DMR_log_{time}.txt"
+    ## Hist-match ref to samples
+    mms_cp = copy.deepcopy(mms)
+    mms_cp.merge()
+    mms_cp.scale()
+    refd = {}
+    for samp in samplist:    # Ancient samples
+        print("Creating ref for", samp.name)
+        sref = copy.deepcopy(mms_cp)
+        for chrom in range(mms_cp.no_chrs):
+            chr = mms_cp.chr_names[chrom]
+            # run hist-matching
+            sref.methylation[chrom] = samp.match_hist(samp.index([chr])[0], sref)
+        print("Average methylation in ", samp.name, "ref:", np.nanmean(np.concatenate(sref.methylation).ravel()))
+        refd[samp.name] = sref
+        del(sref)
+    mod_refd = {} 
+    for samp in mod_samplist:    # modern samples
+        print("Creating ref for", samp.name)
+        sref = copy.deepcopy(mms_cp)
+        for chrom in range(mms_cp.no_chrs):
+            chr = mms_cp.chr_names[chrom]
+            # run hist-matching
+            sref.methylation[chrom] = samp.match_hist(samp.index([chr])[0], sref)
+        print("Average methylation in ", samp.name, "ref:", np.nanmean(np.concatenate(sref.methylation).ravel()))
+        mod_refd[samp.name] = sref
+        del(sref)
+    del(mms_cp)
     for perm in range(sim_permutations):
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
@@ -192,7 +221,7 @@ if "fdr" in stages:
             print(f"sample {sample.name}, perm {perm}\n")
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
-            samp_copy.simulate(mms)
+            samp_copy.simulate(refd[sample.name])    #sim
             method = sample.d_rate["method"]
             min_cov = int(sample.d_rate["min_coverage"])
             d_params = {}
@@ -221,7 +250,7 @@ if "fdr" in stages:
             print(f"sample {sample.name}, perm {perm}\n")
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
-            samp_copy.simulate_modern(mms)
+            samp_copy.simulate_modern(mod_refd[sample.name])    #sim
             #dump object to text file
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?       
