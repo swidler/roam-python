@@ -448,6 +448,7 @@ class DMRs:
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
             idm = np.sqrt(meth_err[0]**2 + meth_err[1]**2)
+            #idm = np.sqrt((meth_err[0]*np.sqrt(group_sizes[0][1]))**2 + (meth_err[1]*np.sqrt(group_sizes[1][1]))**2) # Multiply estimator error by sqrt(group_size) to get methylation error in group 
             lt_up = (diffi - delta)/idm
             lt_down = (-diffi - delta)/idm
             not_nans = np.isfinite(lt_up)
