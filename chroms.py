@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
 import numpy as np
+import tools as t
+
 class Chrom:
     """Superclass with methods common to different sample objects
     """
@@ -46,10 +48,13 @@ class Chrom:
             sys.exit(1)
         # hard-coded parameters
         ref_bins = 1000
-        sig_bins = 100
+        sig_bins = 1000
+        win_size = 11
         # use only finite elements
         idx_finite = np.where(np.isfinite(ref.methylation[chrom]))
-        refmeth = [ref.methylation[chrom][x] for x in idx_finite[0]] 
+        #refmeth = [ref.methylation[chrom][x] for x in idx_finite[0]] 
+        refmeth = t.nansmooth(ref.methylation[chrom], win_size, "same")[0]
+        refmeth = [refmeth[x] for x in idx_finite[0]]
         # x-axis for reference signal (sample)
         ref_edges = np.linspace(0,max(refmeth),ref_bins+1)
         sig_edges = np.linspace(0,1,sig_bins+1)
