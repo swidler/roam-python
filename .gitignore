@@ -1,0 +1,16 @@
+*.swp
+*.pyc
+*.txt
+__pycache__/*
+objects/*
+data/*
+*test*.py
+.metadata*
+.idea*
+*.png
+*.cov
+*.bed
+*.tmp
+*.bedGraph
+*.pickle
+*.json
