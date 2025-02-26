@@ -498,6 +498,27 @@ class DMRs:
             #meth = np.transpose(meth)
             #samp_meth = np.insert(samp_meth,0,meth,axis=0)
             cdm[chrom].methylation = samp_meth
+            # Filter DMR list by within-group variance
+            mpor = 0.7    # hardcoded parameter
+            mean_list = []
+            gdiff_list = []
+            for grp in range(len(giS)):
+                mean_list.append([np.nanmean(elements) for elements in zip(*cdm[chrom].methylation[giS[grp]])])    # get group mean
+                gdiff_list.append([np.nanmax(elements)-np.nanmin(elements) for elements in zip(*cdm[chrom].methylation[giS[grp]])])    # get within-group diffs
+            maxdiff = [abs(a - b)*mpor for a, b in zip(*mean_list)]    # determine max allowed within-group diff by between-group diff
+            idx = list(np.where(np.array([np.nanmax(elements) for elements in zip(*gdiff_list)]) <= np.array(maxdiff))[0])    # get index where within-group diffs are no greater than maximum
+            del(mpor, mean_list, gdiff_list, maxdiff)
+            if idx:    # filter DMRs
+                cdm[chrom].CpG_start = np.array(cdm[chrom].CpG_start)[idx]
+                cdm[chrom].CpG_end = np.array(cdm[chrom].CpG_end)[idx]
+                cdm[chrom].gen_start = np.array(cdm[chrom].gen_start)[idx]
+                cdm[chrom].gen_end = np.array(cdm[chrom].gen_end)[idx]
+                cdm[chrom].no_bases = np.array(cdm[chrom].no_bases)[idx]
+                cdm[chrom].no_CpGs = np.array(cdm[chrom].no_CpGs)[idx]
+                cdm[chrom].max_Qt = np.array(cdm[chrom].max_Qt)[idx]
+                cdm[chrom].methylation = np.array([np.array(cdm[chrom].methylation[x])[idx] for x in range(len(cdm[chrom].methylation))])  
+                cdm[chrom].no_DMRs = len(idx)
+                cdm[chrom].grp_methylation_statistic = np.array(cdm[chrom].grp_methylation_statistic)[idx]
             if report:
                 print(f"\tdetected {cdm[chrom].no_DMRs} DMRs")
                 fid.write(f"\tdetected {cdm[chrom].no_DMRs} DMRs\n")
