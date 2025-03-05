@@ -942,6 +942,7 @@ class DMRs:
                                 clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
                             fid.write(f"{clear_strand}\t")
                             fid.write(f"{self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['dist']}\t")
+                            name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['name']))
                             fid.write(f"{name}\t")
                             strand = self.cDMRs[chrom].annotation[dmr]['upstream_TSS']['strand']
                             if strand != strand:  # only happens when strand is nan
@@ -950,6 +951,7 @@ class DMRs:
                                 clear_strand = ", ".join(["+" if x == 1 or x == "1" else "-" for x in strand])
                             fid.write(f"{clear_strand}\t")
                             fid.write(f"{self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['dist']}\t")
+                            name = ", ".join(map(str, self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['name']))
                             fid.write(f"{name}\t")
                             strand = self.cDMRs[chrom].annotation[dmr]['downstream_TSS']['strand']
                             if strand != strand:  # only happens when strand is nan
