@@ -55,6 +55,9 @@ argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequenc
 argParser.add_argument("-r", "--noref", help="flag for using reference genome for histogram matching", action="store_true")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
+argParser.add_argument("-pr", "--propinf", type=float, help="Minimum fraction of informative samples per group in DMR")
+argParser.add_argument("-sc", "--min_dmrcov", type=int, help="Minimum mean coverage per CpG at DMR per sample")
+
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -99,6 +102,8 @@ dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths
 log_dir = parameters["log_dir"] if "log_dir" in parameters else config["paths"]["log_dir"]
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
+por = parameters["propinf"] if "propinf" in parameters else float(config["basic"]["por"])
+mcpc = parameters["min_dmrcov"] if "min_dmrcov" in parameters else config["basic"].getint("mcpc")
 
 if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)

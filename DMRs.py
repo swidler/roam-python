@@ -132,7 +132,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, mcpc=3, por=0.667):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -166,6 +166,10 @@ class DMRs:
                match_histogram    whether to perform histogram matching in pooled_methylation
                ref                mmSample reference object (used only for histogram matching).
                win_mod            window size for modern samples
+               mcpc               Minimum coverage per CpG in a DMR (on average) in sample to be considered informative
+                   If sample in not informative at DMR, reported average methylation will be nan. 
+               por                Minimum fraction of informative samples (per DMR) in group of size n to pass 
+                   filtering by mcpc. Calculated as ceil(n*por). Will be set to 1 if greater. 
         Output: modified DMR object, Qt_up, Qt_down
         """
         no_samples = len(samples)
@@ -508,6 +512,23 @@ class DMRs:
             maxdiff = [abs(a - b)*mpor for a, b in zip(*mean_list)]    # determine max allowed within-group diff by between-group diff
             idx = list(np.where(np.array([np.nanmax(elements) for elements in zip(*gdiff_list)]) <= np.array(maxdiff))[0])    # get index where within-group diffs are no greater than maximum
             del(mpor, mean_list, gdiff_list, maxdiff)
+            # Filter DMR list by number of non-informative samples in DMR
+            if por > 1:
+                por = 1    # minimum fraction of informative samples per group
+            mincov = np.array([cc*mcpc for cc in cdm[chrom].no_CpGs])    # min required coverage per CpG
+            for grp in range(len(giS)):
+                ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
+                counti = np.zeros(len(cdm[chrom].no_CpGs))    # will count the number of informative samples in group per DMR
+                for samp in giS[grp]:
+                    scov = np.array([np.nansum(samples[samp].no_t[chrom][start:end+1])+np.nansum(samples[samp].no_c[chrom][start:end+1]) for start,end in zip(np.array(cdm[chrom].CpG_start), np.array(cdm[chrom].CpG_end))])    # get overall cov in each DMR
+                    cidx = list(np.where(scov >= mincov))
+                    counti[cidx] += 1
+                    ncidx = list(np.where(scov < mincov))
+                    cdm[chrom].methylation[samp][ncidx] = np.nan # Turn reported methylation in non-informative samples to nan
+                gidx = np.where(counti >= ms) # keep only DMRs where at least min number of samples are informative
+                idx = np.intersect1d(idx, gidx).tolist() # keep in idx just DMRs that pass this threshold and previous ones
+            del(gidx, scov, cidx, ncidx, counti, ms)
+
             if idx:    # filter DMRs
                 cdm[chrom].CpG_start = np.array(cdm[chrom].CpG_start)[idx]
                 cdm[chrom].CpG_end = np.array(cdm[chrom].CpG_end)[idx]
