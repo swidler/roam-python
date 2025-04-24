@@ -560,6 +560,8 @@ class DMRs:
         alg_props["match_histogram"] = match_histogram
         alg_props["algorithm"] = "groupDMRs"
         alg_props["ref"] = ref
+        alg_props["frac_inf"] = por
+        alg_props["min_cov_CpG"] = mcpc
         self.algorithm = alg_props
         self.cDMRs = cdm
         self.no_chromosomes = no_chr

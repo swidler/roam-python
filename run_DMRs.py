@@ -170,6 +170,8 @@ if "fdr" in stages:
     max_adj_dist =  alg_props["max_adj_dist"]
     min_bases =  alg_props["min_bases"]
     ref =  alg_props["ref"]
+    mcpc = alg_props["min_cov_CpG"]
+    por = alg_props["frac_inf"]
     #create Mmsample object
     
     samplist = []  # if dmr in stages, samplist already loaded
