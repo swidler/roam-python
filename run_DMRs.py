@@ -55,6 +55,9 @@ argParser.add_argument("-mm", "--mmethod", help="modern reference sample sequenc
 argParser.add_argument("-r", "--noref", help="flag for using reference genome for histogram matching", action="store_true")
 argParser.add_argument("-re", "--noreport", help="flag for logging info", action="store_true")
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
+argParser.add_argument("-pr", "--propinf", type=float, help="Minimum fraction of informative samples per group in DMR")
+argParser.add_argument("-sc", "--min_dmrcov", type=int, help="Minimum mean coverage per CpG at DMR per sample")
+
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -99,6 +102,8 @@ dump_dir = parameters["dump_dir"] if "dump_dir" in parameters else config["paths
 log_dir = parameters["log_dir"] if "log_dir" in parameters else config["paths"]["log_dir"]
 report = False if parameters["noreport"] else config["options"].getboolean("report")
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
+por = parameters["propinf"] if "propinf" in parameters else float(config["basic"]["por"])
+mcpc = parameters["min_dmrcov"] if "min_dmrcov" in parameters else config["basic"].getint("mcpc")
 
 if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
@@ -146,7 +151,7 @@ if "DMR" in stages:
         ref = mms
     min_finite = min_fin[:]
     logfile = log_dir + f"DMR_log_{time}.txt"
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -165,6 +170,8 @@ if "fdr" in stages:
     max_adj_dist =  alg_props["max_adj_dist"]
     min_bases =  alg_props["min_bases"]
     ref =  alg_props["ref"]
+    mcpc = alg_props["min_cov_CpG"]
+    por = alg_props["frac_inf"]
     #create Mmsample object
     
     samplist = []  # if dmr in stages, samplist already loaded
@@ -259,7 +266,7 @@ if "fdr" in stages:
         #    ref = mms
         #min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     print(f"Running fdr calculation on DMR_obj_{time}")
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
