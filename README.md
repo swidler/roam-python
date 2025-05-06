@@ -245,49 +245,55 @@ Other optional parameters can be specified as follows:
 	-mo, --modern .txt file of modern reference methylation map.
 	-c, --chroms list of chromosome names.
 	-o, --object_dir directory for input and output (pickled) object files (include final / for all 
- 		directories, e.g dir/, not dir).
+		directories, e.g dir/, not dir).
 	-du, --dump_dir directory for output txt files and pictures.
 	-lo, --log_dir directory for logging txt files.
 	-gc, --gc_file CpG cooridantes file.
 	-ge, --gene_file sorted BED file with genes and their coordinates (for DMR annotation). 
- 		By default, this file is UCSC_Genes_sorted.txt, a gene list from UCSC using Hg19,
-   		which is in the repository.
+		By default, this file is UCSC_Genes_sorted.txt, a gene list from UCSC using Hg19,
+		which is in the repository.
 	-cg, --cgi_file BED file with CpG island coordinates (for DMR annotation).
- 		By default, this file is UCSC_CGIs.txt, a CpG island list from UCSC using Hg19, 
-   		which is in the repository.
+		By default, this file is UCSC_CGIs.txt, a CpG island list from UCSC using Hg19, 
+		which is in the repository.
 	-c1, --cust_file1 first custom BED file (for DMR annotation).
 	-c2, --cust_file2 second custom BED file (for DMR annotation).
 	-pd, --prom_def promoter definition: a list of two values [before, after], defining the promotoer as
- 		running from "before" bases upstream to the TSS, up to "after" bases downstream to it 
+		running from "before" bases upstream to the TSS, up to "after" bases downstream to it 
 		(default: [5000, 1000]).
 	-di, --dmr_infile pickled DMR file for use in fdr, permutations, and plots.
 	-t, --templ template for extra text (beyond default filename) in sample filename: <sample_name><templ>. 
- 		For example, for filename ancient_human_trial1 using sample name ancient_human, set templ to _trial1 (optional). 
+		For example, for filename ancient_human_trial1 using sample name ancient_human, set templ 
+		to _trial1 (optional). 
 	-st, --stages stages of the pipelibe to be run, a list specified with no quotes or commas, 
 		e.g., -st DMR.
-  		Further details later in this document (default: both stages)
-	-de, --delta minimum methylation difference between the two groups to be considered as a DMR (default 0.5).
+		Further details later in this document (default: both stages)
+	-de, --delta minimum methylation difference between the two groups to be considered as a 
+		DMR (default 0.5).
 	-mc, --min_CpGs DMRs with fewer CpGs than this value are filtered out (default: 10).
 	-mq, --min_qt DMRs with Qmax lower than this value are filtered out (default: 0).
 	-mb, --min_bases DMRs with less than this number of bases are filtered out (default: 100).
 	-mad, --max_adj_dist maximum distance between adjacent CpGs within the same DMR. If the 
 		distance between consecutive CpG positions is larger than max_adj_dist, the
-  		algorithm forces them to belong to different DMRs (default: 1000).
+		algorithm forces them to belong to different DMRs (default: 1000).
 	-mf, --min_finite a list with two elements (one for each group), representing the minimum 
 		number of samples for which we require data at a given position. If there are not
-  		enough samples with data in a certain position, a NaN is substituted in this position.
+		enough samples with data in a certain position, a NaN is substituted in this position.
     		This parameter can also be a fraction between 0 and 1 (0 <= min_fin < 1), in which
       		case it is understood as the minimum fraction of the total number of samples in the
 		group (default: 1 for each group).
+	-pr, --propinf minimum fraction of informative samples per group (default: 0.667)
+	-sc, --min_dmrcov minimum mean coverage per CpG at DMR per sample (default: 3)
 	-w, --win_size window size for smoothing (default: calculated automatically).
 	-l, --lcf low coverage factor, positions with coverage below this value will be filtered out for 
 		the corresponding sample (default: calculated automatically).
 	-sp, --sim_permutations number of permutations to run for fdr.
 	-th, --thresh FDR threshold (default: 0.05).
-	-r, --noref flag for using histogram matching in the pooled methylation function (use this flag, with no value 
- 		following it, when histogram matching not desired).
-	-re, --noreport flag for logging info (use this flag, with no value following it, when logging not desired).
-	-an, --noannot flag for running annotation, (use this flag, with no value following it, when annotation not desired).
+	-r, --noref flag for using histogram matching in the pooled methylation function (use this flag, 
+		with no value 	following it, when histogram matching not desired).
+	-re, --noreport flag for logging info (use this flag, with no value following it, when logging 
+		not desired).
+	-an, --noannot flag for running annotation, (use this flag, with no value following it, when 
+		annotation not desired).
     
 The stages:  
 	&emsp;This pipeline is comprised of "DMR" and "fdr". (Extra functions that can be used here are permute, 
