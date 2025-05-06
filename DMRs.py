@@ -519,12 +519,20 @@ class DMRs:
             for grp in range(len(giS)):
                 ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
                 counti = np.zeros(len(cdm[chrom].no_CpGs))    # will count the number of informative samples in group per DMR
-                for samp in giS[grp]:
-                    scov = np.array([np.nansum(samples[samp].no_t[chrom][start:end+1])+np.nansum(samples[samp].no_c[chrom][start:end+1]) for start,end in zip(np.array(cdm[chrom].CpG_start), np.array(cdm[chrom].CpG_end))])    # get overall cov in each DMR
-                    cidx = list(np.where(scov >= mincov))
-                    counti[cidx] += 1
-                    ncidx = list(np.where(scov < mincov))
-                    cdm[chrom].methylation[samp][ncidx] = np.nan # Turn reported methylation in non-informative samples to nan
+                if grp_ancient[grp][0] == 0:    # if modern
+                    for samp in giS[grp]:
+                        scov = np.array([np.nansum(samples[samp].coverage[chrom][start:end+1]) for start,end in zip(np.array(cdm[chrom].CpG_start), np.array(cdm[chrom].CpG_end))])    # get overall cov in each DMR)
+                        cidx = list(np.where(scov >= mincov))
+                        counti[cidx] += 1
+                        ncidx = list(np.where(scov < mincov))
+                        cdm[chrom].methylation[samp][ncidx] = np.nan # Turn reported methylation in non-informative samples to nan
+                else:
+                    for samp in giS[grp]:
+                        scov = np.array([np.nansum(samples[samp].no_t[chrom][start:end+1])+np.nansum(samples[samp].no_c[chrom][start:end+1]) for start,end in zip(np.array(cdm[chrom].CpG_start), np.array(cdm[chrom].CpG_end))])    # get overall cov in each DMR
+                        cidx = list(np.where(scov >= mincov))
+                        counti[cidx] += 1
+                        ncidx = list(np.where(scov < mincov))
+                        cdm[chrom].methylation[samp][ncidx] = np.nan # Turn reported methylation in non-informative samples to nan
                 gidx = np.where(counti >= ms) # keep only DMRs where at least min number of samples are informative
                 idx = np.intersect1d(idx, gidx).tolist() # keep in idx just DMRs that pass this threshold and previous ones
             del(gidx, scov, cidx, ncidx, counti, ms)
