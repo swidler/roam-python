@@ -363,3 +363,4 @@ We provide several functions along with RoAM, that can be used by users who wish
 	
 
   
+**License:** This project is licensed under the [MIT License](./LICENSE).
