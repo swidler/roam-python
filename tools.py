@@ -76,6 +76,19 @@ def standardize_region(region):
             }
     return std_region
 
+def normalize_chrom(chrom_str):
+	"""Removes  'chr' prefix from chromosome names, if present
+	
+	Input:  chrom_str	chromosome name
+	
+	Output: chromomsome number, converted to int
+	"""
+	# Remove 'chr' prefix if present
+	if chrom_str.startswith('chr'):
+		chrom_str = chrom_str[3:]
+	# Return numeric chromosomes only (skip X/Y/M/etc.)
+	return int(chrom_str) if chrom_str.isdigit() else None
+
 def save_object(filename, obj):
     """Pickles object for future use.
     

@@ -635,7 +635,7 @@ class DMRs:
                     prom_string += f"\n{proms.chr_names[chrom]} {proms.start[chrom][prom]} {proms.end[chrom][prom]} {proms.iname[chrom][prom]} 0 {proms.strand[chrom][prom]}"
                 chrom_proms = pbt.BedTool(prom_string, from_string=True)
                 #get genes in this chrom
-                genes_chrom = genes_no_dups.filter(lambda a: a.chrom == str(chrom+1)).saveas()
+                genes_chrom = genes_no_dups.filter(lambda a: a.chrom == "chr" + str(chrom+1)).saveas()
             for dmr in range(num_DMRs):
                 annot = {}
                 region = regions[dmr]

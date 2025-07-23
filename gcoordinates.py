@@ -106,7 +106,9 @@ class Gcoordinates(Chrom):
             names = []
             metadata = []
             for ivl in genes:
-                if int(ivl.chrom) == chrom+1:  # chrom index val is one less than chrom num
+                norm_chrom = t.normalize_chrom(ivl.chrom)
+                if norm_chrom is not None and norm_chrom == chrom + 1: # chrom index val is one less than chrom num
+                #if int(ivl.chrom) == chrom+1:  # chrom index val is one less than chrom num
                     start = ivl.start
                     end = ivl.end
                     strand = ivl.strand

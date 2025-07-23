@@ -3,6 +3,7 @@
 from chroms import Chrom
 import numpy as np
 import pybedtools as pbt
+import tools as t
 
 class Gintervals(Chrom):
     """Genomic interval class
@@ -50,7 +51,9 @@ class Gintervals(Chrom):
             names = []
             metadata = []
             for ivl in genes:
-                if int(ivl.chrom) == chrom+1:  # chrom index val is one less than chrom num
+                norm_chrom = t.normalize_chrom(ivl.chrom)
+                if norm_chrom is not None and norm_chrom == chrom + 1: # chrom index val is one less than chrom num
+                #if int(ivl.chrom) == chrom+1:  # chrom index val is one less than chrom num
                     start = ivl.start
                     end = ivl.end
                     strand = ivl.strand
