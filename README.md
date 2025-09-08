@@ -13,7 +13,7 @@ RoAM can be operated either from the command line or by specifying input paramet
 
 Input files:
 
-1. BAM file with the reads of an ancient genome, and the corresponding BAI file  
+1. BAM file with the reads of an ancient genome, and the corresponding BAI file. Currently, RoAM can be carried out only on samples that went through USER treatment during library preparation. Avoid using RoAM for samples whose sequencing coverage is below x15, as reconstruction accuracy would be severely compromised.
    Examples:  
    &emsp;Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622  
    &emsp;SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940  
