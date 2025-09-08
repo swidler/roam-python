@@ -13,7 +13,9 @@ RoAM can be operated either from the command line or by specifying input paramet
 
 Input files:
 
-1. BAM file with the reads of an ancient genome, and the corresponding BAI file. Currently, RoAM can be carried out only on samples that went through USER treatment during library preparation. Avoid using RoAM for samples whose sequencing coverage is below x15, as reconstruction accuracy would be severely compromised.
+1. BAM file with the reads of an ancient genome, and the corresponding BAI file.
+   **Currently, RoAM can be carried out only on samples that went through USER treatment during library preparation.
+   Avoid using RoAM for samples whose sequencing coverage is below x15, as reconstruction accuracy would be severely compromised.**
    Examples:  
    &emsp;Ust Ishim (single stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB6622  
    &emsp;SF12 (double stranded) can be found at https://www.ebi.ac.uk/ena/browser/view/PRJEB21940  
@@ -26,10 +28,10 @@ Input files:
    
 		./create_bai.sh <directory>/*.bam
 		
-2. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file)  
+3. Genome assembly sequence FASTA file (used only when creating a new CpG coordinates file)  
    hg19.fa.gz can be downloaded from http://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/
 		
-3. CpG coordinates  
+4. CpG coordinates  
 	If you are using the Hg19 human genome version, a pickled object containing all CpG
 	coordinates in the right format already exists. Download it from
 	http://carmelab.huji.ac.il/data.html and unzip into the objects subdirectory of the script
@@ -42,7 +44,7 @@ Input files:
 	<species_with_underscores>_cpg_coords.P. In order to create the file without running the 
 	rest of RoAM, add the --no_roam flag to the input parameters.
     
-4. Reference DNA methylation map  
+5. Reference DNA methylation map  
 	Typically, this would be a present-day methylation map generated from the same tissue
 	as the ancient sample.
 	When reconstructing methylation from a bone sample using the Hg19 human genome version,
