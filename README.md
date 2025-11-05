@@ -251,10 +251,11 @@ Other optional parameters can be specified as follows:
 		directories, e.g dir/, not dir).
 	-du, --dump_dir directory for output txt files and pictures.
 	-lo, --log_dir directory for logging txt files.
-	-gc, --gc_file CpG cooridantes file.
+	-gc, --gc_file CpG coordinates file.
 	-ge, --gene_file sorted BED file with genes and their coordinates (for DMR annotation). 
 		By default, this file is UCSC_Genes_sorted.txt, a gene list from UCSC using Hg19,
-		which is in the repository.
+		which is in the repository. UCSC_RefSeq_sorted.txt, which contains only RefSeq genes, 
+		is also available in the repository, but must be specified explicitly.
 	-cg, --cgi_file BED file with CpG island coordinates (for DMR annotation).
 		By default, this file is UCSC_CGIs.txt, a CpG island list from UCSC using Hg19, 
 		which is in the repository.
