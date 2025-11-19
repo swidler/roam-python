@@ -668,7 +668,7 @@ class Amsample(Chrom):
             #plt.bar(len(N[0]), N[0])
             plt.plot([thresh, thresh], list(plt.gca().get_ylim()), "k")
             plt.subplots_adjust(wspace=.5, hspace=.5)
-            pic_file = picdir + self.name + "_cov_" + time
+            pic_file = picdir + self.name + "_cov_" + time + ".png"
             plt.savefig(pic_file)
         
             #remove outliers
@@ -754,7 +754,7 @@ class Amsample(Chrom):
             plt.ylabel(ylabel, fontsize=9)
             plt.grid(True)
             plt.subplots_adjust(wspace=.5, hspace=.5)
-            pic_file = picdir + self.name + "_rpc_" + time
+            pic_file = picdir + self.name + "_rpc_" + time + ".png"
             plt.savefig(pic_file)
 
             #plot ratio of removed to total
@@ -771,7 +771,7 @@ class Amsample(Chrom):
             plt.ylabel(ylabel)
             plt.grid(True)
             plt.subplots_adjust(wspace=.5, hspace=.5)
-            pic_file = picdir + self.name + "_rem_" + time
+            pic_file = picdir + self.name + "_rem_" + time + ".png"
             plt.savefig(pic_file, bbox_inches="tight")
             
         #plt.show()
