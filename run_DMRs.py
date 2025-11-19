@@ -302,7 +302,7 @@ DMR_chrom = parameters["dmr_chrom"] if "dmr_chrom" in parameters else config["pl
 DMR_idx = parameters["dmr_idx"] if "dmr_idx" in parameters else config["plotmethylation"].getint("DMR_idx")
     
 if "plotmethylation" in stages:
-    fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}"
+    fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}.png"
     dms.plotmethylation(DMR_chrom, DMR_idx, fname)  
 if "plot" in stages:  # deal with custom files here?
     dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=5000)
