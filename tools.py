@@ -9,8 +9,10 @@ import pybedtools as pbt
 import matplotlib.pyplot as plt
 import matplotlib.axes as ax
 import matplotlib.patches as p
-
-from screeninfo import get_monitors
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle, Polygon
+from matplotlib import patheffects as pe
+from types import SimpleNamespace
 
 """This module contains helper functions used in the RoAM process.
 """
@@ -575,231 +577,373 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         j += 1
     return (m, dm)
 
-def plot_region(region, gc, samples, gene_bed=None, cgi_bed=None, widenby=0):
-    panels = {}
-    genes = pbt.BedTool(gene_bed)
-    #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-    genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
-    cgis = pbt.BedTool(cgi_bed)
-    if gene_bed:
-        panels["genes"] = {"type":"interval", "direction":True, "interval_names":True, "data":genes}
-    if cgi_bed:
-        panels["cgis"] = {"type":"interval", "direction":False, "interval_names":False, "data":cgis}
-    no_panels = len(panels)
-    region = standardize_region(region)  # nec?
-    no_samples = len(samples)
-    orig_start = region["start"]
-    orig_end = region["end"]
-    region["start"] = region["start"] - widenby
-    region["end"] = region["end"] + widenby
-    gc_chr = gc.chr_names.index(region["chrom"])
-    gc_chr_coords = gc.coords[gc_chr]
-    start = np.where(gc_chr_coords >= region["start"])[0][0]
-    end = np.where(gc_chr_coords <= region["end"])[0][-1]
-    orig_start = np.where(gc_chr_coords >= orig_start)[0][0]
-    orig_end = np.where(gc_chr_coords <= orig_end)[0][-1]
-    width = end - start + 1
-    vals = np.zeros((no_samples, width))
-    for sample in range(no_samples):
-        samp_chr = samples[sample].index([region["chrom"]])[0]
-        meth = samples[sample].methylation["methylation"][samp_chr]
-        vals[sample] = meth[start:end+1]
-    screen_height = get_monitors()[0].height
-    # these should go in config
-    OPTIMAL_HEIGHT_METH_LANE = 27
-    OPTIMAL_SPACE = 20
-    OPTIMAL_HEIGHT_INTERVAL_WITH_NAME = 15
-    OPTIMAL_HEIGHT_INTERVAL_NO_NAME = 5
-    OPTIMAL_HEIGHT_XSCALE = 15
-    FIG_TOP_MARGIN = 100
-    BOTTOM_MARGIN = 30
-    MIN_SHRINKAGE = 0.3
-    RIGHT_SHIFT = 0.01
-    LEFT_SHIFT = 1
-    BACK_COLOR = None
-    
-    # compute win_height
-    meth_height = OPTIMAL_HEIGHT_METH_LANE * no_samples
-    win_height = 3*OPTIMAL_SPACE + meth_height + OPTIMAL_HEIGHT_XSCALE + BOTTOM_MARGIN
-    panel_order_intervals = []
-    panel_height = {}
-    for key in panels.keys():
-        panel_order_intervals.append(panels[key])
-        if panels[key]["interval_names"]:
-            panel_height[key] = OPTIMAL_HEIGHT_INTERVAL_WITH_NAME
-            if panels[key]["direction"]:
-                panel_height[key] *= 2
-        else:
-            panel_height[key] = OPTIMAL_HEIGHT_INTERVAL_NO_NAME
-    win_height += sum(panel_height.values()) + no_panels*OPTIMAL_SPACE
-    shrinkage_factor = 1  # in config?
-    if win_height > screen_height:
-        shrinkage_factor = screen_height / win_height
-        if shrinkage_factor > MIN_SHRINKAGE:
-            win_height = screen_height
-        else:
-            shrinkage_factor = MIN_SHRINKAGE
-            win_height = MIN_SHRINKAGE * win_height
+# ---------- small helpers for plot region ----------
+def _comma(n: int) -> str: return f"{n:,}"
+
+def _cmap(color_blind=False, mode="20and80are0") -> ListedColormap:
+    if not color_blind:
+        r_ext, g_ext, b_ext = np.array([72,220])/255, np.array([183,59])/255, np.array([48,16])/255
+    else:
+        r_ext, g_ext, b_ext = np.array([25,220])/255, np.array([0,59])/255,  np.array([51,16])/255
+    if mode == "20and80are0":
+        r = np.concatenate([np.full(20, r_ext[0]), np.linspace(r_ext[0], r_ext[1], 31), np.full(50, r_ext[1])])
+        g = np.concatenate([np.full(50, g_ext[0]), np.linspace(g_ext[0], g_ext[1], 31), np.full(20, g_ext[1])])
+        b = np.linspace(b_ext[0], b_ext[1], 101)
+    else:
+        r = np.linspace(r_ext[0], r_ext[1], 101); g = np.linspace(g_ext[0], g_ext[1], 101); b = np.linspace(b_ext[0], b_ext[1], 101)
+    return ListedColormap(np.stack([r,g,b], axis=1), name="methyl_20_80")
+
+def _first_geq_idx(vec, bp): return int(np.searchsorted(vec, bp, side="left"))
+def _last_leq_idx(vec, bp):  return int(np.searchsorted(vec, bp, side="right") - 1)
+def _region_bed(chrom, start, end): return pbt.BedTool(f"{chrom}\t{start}\t{end}\n", from_string=True)
+def _normalize_groups(groups, no_samples, samples=None):
     """
-    # y_min is the bottom y-coordinate of the figure
-    y_min = max(screen_height - win_height - FIG_TOP_MARGIN,1)
-    # open figure
-    fig = plt.subplot()
-    bbox = fig.get_window_extent()
-    pos = [bbox.xmin, y_min, bbox.width, win_height]
-    fig.set_position(pos)
-    pos_axes = pos[:]
-    pos_axes[0] += pos[2]/10
-    pos_axes[2] -= pos[2]/5
-    ax.Axes.set_position(fig, pos_axes)  # store in var?
-    """  # not sure if any of above relevant
+    Returns a list[str] of length no_samples with each sample's group name.
+    Supports:
+      - your dict: {'group_nums': [...], 'group_names': [...], 'no_groups': N, 'positions': [[...],[...],...]}
+      - list[str] already aligned to samples
+      - dict[str, list[int]] mapping name -> indices
+      - None -> infer from sample.name containing 'farmer'/'hg'
+    """
+    # your dict format
+    if isinstance(groups, dict) and ("positions" in groups or "group_nums" in groups):
+        names = groups.get("group_names", [])
+        if "positions" in groups:
+            labels = [""] * no_samples
+            for gi, idxs in enumerate(groups["positions"]):
+                name = names[gi] if gi < len(names) else f"group{gi+1}"
+                for idx in idxs:
+                    if 0 <= idx < no_samples:
+                        labels[idx] = name
+            return labels
+        else:  # group_nums
+            nums = groups["group_nums"]
+            # preserve first-appearance order
+            uniq = []
+            for n in nums:
+                if n not in uniq:
+                    uniq.append(n)
+            name_map = {n: (names[i] if i < len(names) else f"group{n}") for i, n in enumerate(uniq)}
+            return [name_map.get(n, f"group{n}") for n in nums]
+
+    # dict[name] -> [indices]
+    if isinstance(groups, dict):
+        labels = [""] * no_samples
+        for name, idxs in groups.items():
+            for idx in idxs:
+                if 0 <= idx < no_samples:
+                    labels[idx] = name
+        return labels
+
+    # list[str] already aligned
+    if isinstance(groups, (list, tuple)) and len(groups) == no_samples:
+        return list(groups)
+
+    # infer from sample names
+    out = []
+    for s in (samples or []):
+        nm = getattr(s, "name", "").lower()
+        if "farmer" in nm: out.append("Farmers")
+        elif "hg" in nm or "hunter" in nm: out.append("HGs")
+        else: out.append("Samples")
+    return out
+
+# ---------- plot region of DMR ----------
+def plot_region(region, gc, samples, gene_bed=None, cgi_bed=None, widenby=0, *,
+                groups=None, savepath=None, show=True, close=False):
+    """
+    groups: can be
+      - list[str] of length == len(samples), e.g. ["farmer","farmer","HG",...]
+      - dict[str, list[int]] mapping group -> sample indices (0-based)
+      - None: will try to infer from sample.name (contains 'farmer' or 'hg')
+    """
+    chrom = region["chrom"]
+    orig_start, orig_end = int(region["start"]), int(region["end"])
+    start_bp, end_bp = orig_start - widenby, orig_end + widenby
+
+    # CpG indices
+    chr_idx = gc.chr_names.index(chrom)
+    gc_chr_coords = gc.coords[chr_idx]
+    beg_i = _first_geq_idx(gc_chr_coords, start_bp)
+    fin_i = _last_leq_idx(gc_chr_coords, end_bp)
+    width = int(fin_i - beg_i + 1)
     
-    #fig, axes = plt.subplots()
-    #fig, [ax3, ax2, ax1] = plt.subplots(3, sharex=True)
-    fig, axes = plt.subplots(4, sharex=True)
-    plt.ylim([0,1])
-    plt.xlim([start, end])
-    ax1 = axes[-1]
-    pos = ax.Axes.get_position(ax1)
-    #pos_axes = [pos.xmin, pos.ymin, 0.8, 0.03]  # currently hardcoded. not sure how to generalize
-    pos_ax1 = [pos.xmin, pos.ymin, 0.75, 0.05]
-    ax.Axes.set_position(ax1, pos_ax1)
-    plt.setp(ax1, xlim=([start, end]), ylim=([0,0.5]))
-    ax1.spines['top'].set_visible(False)
-    ax1.spines['left'].set_visible(False)
-    ax1.spines['right'].set_visible(False)
-    ax1.get_yaxis().set_visible(False)
-    #ax.Axes.set_position(axes, pos_axes)
-    #axes.spines['top'].set_visible(False)
-    #axes.spines['left'].set_visible(False)
-    #axes.spines['right'].set_visible(False)
-    #axes.get_yaxis().set_visible(False)
-    bar_scale = max(5*round(0.2*0.1*width), 5)
-    x_start = start + np.ceil(bar_scale/2)
-    plt.axhline(y=0.1, xmin=0.08, xmax=0.18, color="k")
-    plt.text(x_start+0.05*bar_scale+4, 0.15, f"{bar_scale} CpGs")
-    
-    reg_no_chr = region.copy()
-    reg_no_chr["chrom"] = reg_no_chr["chrom"].replace("chr", "")  # to match gene file, which has chr nums, not chr<num>
-    i = -2
-    for key in panels.keys():
-        ax2 = axes[i]
-        b = panels[key]["data"]
-        if key == "genes":
-            reg_bed = f'''
-            {reg_no_chr["chrom"]} {reg_no_chr["start"]} {reg_no_chr["end"]}
-            '''
-        elif key == "cgis":
-            reg_bed = f'''
-            {region["chrom"]} {region["start"]} {region["end"]}
-            '''
-        a = pbt.BedTool(reg_bed, from_string=True)
-        intersection = b.intersect(a, u=True)
-        consolidated = intersection.merge(s=True, c="4,5,6", o="distinct")  # as yet untested. used d=-1? 
-        #still need to merge intervals?
-        interval_span = 1
-        subset = consolidated.filter(lambda x: x.strand == "+")  # count lines on plus strand
-        tot = len(subset)  # can't do len(subset) more than once (lambda?)
-        if panels[key]["direction"] == True:
-            if tot != len(consolidated) and tot != 0:  # not all on same strand
-                interval_span = 2
-        # sort intervals
-        starts = [x.start for x in consolidated]
-        ends = [x.end for x in consolidated]
-        # plot intervals
-        for i in range(len(starts)):
-        #for st in starts:
-            istart = np.where(gc_chr_coords >= starts[i])[0][0]
-            truncated_left = False
-            if istart < start:
-                truncated_left = True
-                istart = start
-        #for en in ends:
-            iend = np.where(gc_chr_coords <= ends[i])[0][-1]
-            truncated_right = False
-            if iend > end:
-                truncated_right = True
-                iend = end
-            add = 0
-            pos = ax.Axes.get_position(ax1)
-            pos_ax2 = [pos.xmin, .18, pos.width, 0.1]
-            ax.Axes.set_position(ax2, pos_ax2)
-            plt.setp(ax2, xlim=([start, end]), ylim=([0,interval_span]))
+    # DMR (original, pre-widen) indices inside the plotted window
+    window = gc_chr_coords[beg_i:fin_i+1]
+    beg0_local = int(np.searchsorted(window, orig_start, side='left'))        # first >=
+    end0_local = int(np.searchsorted(window, orig_end,   side='right') - 1)   # last <=
+    beg0 = beg_i + beg0_local
+    end0 = beg_i + end0_local
+    dmr_width = int(end0 - beg0 + 1)
 
 
-            if interval_span == 2:
-                if consolidated[i].strand == "+":
-                    rect = p.Rectangle([istart, 0], iend-istart, 1, facecolor="black")
-                    text_y = 0.82 
-                else:
-                    rect = p.Rectangle([istart, 1], iend-istart, 2, facecolor="black")
-                    text_y = 0.32
-                    add = 1
+    # methylation matrix
+    no_samples = len(samples)
+    vals = np.zeros((no_samples, width), dtype=float)
+    for s_i, s in enumerate(samples):
+        samp_chr = s.index([chrom])[0]
+        store = s.methylation
+        meth = store["methylation"][samp_chr] if isinstance(store, dict) else store[samp_chr]
+        vals[s_i, :] = meth[beg_i:fin_i+1]
+
+    have_genes = gene_bed is not None
+    have_cgis  = cgi_bed  is not None
+    
+
+    # ==== layout: heatmap (top), then CGIs, Genes, then x-axis ====
+    height = [2.0 + 0.25*no_samples]    # heatmap
+    if have_cgis:  height.append(0.40)
+    if have_genes: height.append(1.6)
+    height.append(0.8)                   # x-axis
+    fig = plt.figure(figsize=(11, 6), constrained_layout=True)
+    gs = fig.add_gridspec(len(height), 1, height_ratios=height)
+    row = 0
+
+    # ---- HEATMAP ----
+    axh = fig.add_subplot(gs[row, 0]); row += 1
+    axh.imshow(
+        vals, aspect="auto", interpolation="nearest", origin="lower",
+        extent=[beg_i, fin_i+1, 1, no_samples+1],
+        cmap=_cmap(), vmin=0, vmax=1
+    )
+    axh.set_xlim([beg_i, fin_i+1])
+    axh.set_ylim([1, no_samples+1])
+    axh.set_yticks(np.arange(1.5, no_samples+0.6, 1))
+    axh.set_yticklabels([s.name for s in samples])
+    axh.tick_params(axis="x", bottom=False, labelbottom=False)
+
+    if widenby > 0:
+        axh.axvline(beg0, ls=":", color="k")
+        axh.axvline(end0, ls=":", color="k")
+
+    # ---- GROUP SEPARATORS + LABELS ----
+    sample_groups = _normalize_groups(groups, no_samples, samples)
+	
+	# Build contiguous blocks in the current sample order
+    order, seen = [], {}
+    for i, g in enumerate(sample_groups):
+        if g not in seen:
+            seen[g] = []
+            order.append(g)
+        seen[g].append(i)
+    group_blocks = [(g, seen[g]) for g in order]
+	
+	# Draw separator lines and right-edge labels
+    y_base = 1
+    for gname, idxs in group_blocks:
+        n = len(idxs)
+        cy = y_base + n/2.0
+        y_norm = (cy - 1) / no_samples          # map row center to [0..1] in axis coords
+        axh.text(1.02, y_norm, gname, transform=axh.transAxes,
+         va="center", ha="left", clip_on=False)   # 1.02 pushes it a bit outside
+
+        y_base += n
+        if y_base <= no_samples:
+            axh.axhline(y_base, color="k", lw=2.2)
+
+    # ---- interval-track helper ----
+    def draw_interval_track(ax, bedtool, name, directional, bar_frac=1.0):
+    # intersect with region
+        rbed = _region_bed(chrom, start_bp, end_bp)
+        inter = (bedtool if isinstance(bedtool, pbt.BedTool) else pbt.BedTool(bedtool))
+        inter = inter.intersect(rbed, wa=True).sort()
+        if len(inter) == 0:
+            ax.axis("off"); return
+    # one helper for both sides; scales to bar height
+        def arrow(side, y0, h):
+            arw = max(1, width/30)
+            if side == "L":
+                xs = [beg_i+2*arw, beg_i+arw, beg_i, beg_i+arw, beg_i+2*arw, beg_i+arw]
             else:
-                rect = p.Rectangle([istart, 0], iend-istart, 1, facecolor="black")
-                text_y = 1.05
-            ax2.add_patch(rect)
-            # add white arrows at the ends of truncated intervals
-            interval_width = iend - istart + 1
-            ar_width = min(width/30,interval_width/4)
-            if truncated_left:
-                ar_x = [start+2*ar_width, start+ar_width, start, start+ar_width, start+2*ar_width, start+ar_width]
-                ar_y = [x + add for x in [0, 0, 0.5, 1, 1, 0.5]]
-                coords = list(zip(ar_x, ar_y))
-                arrow_left = p.Polygon(coords, facecolor = 'white')
-                ax2.add_patch(arrow_left)
-            if truncated_right:
-                ar_x = [end-2*ar_width, end-ar_width, end, end-ar_width, end-2*ar_width, end-ar_width]
-                ar_y = [x + add for x in [0, 0, 0.5, 1, 1, 0.5]]
-                coords = list(zip(ar_x, ar_y))
-                arrow_right = p.Polygon(coords, facecolor = 'white')
-                ax2.add_patch(arrow_right)
-            # add name into the interval
-            if panels[key]["interval_names"] == True:
-                # place in the middle of the interval
-                name = consolidated[i].name
-                #name = "very long gene name"
-                t = plt.text(0.5*(istart+iend), add + text_y, f"{name}", color="w", ha="center")
-                #plt.draw()
-                plt.savefig("fname")
-                # if too big, move to the side
-                ext = t.get_window_extent()
-                #pos = t.get_position()
-                if ext.width > interval_width:
-                    if iend-start > end-iend:
-                    # place on the left side
-                        t.set_position([istart, add+text_y])
-                        t.set_ha("right")
-                    else:
-                        t.set_position([iend, add+text_y])
-                        t.set_ha("left")
-                    t.set_color("black")
-            ax2.spines['top'].set_visible(False)
-            ax2.spines['left'].set_visible(False)
-            ax2.spines['right'].set_visible(False)
-            ax2.spines['bottom'].set_visible(False)
-            ax2.tick_params(bottom=False)
-            ax2.get_yaxis().set_visible(False) 
-            # write interval name
-            ax2.text(end+2, 0.5*interval_span, key.capitalize(), ha='left', va='center')  
-            # make an arrow designating interval direction
-        if starts:
-            if panels[key]["direction"] == True:
-                if interval_span == 2:
-                    ax2.annotate('', xy=(start-1, 0.5), xytext=(start-bar_scale, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
-                    ax2.annotate('', xy=(start-bar_scale, 1.5), xytext=(start-1, 1.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
+                xs = [fin_i-2*arw, fin_i-arw, fin_i, fin_i-arw, fin_i-2*arw, fin_i-arw]
+            ys = (np.array([0,0,.5,1,1,.5]) * h) + y0
+            ax.add_patch(Polygon(np.c_[xs, ys], color="w"))
+
+        # --- helpers for genes ---
+        def _bp_to_ix(bp):
+            xs = np.arange(beg_i, fin_i + 1, dtype=float)
+            ys = gc_chr_coords[beg_i:fin_i + 1].astype(float)
+            return float(np.clip(np.interp(float(bp), ys, xs, left=xs[0], right=xs[-1]), xs[0], xs[-1]))
+
+        def _pack_lanes(items):
+            lanes, ends = [], []
+            for f in sorted(items, key=lambda t: (t.start, t.end)):
+                placed = False
+                for li, e in enumerate(ends):
+                    if f.start > e:
+                        ends[li] = f.end
+                        lanes[li].append(f)
+                        placed = True
+                        break
+                if not placed:
+                    lanes.append([f]); ends.append(f.end)
+            return lanes
+
+        if directional:
+            # collapse transcripts to (name,strand) spans
+            has_plus = has_minus = False
+            groups = {}
+            for f in inter:
+                s  = getattr(f, "strand", ".")
+                nm = getattr(f, "name", "")
+                has_plus  |= (s == "+")
+                has_minus |= (s == "-")
+                key = (nm, s)
+                gbp, ebp = int(f.start), int(f.end)
+                if key in groups:
+                    a, b = groups[key]
+                    groups[key] = (min(a, gbp), max(b, ebp))
                 else:
-                    if consolidated[i].strand == "+":
-                        ax2.annotate('', xy=(start-1, 0.5), xytext=(start-bar_scale, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
-                    else:
-                        ax2.annotate('', xy=(start-bar_scale, 0.5), xytext=(start-1, 0.5), arrowprops=dict(arrowstyle="->", color='k'), annotation_clip=False)
-                
-        plt.show()
-        i -= 1
-    
-    
-    
-    
+                    groups[key] = (gbp, ebp)
+
+            feats = [SimpleNamespace(start=a, end=b, name=nm, strand=s)
+                     for (nm, s), (a, b) in groups.items()]
+
+            plus_lanes  = _pack_lanes([f for f in feats if f.strand == "+"])
+            minus_lanes = _pack_lanes([f for f in feats if f.strand == "-"])
+
+            ax.set_xlim([beg_i, fin_i + 1]); ax.set_ylim([0, 2]); ax.axis("off")
+
+            min_w_for_label = max(5, int(width * 0.015))
+            min_gap         = max(4, int(width * 0.008))
+
+            def _draw_strand_lanes(lanes, base_y):
+                if not lanes:
+                    return
+                vpad, gap, H = 0.12, 0.08, 1.0
+                n = len(lanes)
+                lane_h = max(0.02, (H - 2*vpad - (n - 1)*gap) / n)
+
+                for li, lane in enumerate(lanes):
+                    y0 = base_y + vpad + li * (lane_h + gap)
+                    last_right = -np.inf
+                    for feat in lane:
+                        gbp, ebp = int(feat.start), int(feat.end)
+                        ov_a = max(gbp, start_bp); ov_b = min(ebp, end_bp)
+                        has_cols = bool(np.any((gc_chr_coords >= ov_a) & (gc_chr_coords <= ov_b)))
+                        label = feat.name
+                        if has_cols:
+                            ib = _first_geq_idx(gc_chr_coords, ov_a)
+                            ie = _last_leq_idx(gc_chr_coords,  ov_b)
+                            ibc, iec = max(ib, beg_i), min(ie, fin_i)
+                            if ibc > fin_i or iec < beg_i:
+                                continue
+                            w = iec - ibc + 1
+
+                            ax.add_patch(Rectangle((ibc, y0), w, lane_h, color="k"))
+                            if gbp < start_bp: arrow("L", y0, lane_h)
+                            if ebp > end_bp:   arrow("R", y0, lane_h)
+
+                            if label:
+                                ok_in_bar = (w >= min_w_for_label) and (ibc > last_right + min_gap)
+                                if ok_in_bar:
+                                    txt = ax.text(ibc + w/2, y0 + 0.5*lane_h, label,
+                                                  color="w", ha="center", va="center")
+                                    txt.set_path_effects([pe.withStroke(linewidth=3, foreground="k")])
+                                    last_right = ibc + w
+                                else:
+                                # place near the bar (prefer above; if no room, place below), with a white halo
+                                    pad_y = 0.08
+                                    top_of_block = base_y + 1.0
+                                    y_text = y0 + lane_h + pad_y
+                                    if y_text > top_of_block - 0.02:      # too close to top of this strand block → put below
+                                        y_text = y0 - pad_y
+
+                                    # center horizontally on the bar, clamped to the panel
+                                    x_text = float(np.clip(ibc + w/2, beg_i + 2, fin_i - 2))
+
+                                    txt = ax.text(x_text, y_text, label,
+                                        ha="center", va="center", color="k", zorder=20, clip_on=False)
+                                    txt.set_path_effects([pe.withStroke(linewidth=3, foreground="w")])
+                        else:
+                            # name-only glyph at bp midpoint with strand arrow
+                            x_center = _bp_to_ix(0.5 * (gbp + ebp))
+                            txt = ax.text(x_center, y0 + 0.5*lane_h,            # center on the lane
+                                label, ha="center", va="center", color="k", zorder=20, clip_on=False)
+                            txt.set_path_effects([pe.withStroke(linewidth=3, foreground="w")])
+
+            _draw_strand_lanes(plus_lanes, 0.0)
+            _draw_strand_lanes(minus_lanes, 1.0)
+
+        else:
+            # CGIs: same as before
+            merged = inter.merge()
+            ax.set_xlim([beg_i, fin_i + 1]); ax.set_ylim([0, 1]); ax.axis("off")
+            for f in merged:
+                gbp, ebp = int(f.start), int(f.end)
+                ov_a = max(gbp, start_bp); ov_b = min(ebp, end_bp)
+                if ov_b < ov_a: continue
+                ib = _first_geq_idx(gc_chr_coords, ov_a)
+                ie = _last_leq_idx(gc_chr_coords,  ov_b)
+                ibc, iec = max(ib, beg_i), min(ie, fin_i)
+                if ibc <= iec:
+                    w = iec - ibc + 1
+                    y0 = 0.5 - float(bar_frac)/2.0
+                    ax.add_patch(Rectangle((ibc, y0), w, float(bar_frac), color="k"))
+                    if gbp < start_bp: arrow("L", y0, float(bar_frac))
+                    if ebp > end_bp:   arrow("R", y0, float(bar_frac))
+
+        # right-edge track tag – vertically center on whichever lanes exist (axes coords)
+        if directional:
+            has_plus  = len(plus_lanes)  > 0
+            has_minus = len(minus_lanes) > 0
+            if has_plus and has_minus:
+                y_tag = 0.50   # middle of the two-lane block
+            elif has_plus:
+                y_tag = 0.25   # center of the lower (plus) lane block
+            elif has_minus:
+                y_tag = 0.75   # center of the upper (minus) lane block
+            else:
+                y_tag = 0.50
+        else:
+            y_tag = 0.50
+
+        ax.text(1.02, y_tag, name, transform=ax.transAxes,
+            ha="left", va="center", clip_on=False, zorder=10)
+
+        # left-margin arrows (match MATLAB behavior)
+        if directional:
+            pad = max(2, width/25)
+            if has_plus and has_minus:
+                ax.text(beg_i - pad, 0.5, r'$\rightarrow$', ha="right", va="center", weight="bold", clip_on=False, zorder=20)
+                ax.text(beg_i - pad, 1.5, r'$\leftarrow$', ha="right", va="center", weight="bold", clip_on=False, zorder=20)
+            elif has_plus:
+                ax.text(beg_i - pad, 0.5, r'$\rightarrow$', ha="right", va="center", weight="bold", clip_on=False, zorder=20)
+            elif has_minus:
+                ax.text(beg_i - pad, 1.5, r'$\leftarrow$', ha="right", va="center", weight="bold", clip_on=False, zorder=20)
+
+    # ---- CGIs ----
+    if cgi_bed is not None:
+        ax = fig.add_subplot(gs[row, 0]); row += 1
+        draw_interval_track(ax, cgi_bed, "CGIs", directional=False, bar_frac=0.25)
+
+    # ---- Genes ----
+    if gene_bed is not None:
+        ax = fig.add_subplot(gs[row, 0]); row += 1
+        draw_interval_track(ax, gene_bed, "Genes", directional=True)
+        
+    # ---- x-axis ----
+    axx = fig.add_subplot(gs[row, 0])
+    axx.set_xlim([beg_i, fin_i+1]); axx.set_ylim([0, 1]); axx.set_yticks([])
+    for side in ("top", "right", "left", "bottom"):
+        axx.spines[side].set_visible(False)
+    # show only the first and last genomic coordinates (bp)
+    axx.set_xticks([beg_i, fin_i])
+    axx.set_xticklabels([
+        _comma(int(gc_chr_coords[beg_i])),
+        _comma(int(gc_chr_coords[fin_i]))
+    ], fontsize=9)
+    bar_scale = max(int(5 * round(0.2 * 0.1 * width)), 5)
+    x0 = beg_i + int(np.ceil(bar_scale / 2))
+    axx.plot([x0, x0 + bar_scale], [0.5, 0.5], color="k", lw=1.5)
+    axx.text(x0 + 0.5 * bar_scale, 0.78, f"{bar_scale} CpGs", ha="center")
+
+    title_str = f"{chrom}:{_comma(orig_start)}-{_comma(orig_end)} ({_comma(dmr_width)} CpG positions)"
+    axh.set_title(title_str, loc="center", pad=6, fontweight="bold")
+
+    if savepath: fig.savefig(savepath, dpi=300, bbox_inches="tight")
+    if show: plt.show()
+    if close: plt.close(fig)
     
 
         
