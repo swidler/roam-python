@@ -305,5 +305,5 @@ if "plotmethylation" in stages:
     fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}.png"
     dms.plotmethylation(DMR_chrom, DMR_idx, fname)  
 if "plot" in stages:  # deal with custom files here?
-    dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=5000)
+    dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=1000)
     
