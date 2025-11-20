@@ -1052,7 +1052,7 @@ class DMRs:
         if orderby == "groups":
            pos_flat = [x for y in self.groups["positions"] for x in y]
            samples = [samples[x] for x in pos_flat]
-        t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby)
+        t.plot_region(region, gc, samples, gene_bed, cgi_bed, widenby, groups=self.groups)
         
     def adjust_params(self, sim_dmrs, thresh=0.05, fname="DMR_log.txt", report=True, statfile="fdr_stats.txt"):
         """Finds parameters values that achieve a desired FDR
