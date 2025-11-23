@@ -57,6 +57,7 @@ argParser.add_argument("-re", "--noreport", help="flag for logging info", action
 argParser.add_argument("-an", "--noannot", help="flag for running annotation", action="store_true")
 argParser.add_argument("-pr", "--propinf", type=float, help="Minimum fraction of informative samples per group in DMR")
 argParser.add_argument("-sc", "--min_dmrcov", type=int, help="Minimum mean coverage per CpG at DMR per sample")
+argParser.add_argument("-wi", "--widenby", type=int, help="Flanking region size in bp for individual DMR plot")
 
 
 args = argParser.parse_args()
@@ -305,5 +306,6 @@ if "plotmethylation" in stages:
     fname = dump_dir + f"meth_plot_{DMR_chrom}_{DMR_idx}.png"
     dms.plotmethylation(DMR_chrom, DMR_idx, fname)  
 if "plot" in stages:  # deal with custom files here?
-    dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=1000)
+    widenby = parameters["widenby"] if "widenby" in parameters else config["plotmethylation"].getint("widenby")
+    dms.plot(DMR_chrom, DMR_idx, gc, samplist, gene_file, cgi_file, widenby=widenby)
     
