@@ -268,7 +268,7 @@ Other optional parameters can be specified as follows:
 	-t, --templ template for extra text (beyond default filename) in sample filename: <sample_name><templ>. 
 		For example, for filename ancient_human_trial1 using sample name ancient_human, set templ 
 		to _trial1 (optional). 
-	-st, --stages stages of the pipelibe to be run, a list specified with no quotes or commas, 
+	-st, --stages stages of the pipeline to be run, a list specified with no quotes or commas, 
 		e.g., -st DMR.
 		Further details later in this document (default: both stages)
 	-de, --delta minimum methylation difference between the two groups to be considered as a 
@@ -298,10 +298,11 @@ Other optional parameters can be specified as follows:
 		not desired).
 	-an, --noannot flag for running annotation, (use this flag, with no value following it, when 
 		annotation not desired).
-    
+    -wi, --widenby Flanking region size in bp for individual DMR plot (default: 1000)
+	
 The stages:  
-	&emsp;This pipeline is comprised of "DMR" and "fdr". (Extra functions that can be used here are permute, 
-    	permutstat, and plotmethylation. For more details see “extra functions”).  
+	&emsp;This pipeline is composed of "DMR" and "fdr". (Extra functions that can be used here are permute, 
+    	permutstat, plotmethylation, and plot. For more details see “extra functions”).  
     	&emsp;The "DMR" stage uses the methylation values in all samples to detect differentially
      	methylated regions. It creates two text files in the specified dump directory
       	(DMR_gen_<timestamp\>.txt lists the input parameters and the results, while
@@ -357,13 +358,21 @@ We provide several functions along with RoAM, that can be used by users who wish
    		sample for a specific DMR. It generates a PNG file in the dump directory
      		(meth_plot<chromosome\>_<DMR index\>.png).
        		The inputs for this function are the pickled file of the detected DMRs, as well as the
-	 	unique identifier of the DMR, comprised of the number of chromosome along with the
+	 	unique identifier of the DMR, composed of the number of chromosome along with the
    		serial number of this DMR among all DMRs in this chromosome (this information can be 
     		found in the DMR table output). If, for example, we wish to plot methylation in the
-      		third DMR along chromosome 5, we would use 5 as chromose number and 3 as the DMR index.
+      		third DMR along chromosome 5, we would use 5 as chromosome number and 2 as the DMR index.
 	
 			-dmi index of DMR
 			-dmc chromosome of DMR
+			
+4.	The plot function creates a heatmap of a specific DMR. It shows the methylation pattern at the DMR of each 
+			individual, overlaid with information on the respective location of CpG islands and genes.
+			When the image pops up, its size can be adjusted, and it can be saved using the button on the window. 
+			Once the image is closed, the command prompt will return. 
+			The inputs for this function are the same as those for the plotmethylation function, with the
+			addition of the pickled files for each sample, generated in the methylation reconstruction
+			pipeline.
 	
 
   
