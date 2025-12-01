@@ -132,7 +132,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, mcpc=3, por=0.667):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=1, mcpc=3, por=0.667):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -434,15 +434,22 @@ class DMRs:
                     wij = np.zeros((len(mod_idx), no_pos))
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
-                        [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
-                        Wj = np.nansum(wij, axis=0)
-                        # Calculate mm
-                        mm = np.sum(wij * mij_bar, axis=0) / Wj
-                        # Calculate dmm
-                        dmm = np.sqrt(1 / Wj)
-                        # Assign mm and dmm to m and dm respectively
-                        meth_stat[grp, :] = mm
-                        meth_err[grp, :] = dmm
+                        if win_mod == 1: 
+                            mij_bar[samp] = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
+                            tpl1 = np.ones(win_mod)
+                            (nans, rmnan) = t.get_zeros(mij_bar[samp], tpl1, "same")
+                            mij_bar[samp][nans] = 0
+                            wij[samp] = np.ones(len(mij_bar[samp])) * rmnan
+                        else:
+                            [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
+                    Wj = np.nansum(wij, axis=0)
+                    # Calculate mm
+                    mm = np.sum(wij * mij_bar, axis=0) / Wj
+                    # Calculate dmm
+                    dmm = np.sqrt(1 / Wj)
+                    # Assign mm and dmm to m and dm respectively
+                    meth_stat[grp, :] = mm
+                    meth_err[grp, :] = dmm
                 else:  
                     [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
