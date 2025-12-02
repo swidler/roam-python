@@ -187,6 +187,7 @@ if "fdr" in stages:
             infile = object_dir + sample + templ
             print(f"loading sample {sample}")
             input_obj = t.load_object(infile)
+            input_obj.scale()
             mod_samplist.append(input_obj)
     dmr_obj_list = []
     gc = t.load_object(gc_object)

@@ -206,10 +206,21 @@ class Mmsample(Chrom):
     def scale(self):
         """Converts all values to be between 0 and 1
         """
-        for i in range(0,len(self.methylation)):
-            biggest = max([x for x in self.methylation[i] if ~np.isnan(x)]) #get biggest number in list (ignore string vals)
+        for i in range(len(self.methylation)):
+            arr = np.array(self.methylation[i], dtype=float)
+            finite = arr[~np.isnan(arr)]
+            # If this chromosome has no finite values, there's nothing to scale
+            if finite.size == 0:
+                continue
+            biggest = finite.max()
             if biggest > 1:
-                self.methylation[i] = [x/100 if ~np.isnan(x) else x for x in self.methylation[i]] #divide numeric vals by 100
+                arr[~np.isnan(arr)] = arr[~np.isnan(arr)] / 100.0
+                self.methylation[i] = arr
+
+      #  for i in range(0,len(self.methylation)):
+      #      biggest = max([x for x in self.methylation[i] if ~np.isnan(x)]) #get biggest number in list (ignore string vals)
+      #      if biggest > 1:
+      #          self.methylation[i] = [x/100 if ~np.isnan(x) else x for x in self.methylation[i]] #divide numeric vals by 100
 
     def merge(self, report=True):
         """Merges pairs of consecutive CpG positions by averaging their values
