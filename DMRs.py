@@ -435,11 +435,20 @@ class DMRs:
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
                         if win_mod == 1: 
-                            mij_bar[samp] = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
-                            tpl1 = np.ones(win_mod)
-                            (nans, rmnan) = t.get_zeros(mij_bar[samp], tpl1, "same")
-                            mij_bar[samp][nans] = 0
-                            wij[samp] = np.ones(len(mij_bar[samp])) * rmnan
+                            MIN_VAR = 0.01**2
+                            meth_vec = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
+                            cov_vec  = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
+                            mij_bar[samp] = np.zeros_like(meth_vec, dtype=float)
+                            wij[samp] = np.zeros_like(meth_vec, dtype=float)
+                            valid = np.isfinite(meth_vec) & np.isfinite(cov_vec) & (cov_vec > 0)
+                            mij_bar[samp][valid] = meth_vec[valid]
+                            # Binomial variance of meth
+                            variance = np.empty_like(meth_vec, dtype=float)
+                            variance[:] = np.nan
+                            variance[valid] = meth_vec[valid] * (1 - meth_vec[valid]) / cov_vec[valid]
+                            mask_small = np.isfinite(variance) & (variance < MIN_VAR)
+                            variance[mask_small] = MIN_VAR
+                            wij[samp][valid] = 1.0 / variance[valid]
                         else:
                             [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
                     Wj = np.nansum(wij, axis=0)
