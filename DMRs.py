@@ -13,6 +13,7 @@ import math
 import random
 import re
 import matplotlib.pyplot as plt
+import time
 
 class DMRs:
     """Differentially methylated region class
@@ -581,91 +582,285 @@ class DMRs:
         
         return(Qt_up, Qt_down)
     
-    def annotate(self, gene_bed, cgi_bed, prom_def=[5000,1000], cust_bed1=None, cust_bed2=None):
-        """Retrieves important data about each DMR
-        
-        Input: gene_bed   bed file with gene data 
-               cgi_bed    bed file with CGI data
-               prom_def   promoter definition around TSS, a list of 2 values [before, after], where before is the
-                   number of nucleotides into the intergenic region, and after is the number of nucleotides 
-                   into the gene
-        Output: cDMR object with updated annotation
+    def annotate(self, gene_bed, cgi_bed, prom_def=[5000, 1000],
+                 cust_bed1=None, cust_bed2=None):
+        """Retrieves important data about each DMR.
+
+        Input:
+            gene_bed   bed file with gene data
+            cgi_bed    bed file with CGI data
+            prom_def   promoter definition around TSS, a list of 2 values
+                       [before, after], where `before` is the number of
+                       nucleotides into the intergenic region and `after`
+                       is the number of nucleotides into the gene.
+            cust_bed1  optional custom BED file
+            cust_bed2  optional custom BED file
+
+        Output:
+            cDMR objects with updated annotation in self.cDMRs[chrom].annotation
         """
+        # --- genes / promoters / TSS setup (global, done once) ---
         if gene_bed:
             genes = pbt.BedTool(gene_bed)
-            genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3])  # is stream nec?
+            has_genes = True
+
+            # collapse duplicates; keep chr, start, end, name, score, strand
+            genes_no_dups = (
+                genes.groupby(g=[1, 2, 3, 6], c="4,5", o="distinct")
+                     .cut([0, 1, 2, 4, 5, 3])
+            )
+
             before = int(prom_def[0])
             after = int(prom_def[1])
+
+            # promoter intervals
             proms = gint.Gintervals(chr_names=self.chromosomes)
             proms.calc_prom_coords(genes_no_dups, before, after)
-            tss = gcoord.Gcoordinates(chr_names=self.chromosomes, description="TSS positions")
+
+            # TSS coordinates
+            tss = gcoord.Gcoordinates(chr_names=self.chromosomes,
+                                      description="TSS positions")
             tss.calc_tss(genes_no_dups)
         else:
             genes = None
-        #genes_no_dups = genes.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-        if cgi_bed:
-            cgis = pbt.BedTool(cgi_bed)
-        else:
-            cgis = None
-        if cust_bed1:
-            cust1 = pbt.BedTool(cust_bed1)
-        else:
-            cust1 = None
-        if cust_bed2:
-            cust2 = pbt.BedTool(cust_bed2)
-        else:
-            cust2 = None
-        #cgis_no_dups = cgis.groupby(g=[1,2,3,6], c='4,5', o='distinct').cut([0,1,2,4,5,3], stream=False)
-        
-        # loop on chromosomes
+            genes_no_dups = None
+            proms = None
+            tss = None
+            has_genes = False
+
+        # --- CGI / custom BEDs setup ---
+        cgis = pbt.BedTool(cgi_bed) if cgi_bed else None
+        cust1 = pbt.BedTool(cust_bed1) if cust_bed1 else None
+        cust2 = pbt.BedTool(cust_bed2) if cust_bed2 else None
+
+        # --- per-chromosome processing ---
         for chrom in range(self.no_chromosomes):
             print(f"chrom {self.chromosomes[chrom]}")
+
             num_DMRs = self.cDMRs[chrom].no_DMRs
-            # add handling for no DMRs?
-            # get DMR regions
             regions = self.get_regions(self.cDMRs[chrom])
             dmr_annot = []
-            if genes:
-                # generate an array of TSSs
-                # add handling of no tss?
-                itss = tss.coords[chrom]
-                itss = itss.astype(float)
-                prom_string = ""
-                for prom in range(len(proms.start[chrom])):
-                    prom_string += f"\n{proms.chr_names[chrom]} {proms.start[chrom][prom]} {proms.end[chrom][prom]} {proms.iname[chrom][prom]} 0 {proms.strand[chrom][prom]}"
-                chrom_proms = pbt.BedTool(prom_string, from_string=True)
-                #get genes in this chrom
-                genes_chrom = genes_no_dups.filter(lambda a: a.chrom == "chr" + str(chrom+1)).saveas()
+
+            # Build DMR BedTool with DMR index in column 4
+            dmr_bed = None
+            if num_DMRs > 0:
+                dmr_lines = []
+                for dmr_idx, region in enumerate(regions):
+                    # region is expected to be "chrX start end"
+                    fields = region.strip().split()
+                    if len(fields) < 3:
+                        continue
+                    chrom_name, start, end = fields[0], fields[1], fields[2]
+                    dmr_lines.append(f"{chrom_name}\t{start}\t{end}\t{dmr_idx}")
+                if dmr_lines:
+                    dmr_bed_str = "\n".join(dmr_lines)
+                    dmr_bed = pbt.BedTool(dmr_bed_str, from_string=True)
+
+            # --- precompute CGI / custom overlaps per DMR ---
+            in_CGI_flags = [False] * num_DMRs if (dmr_bed is not None and cgis) else None
+            in_cust1_flags = [False] * num_DMRs if (dmr_bed is not None and cust1) else None
+            in_cust2_flags = [False] * num_DMRs if (dmr_bed is not None and cust2) else None
+
+            if in_CGI_flags is not None:
+                for hit in dmr_bed.intersect(cgis, u=True):
+                    dmr_idx = int(hit[3])
+                    in_CGI_flags[dmr_idx] = True
+
+            if in_cust1_flags is not None:
+                for hit in dmr_bed.intersect(cust1, u=True):
+                    dmr_idx = int(hit[3])
+                    in_cust1_flags[dmr_idx] = True
+
+            if in_cust2_flags is not None:
+                for hit in dmr_bed.intersect(cust2, u=True):
+                    dmr_idx = int(hit[3])
+                    in_cust2_flags[dmr_idx] = True
+
+            # --- genes / promoters / TSS per chromosome ---
+            # defaults in case there are no genes or no DMRs
+            gene_hits_by_dmr = None
+            prom_hits_by_dmr = None
+            genes_chrom = None
+
+            up_closest_plus = up_idx_plus = None
+            up_closest_minus = up_idx_minus = None
+            down_closest_plus = down_idx_plus = None
+            down_closest_minus = down_idx_minus = None
+
+            if has_genes and num_DMRs > 0:
+                # TSS positions and strands for this chromosome
+                itss = np.asarray(tss.coords[chrom], dtype=float)
+                tss_strand = tss.strand[chrom]  # 1 = '+', 0 = '-'
+                n_tss = len(itss)
+                tss_idx_all = np.arange(n_tss)
+
+                def _build_strand_index(strand_value):
+                    """Sorted, unique TSS positions for a given strand.
+
+                    For each unique coordinate, keep the earliest original index,
+                    to match previous nanargmin behaviour.
+                    """
+                    mask = (tss_strand == strand_value)
+                    pos_raw = itss[mask]
+                    idx_raw = tss_idx_all[mask]
+                    if pos_raw.size == 0:
+                        return np.array([], dtype=float), np.array([], dtype=int)
+
+                    order = np.argsort(pos_raw)
+                    pos_sorted = pos_raw[order]
+                    idx_sorted = idx_raw[order]
+
+                    unique_pos = [pos_sorted[0]]
+                    unique_idx = [idx_sorted[0]]
+                    for k in range(1, pos_sorted.size):
+                        if pos_sorted[k] == unique_pos[-1]:
+                            if idx_sorted[k] < unique_idx[-1]:
+                                unique_idx[-1] = idx_sorted[k]
+                        else:
+                            unique_pos.append(pos_sorted[k])
+                            unique_idx.append(idx_sorted[k])
+
+                    return (np.array(unique_pos, dtype=float),
+                            np.array(unique_idx, dtype=int))
+
+                plus_tss_pos, plus_tss_idx = _build_strand_index(1)
+                minus_tss_pos, minus_tss_idx = _build_strand_index(0)
+
+                # DMR coordinates as arrays
+                gen_start = np.asarray(self.cDMRs[chrom].gen_start, dtype=float)
+                gen_end = np.asarray(self.cDMRs[chrom].gen_end, dtype=float)
+                dmr_len_arr = np.asarray(self.cDMRs[chrom].no_bases, dtype=float)
+
+                # Upstream TSS: plus strand (TSS <= dmr_end)
+                if plus_tss_pos.size > 0:
+                    pos_plus_up = np.searchsorted(plus_tss_pos, gen_end,
+                                                  side="right") - 1
+                    up_closest_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    up_idx_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    valid = pos_plus_up >= 0
+                    if np.any(valid):
+                        pos_v = pos_plus_up[valid]
+                        base = gen_end[valid] - plus_tss_pos[pos_v]
+                        dist = base - dmr_len_arr[valid] + 1
+                        dist[dist < 0] = 0
+                        up_closest_plus[valid] = dist
+                        up_idx_plus[valid] = plus_tss_idx[pos_v]
+                else:
+                    up_closest_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    up_idx_plus = np.full(num_DMRs, np.nan, dtype=float)
+
+                # Upstream TSS: minus strand (TSS >= dmr_start)
+                if minus_tss_pos.size > 0:
+                    pos_minus_up = np.searchsorted(minus_tss_pos, gen_start,
+                                                   side="left")
+                    up_closest_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    up_idx_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    valid = pos_minus_up < minus_tss_pos.size
+                    if np.any(valid):
+                        pos_v = pos_minus_up[valid]
+                        base = minus_tss_pos[pos_v] - gen_start[valid]
+                        dist = base - dmr_len_arr[valid] + 1
+                        dist[dist < 0] = 0
+                        up_closest_minus[valid] = dist
+                        up_idx_minus[valid] = minus_tss_idx[pos_v]
+                else:
+                    up_closest_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    up_idx_minus = np.full(num_DMRs, np.nan, dtype=float)
+
+                # Downstream TSS: plus strand (TSS >= dmr_start)
+                if plus_tss_pos.size > 0:
+                    pos_plus_down = np.searchsorted(plus_tss_pos, gen_start,
+                                                    side="left")
+                    down_closest_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    down_idx_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    valid = pos_plus_down < plus_tss_pos.size
+                    if np.any(valid):
+                        pos_v = pos_plus_down[valid]
+                        base = plus_tss_pos[pos_v] - gen_start[valid]
+                        dist = base - dmr_len_arr[valid] + 1
+                        dist[dist < 0] = 0
+                        down_closest_plus[valid] = dist
+                        down_idx_plus[valid] = plus_tss_idx[pos_v]
+                else:
+                    down_closest_plus = np.full(num_DMRs, np.nan, dtype=float)
+                    down_idx_plus = np.full(num_DMRs, np.nan, dtype=float)
+
+                # Downstream TSS: minus strand (TSS <= dmr_end)
+                if minus_tss_pos.size > 0:
+                    pos_minus_down = np.searchsorted(minus_tss_pos, gen_end,
+                                                     side="right") - 1
+                    down_closest_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    down_idx_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    valid = pos_minus_down >= 0
+                    if np.any(valid):
+                        pos_v = pos_minus_down[valid]
+                        base = gen_end[valid] - minus_tss_pos[pos_v]
+                        dist = base - dmr_len_arr[valid] + 1
+                        dist[dist < 0] = 0
+                        down_closest_minus[valid] = dist
+                        down_idx_minus[valid] = minus_tss_idx[pos_v]
+                else:
+                    down_closest_minus = np.full(num_DMRs, np.nan, dtype=float)
+                    down_idx_minus = np.full(num_DMRs, np.nan, dtype=float)
+
+                # Promoters for this chromosome
+                prom_lines = []
+                for prom_idx in range(len(proms.start[chrom])):
+                    prom_lines.append(
+                        f"{proms.chr_names[chrom]}\t"
+                        f"{proms.start[chrom][prom_idx]}\t"
+                        f"{proms.end[chrom][prom_idx]}\t"
+                        f"{proms.iname[chrom][prom_idx]}\t0\t"
+                        f"{proms.strand[chrom][prom_idx]}"
+                    )
+                chrom_proms = pbt.BedTool("\n".join(prom_lines), from_string=True)
+
+                # Genes restricted to this chromosome
+                genes_chrom = genes_no_dups.filter(
+                    lambda a: a.chrom == "chr" + str(chrom + 1)
+                ).saveas()
+
+                # Batch gene and promoter overlaps
+                gene_hits_by_dmr = [[] for _ in range(num_DMRs)]
+                prom_hits_by_dmr = [[] for _ in range(num_DMRs)]
+
+                if dmr_bed is not None:
+                    # genes is A, dmr_bed is B
+                    for hit in genes.intersect(dmr_bed, wb=True):
+                        dmr_idx = int(hit[-1])
+                        gene_hits_by_dmr[dmr_idx].append(hit)
+
+                    # chrom_proms is A, dmr_bed is B
+                    for hit in chrom_proms.intersect(dmr_bed, wb=True):
+                        dmr_idx = int(hit[-1])
+                        prom_hits_by_dmr[dmr_idx].append(hit)
+
+            # --- per-DMR annotation ---
             for dmr in range(num_DMRs):
                 annot = {}
-                region = regions[dmr]
-                ivl = pbt.BedTool(region, from_string=True)[0]  # get 1st element to make it an interval object
-                if cgis:
-                    if cgis.any_hits(ivl):
-                        in_CGI = True
-                    else:  
-                        in_CGI = False
+                region = regions[dmr]  # currently unused, but kept for clarity
+
+                # CGI / custom flags
+                if in_CGI_flags is not None:
+                    in_CGI = in_CGI_flags[dmr]
                 else:
                     in_CGI = "N/A"
-                if cust1:
-                    if cust1.any_hits(ivl):
-                        in_cust1 = True
-                    else:
-                        in_cust1 = False
+
+                if in_cust1_flags is not None:
+                    in_cust1 = in_cust1_flags[dmr]
                 else:
                     in_cust1 = "N/A"
-                if cust2:
-                    if cust2.any_hits(ivl):
-                        in_cust2 = True
-                    else:
-                        in_cust2 = False
+
+                if in_cust2_flags is not None:
+                    in_cust2 = in_cust2_flags[dmr]
                 else:
                     in_cust2 = "N/A"
-                if genes:
+
+                # Gene / promoter / TSS annotation
+                if has_genes and num_DMRs > 0:
+                    # Genes
                     in_gene = {}
-                    region_gene = region.replace("chr", "")
-                    ivl_gene = pbt.BedTool(region_gene, from_string=True)[0]  # get 1st element to make it an interval object
-                    gene_hits = genes.all_hits(ivl_gene)
+                    gene_hits = gene_hits_by_dmr[dmr] if gene_hits_by_dmr is not None else []
                     if gene_hits:
                         in_gene["present"] = True
                         in_gene["name"] = []
@@ -684,8 +879,10 @@ class DMRs:
                         in_gene["present"] = False
                         in_gene["strand"] = np.nan
                         in_gene["name"] = []
+
+                    # Promoters
                     in_prom = {}
-                    prom_hits = chrom_proms.all_hits(ivl)
+                    prom_hits = prom_hits_by_dmr[dmr] if prom_hits_by_dmr is not None else []
                     if prom_hits:
                         in_prom["present"] = True
                         in_prom["name"] = []
@@ -693,91 +890,118 @@ class DMRs:
                         for hit in prom_hits:
                             if hit.name not in in_prom["name"]:
                                 in_prom["name"].append(hit.name)
-                                in_prom["strand"].append(hit.strand)  # change to int!
+                                in_prom["strand"].append(hit.strand)
                     else:
                         in_prom["present"] = False
                         in_prom["strand"] = np.nan
                         in_prom["name"] = []
+
+                    # Upstream TSS
                     upstream_TSS = {}
-                    up_plus = self.cDMRs[chrom].gen_end[dmr] - itss
-                    up_minus = itss - self.cDMRs[chrom].gen_start[dmr]
-                    up_plus[np.where(up_plus < 0)] = np.nan
-                    up_minus[np.where(up_minus < 0)] = np.nan
-                    up_plus[np.where(tss.strand[chrom] == 0)] = np.nan
-                    up_minus[np.where(tss.strand[chrom] == 1)] = np.nan
-                    closest_plus = np.nanmin(up_plus)
-                    idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(up_plus)
-                    closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
-                    if closest_plus < 0:
-                        closest_plus = 0
-                    closest_minus = np.nanmin(up_minus)
-                    idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(up_minus)
-                    closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
-                    if closest_minus < 0:
-                        closest_minus = 0
+                    closest_plus = up_closest_plus[dmr]
+                    idx_plus = up_idx_plus[dmr]
+                    closest_minus = up_closest_minus[dmr]
+                    idx_minus = up_idx_minus[dmr]
+
                     if closest_minus == closest_plus:
                         upstream_TSS["dist"] = closest_plus
-                        upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
-                        upstream_TSS["strand"] = [1,0]
+                        upstream_TSS["name"] = []
+                        upstream_TSS["strand"] = []
+                        if not np.isnan(idx_plus):
+                            upstream_TSS["name"].append(
+                                genes_chrom[int(idx_plus)].name
+                            )
+                            upstream_TSS["strand"].append(1)
+                        if not np.isnan(idx_minus):
+                            upstream_TSS["name"].append(
+                                genes_chrom[int(idx_minus)].name
+                            )
+                            upstream_TSS["strand"].append(0)
                     else:
                         absmin = np.nanmin([closest_minus, closest_plus])
                         if closest_minus == absmin:
                             upstream_TSS["dist"] = closest_minus
-                            upstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
-                            upstream_TSS["strand"] = [0]
+                            if np.isnan(idx_minus):
+                                upstream_TSS["name"] = []
+                                upstream_TSS["strand"] = []
+                            else:
+                                upstream_TSS["name"] = [
+                                    genes_chrom[int(idx_minus)].name
+                                ]
+                                upstream_TSS["strand"] = [0]
                         else:
                             upstream_TSS["dist"] = closest_plus
-                            upstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
-                            upstream_TSS["strand"] = [1]
-                    
+                            if np.isnan(idx_plus):
+                                upstream_TSS["name"] = []
+                                upstream_TSS["strand"] = []
+                            else:
+                                upstream_TSS["name"] = [
+                                    genes_chrom[int(idx_plus)].name
+                                ]
+                                upstream_TSS["strand"] = [1]
+
+                    # Downstream TSS
                     downstream_TSS = {}
-                    down_minus = self.cDMRs[chrom].gen_end[dmr] - itss
-                    down_plus = itss - self.cDMRs[chrom].gen_start[dmr]
-                    down_plus[np.where(down_plus < 0)] = np.nan
-                    down_minus[np.where(down_minus < 0)] = np.nan
-                    down_plus[np.where(tss.strand[chrom] == 0)] = np.nan
-                    down_minus[np.where(tss.strand[chrom] == 1)] = np.nan
-                    closest_plus = np.nanmin(down_plus)
-                    idx_plus = np.nan if np.isnan(closest_plus) else np.nanargmin(down_plus)
-                    closest_plus = closest_plus - self.cDMRs[chrom].no_bases[dmr] +1
-                    if closest_plus < 0:
-                        closest_plus = 0
-                    closest_minus = np.nanmin(down_minus)
-                    idx_minus = np.nan if np.isnan(closest_minus) else np.nanargmin(down_minus)
-                    closest_minus = closest_minus - self.cDMRs[chrom].no_bases[dmr] +1
-                    if closest_minus < 0:
-                        closest_minus = 0
+                    closest_plus = down_closest_plus[dmr]
+                    idx_plus = down_idx_plus[dmr]
+                    closest_minus = down_closest_minus[dmr]
+                    idx_minus = down_idx_minus[dmr]
+
                     if closest_minus == closest_plus:
                         downstream_TSS["dist"] = closest_plus
-                        downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name, genes_chrom[int(idx_minus)].name]
-                        downstream_TSS["strand"] = [1,0]
+                        downstream_TSS["name"] = []
+                        downstream_TSS["strand"] = []
+                        if not np.isnan(idx_plus):
+                            downstream_TSS["name"].append(
+                                genes_chrom[int(idx_plus)].name
+                            )
+                            downstream_TSS["strand"].append(1)
+                        if not np.isnan(idx_minus):
+                            downstream_TSS["name"].append(
+                                genes_chrom[int(idx_minus)].name
+                            )
+                            downstream_TSS["strand"].append(0)
                     else:
                         absmin = np.nanmin([closest_minus, closest_plus])
                         if closest_minus == absmin:
                             downstream_TSS["dist"] = closest_minus
-                            downstream_TSS["name"] = [genes_chrom[int(idx_minus)].name]
-                            downstream_TSS["strand"] = [0]
+                            if np.isnan(idx_minus):
+                                downstream_TSS["name"] = []
+                                downstream_TSS["strand"] = []
+                            else:
+                                downstream_TSS["name"] = [
+                                    genes_chrom[int(idx_minus)].name
+                                ]
+                                downstream_TSS["strand"] = [0]
                         else:
                             downstream_TSS["dist"] = closest_plus
-                            downstream_TSS["name"] = [genes_chrom[int(idx_plus)].name]
-                            downstream_TSS["strand"] = [1]
+                            if np.isnan(idx_plus):
+                                downstream_TSS["name"] = []
+                                downstream_TSS["strand"] = []
+                            else:
+                                downstream_TSS["name"] = [
+                                    genes_chrom[int(idx_plus)].name
+                                ]
+                                downstream_TSS["strand"] = [1]
                 else:
                     in_gene = "N/A"
                     in_prom = "N/A"
                     upstream_TSS = "N/A"
                     downstream_TSS = "N/A"
-                    
+
+                # Final annotation record
                 annot["in_CGI"] = in_CGI
                 annot["in_cust1"] = in_cust1
                 annot["in_cust2"] = in_cust2
-                annot["in_gene"] = copy.deepcopy(in_gene)
-                annot["in_prom"] = copy.deepcopy(in_prom)
-                annot["upstream_TSS"] = copy.deepcopy(upstream_TSS)
-                annot["downstream_TSS"] = copy.deepcopy(downstream_TSS)
-                
-                dmr_annot.append(copy.deepcopy(annot))
-            
-            self.cDMRs[chrom].annotation = (copy.deepcopy(dmr_annot))
+                annot["in_gene"] = in_gene
+                annot["in_prom"] = in_prom
+                annot["upstream_TSS"] = upstream_TSS
+                annot["downstream_TSS"] = downstream_TSS
+
+                dmr_annot.append(annot)
+
+            # store per-chromosome annotation
+            self.cDMRs[chrom].annotation = dmr_annot
             
     def permute(self, no_permutations, samples, coord):
         """Detects permuted DMRs between two groups of samples.
