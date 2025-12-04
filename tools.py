@@ -13,6 +13,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle, Polygon
 from matplotlib import patheffects as pe
 from types import SimpleNamespace
+import time
 
 """This module contains helper functions used in the RoAM process.
 """
@@ -357,145 +358,188 @@ def determine_shared_winsize(samples, chrom, coverage=[], drate=[], min_meth=0.2
         return win_size
     
 def ancient_Newton_Raphson(max_iterations, min_tol, pi, tij, nij):
-    """Solves for m when all samples are ancient
-    
+    """Solves for m when all samples are ancient (vectorized version).
+
     Input: max_iterations    maximum number of iterations
            min_tol           convergence tolerance
-           pi                deamination rates of all samples (list)
-           tij               number of Ts in sample <i>, window <j>
-           nij               number of reads in sample <i>, window <j>
-    output: m        methylation vector
-            dm       standard error of methylation
-            m0       initial guess (mainly for debugging purposes)
-    """
-    #computer useful magnitudes
-    no_samples = len(pi)
-    #change nans to 0s
-    tshape = tij.shape  # get shape to reshape vector after replacing nans
-    nshape = nij.shape
-    tij = tij.flatten("F")  # flatten to find nans
-    nij = nij.flatten("F")
-    nan_t = np.where(np.isnan(tij))[0]  # find nans
-    nan_n = np.where(np.isnan(nij))[0]
-    idx = sorted(list(set(nan_t).union(set(nan_n))))  # find union of nans
-    tij[idx] = 0  # replace nans
-    nij[idx] = 0
-    tij = np.reshape(tij, tshape, order="F")  # reshape to original vector structure
-    nij = np.reshape(nij, nshape, order="F")
-    #compute more params using matrix multiplication
-    Tpij = pi.dot(tij)
-    Npij = pi.dot(nij)
-    #compute Tj
-    Tj = np.nansum(tij,0)
-    #compute inital guess
-    m = Tj / (Npij-Tpij)
-    m0 = m[:]
-    #make iterations
-    iteration = 1
-    tol = 1
-    while iteration<max_iterations and tol>min_tol:
-        m_prev = m[:]
-        dldm = Tj/m_prev
-        d2ldm2 = -Tj/m_prev**2
-        for samp in range(no_samples):
-            dldm = dldm - (nij[samp] - tij[samp]) * pi[samp] / (1 - m_prev * pi[samp])
-            d2ldm2 = d2ldm2 - (nij[samp] - tij[samp]) * pi[samp]**2 / (1 - m_prev * pi[samp])**2
-        m = m_prev - np.nan_to_num(dldm/d2ldm2)
-        tol = np.nanmax(abs(m-m_prev)/m_prev)
-        iteration += 1
-    #compute estimaton of the variance
-    I = Tj/m**2
-    for samp in range(no_samples):
-        I = I + (nij[samp] - tij[samp]) * pi[samp]**2 / (1 - m * pi[samp])**2
-    dm = np.sqrt(1/I)
-    return (m,dm,m0)
+           pi                deamination rates of all samples (1D array-like, length = no_samples)
+           tij               number of Ts in sample <i>, window <j>   (shape: no_samples x no_positions)
+           nij               number of reads in sample <i>, window <j> (same shape)
 
-def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.05, drate=[], min_finite=1, match_histogram=True, ref=None, ref_winsize=0, max_iterations=20, tol=0.001):
+    Output: m        methylation vector (1D, length = no_positions)
+            dm       standard error of methylation (1D, length = no_positions)
+            m0       initial guess (for debugging)
+    """
+    # Cast to arrays
+    pi  = np.asarray(pi,  dtype=float)
+    tij = np.asarray(tij, dtype=float)
+    nij = np.asarray(nij, dtype=float)
+
+    # Replace NaNs in tij/nij with 0 (same logic as your flatten/union approach)
+    mask = np.isnan(tij) | np.isnan(nij)
+    if np.any(mask):
+        tij = tij.copy()
+        nij = nij.copy()
+        tij[mask] = 0.0
+        nij[mask] = 0.0
+
+    no_samples, no_pos = tij.shape
+
+    # Precompute constants
+    Tj   = np.sum(tij, axis=0)           # sum over samples
+    Tpij = pi @ tij                      # pi dot tij  -> shape (no_pos,)
+    Npij = pi @ nij                      # pi dot nij  -> shape (no_pos,)
+
+    # Initial guess m0 (same formula as before)
+    m = Tj / (Npij - Tpij)
+    m0 = m.copy()
+
+    # Precompute sample-dependent array A = nij - tij (used in every iteration)
+    A = nij - tij                        # shape (no_samples, no_pos)
+    pi_col = pi[:, None]                 # shape (no_samples, 1)
+
+    # Newton–Raphson iterations
+    iteration = 1
+    tol = 1.0
+    while iteration < max_iterations and tol > min_tol:
+        m_prev = m
+
+        # dℓ/dm = Tj / m_prev - sum_i ( (nij - tij)_ij * π_i / (1 - m_prev_j π_i) )
+        # d²ℓ/dm² = -Tj / m_prev² - sum_i ( (nij - tij)_ij * π_i² / (1 - m_prev_j π_i)² )
+        m_prev_row = m_prev[None, :]             # shape (1, no_pos)
+        den = 1.0 - pi_col * m_prev_row          # shape (no_samples, no_pos)
+
+        # Avoid noisy warnings; behaviour is controlled by nan_to_num later
+        with np.errstate(divide="ignore", invalid="ignore"):
+            term1 = A * pi_col / den             # contribution to dℓ/dm, shape (no_samples, no_pos)
+            term2 = A * (pi_col ** 2) / (den ** 2)
+
+        dldm   = Tj / m_prev - term1.sum(axis=0)
+        d2ldm2 = -Tj / (m_prev ** 2) - term2.sum(axis=0)
+
+        step = np.nan_to_num(dldm / d2ldm2)
+        m = m_prev - step
+
+        # Same convergence criterion as original: max |Δm / m_prev|
+        with np.errstate(divide="ignore", invalid="ignore"):
+            rel_change = np.abs((m - m_prev) / m_prev)
+        tol = np.nanmax(rel_change)
+
+        iteration += 1
+
+    # Fisher information I and standard error dm = sqrt(1/I)
+    m_row = m[None, :]
+    den = 1.0 - pi_col * m_row
+    with np.errstate(divide="ignore", invalid="ignore"):
+        termI = A * (pi_col ** 2) / (den ** 2)
+
+    I = Tj / (m ** 2) + termI.sum(axis=0)
+    dm = np.sqrt(1.0 / I)
+
+    return (m, dm, m0)
+
+
+def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.05,
+                       drate=[], min_finite=1, match_histogram=True, ref=None,
+                       ref_winsize=0, max_iterations=20, tol=0.001):
     """Computes pooled ancient methylation.
-    Input: samples            list of amSamples. Methylation is computed based on pooling of information from all these 
-                samples.
-           chroms             names of chromosomes (list)
-           win_size           window size for smoothing. If 'auto', a recommended value is computed for each chromosome.
-                Otherwise, it can be a scalar (used for all chromosomes) or a vector over chromosomes
-           winsize_algorithm  a dictionary with parameters required to determine window size
-           lcf                low coverage factor.
-           drate              deamination rates of each of the ancient samples. If provided, its length should match the
-                number of ancient samples.
-           min_finite         determines the minimum number of ancient samples for which we require data. The methylation
-                of a position with fewer informative samples would be NaN. if 'min_finite' is a fraction between 0 
-                and 1, it is interpreted as the minimum fraction of ancient samples for which we require data. If
-                min_finite is an integer > 1, it is interpreted as the minimum number of ancient samples for which
-                we require data
-           match_histogram    determines whether to match the histogram to that of a provided reference
-           ref                an mmSample representing a reference methylome, used for the match_histogram option.
-           ref_winsize        window size used for the reference histogram.
-           max_iterations     maximum number of iteration in the Newton-Raphson phase
-           tol                tolerance in the Newton-Raphson phase
-    Output: m                 pooled methylation. An  array, with a single entry per chromosome.
-            dm                standard error of the pooled methylation. An array matching the dimensions of m.
+
+    Input:
+        samples         list of amSamples. Methylation is computed based on pooling
+                        information from all these samples.
+        chroms          names of chromosomes (list)
+        win_size        window size for smoothing. If 'auto', a recommended value is
+                        computed for each chromosome. Otherwise, it can be a scalar
+                        (used for all chromosomes) or a vector over samples.
+        winsize_alg     dict with parameters required to determine window size
+        lcf             low coverage factor
+        drate           deamination rates of each ancient sample. If provided, its
+                        length should match the number of ancient samples.
+        min_finite      minimum number (or fraction) of ancient samples for which
+                        we require data in a position; otherwise the position is NaN.
+        match_histogram whether to match the histogram to that of a provided reference
+        ref             mmSample representing a reference methylome (for matching)
+        ref_winsize     window size used for the reference histogram
+        max_iterations  maximum number of iterations in Newton–Raphson
+        tol             convergence tolerance
+
+    Output:
+        m   list (per chromosome) of pooled methylation vectors
+        dm  list (per chromosome) of standard errors
     """
     no_samples = len(samples)
+
+    # if chroms not provided, use all chroms from first sample
     no_chroms = len(chroms)
-    is_auto_win = False
     if no_chroms == 0:
         chroms = samples[0].chr_names
         no_chroms = samples[0].no_chrs
-    
+
+    # bring drate into standard form
     if len(drate) == 0:
-        drate = np.nan*np.ones(no_samples)
+        drate = np.nan * np.ones(no_samples)
         for samp in range(no_samples):
             drate[samp] = samples[samp].d_rate["rate"]["global"]
-    
-    if type(win_size) is str and win_size == "auto":  # error without type checking
-        is_auto_win = True
-        
-    # bring parameters into standard form - win_size    
-    if is_auto_win == False:
-        if len(win_size) == 1:
-            if win_size%2 == 0:  # win size should be odd
-                win_size += 1
-            win_size = win_size * np.ones(no_chroms)
-        else:
-            for chrom in range(no_chroms):
-                if win_size[chrom]%2 == 0:
-                    win_size[chrom] += 1
-    else:
-        #determine win size here
-        win_size = []
-        for chrom in chroms:
-            win_size.append(determine_shared_winsize(samples, chrom, **winsize_alg))
-    # default reference winsize
-    if ref_winsize == 0:
-        ref_winsize = np.round(np.mean(win_size, 0))
-        for chrom in range(no_chr):
-            if not ref_winsize[chrom]%2: #win_size is even
-                ref_winsize[chrom] += 1 #make it odd
-    # bring parameters into standard form - ref
-    if ref:
-        ref.merge(False)
-        ref.scale()
-        
-    # bring parameters into standard form - drate
-    if len(drate) == 1:
+    elif len(drate) == 1:
         drate = drate * np.ones(no_samples)
-        
-    # bring parameters into standard form - lcf
-    if len(lcf) == 1:
+
+    # detect auto-win mode
+    is_auto_win = isinstance(win_size, str) and (win_size == "auto")
+
+    # bring win_size into standard form
+    if not is_auto_win:
+        win_size = np.array(win_size, copy=False)
+        if win_size.ndim == 0:  # scalar
+            w = int(win_size)
+            if w % 2 == 0:
+                w += 1
+            win_size = np.full(no_samples, w, dtype=int)
+        else:
+            win_size = win_size.astype(float)
+            for i in range(win_size.shape[0]):
+                if win_size[i] % 2 == 0:
+                    win_size[i] += 1
+            win_size = win_size.astype(int)
+    else:
+        # determine per-sample win size from winsize_alg
+        tmp = []
+        for chrom in chroms:
+            tmp.append(determine_shared_winsize(samples, chrom, **winsize_alg))
+        # here we use the same window size for all samples on a given chrom
+        # but groupDMRs passes per-sample win_size, so in practice you almost
+        # never hit this branch in your current pipeline
+        win_size = np.array(tmp, dtype=int)
+
+    # default reference winsize (used only when match_histogram is True)
+    if ref_winsize == 0:
+        # take mean over whatever win_size you gave us and ensure it's odd
+        ref_winsize = int(np.round(np.nanmean(win_size)))
+        if ref_winsize % 2 == 0:
+            ref_winsize += 1
+
+    # bring parameters into standard form – lcf
+    if np.isscalar(lcf):
         lcf = lcf * np.ones(no_samples)
-        
-    # check consistency
+
+    # check consistency of histogram matching
     if match_histogram and not ref:
         print("Histogram matching requires a reference")
         sys.exit(1)
 
+    # prepare reference once (cached on the ref object)
+    if ref:
+        if not getattr(ref, "_hist_prepared", False):
+            ref.merge(False)
+            ref.scale()
+            setattr(ref, "_hist_prepared", True)
+
     # process min_finite
     if min_finite <= 1:
-        min_finite = np.ceil(min_finite*no_samples)
-        
-    
-    m = [[] for x in range(no_chroms)]
-    dm = [[] for x in range(no_chroms)]
-    
+        min_finite = int(np.ceil(min_finite * no_samples))
+
+    m = [[] for _ in range(no_chroms)]
+    dm = [[] for _ in range(no_chroms)]
+
     # loop on chromosomes
     j = 0
     for chrom in chroms:
@@ -503,79 +547,91 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
         chr_idx = np.nan * np.ones(no_samples)
         for samp in range(no_samples):
             chr_idx[samp] = samples[samp].index([chrom])[0]
-        chr_idx = chr_idx.astype(int)  # need to be int to use as indices
-        # find number of CpG positions along the chromosome
+        chr_idx = chr_idx.astype(int)
+
+        # number of CpG positions along this chromosome
         no_positions = len(samples[0].no_t[chr_idx[0]])
+
         # compute tij and nij
-        tij = np.zeros((no_samples,no_positions))
-        nij = np.zeros((no_samples,no_positions))
+        tij = np.zeros((no_samples, no_positions))
+        nij = np.zeros((no_samples, no_positions))
         for samp in range(no_samples):
-            #[tij(samp,:), nij(samp,:)] = samples{samp}.smooth(c_idx(samp), p_alg.win_size(chr));
-            [tij[samp], nij[samp]] = samples[samp].smooth(chr_idx[samp], int(win_size[samp]))
-            # remove regions with particularly low coverage
-            #lct = findlowcoveragethreshold(nij(samp,:),p_alg.lcf(samp));
+            # smooth counts
+            [tij[samp], nij[samp]] = samples[samp].smooth(
+                chr_idx[samp],
+                int(win_size[samp])
+            )
+            # low coverage threshold
             lct = find_low_coverage_thresh(nij[samp], lcf[samp])
-            #nij(samp,nij(samp,:)<lct) = nan;
-            nij[samp][nij[samp]<lct] = np.nan
-        # estimate methylation
-        [mi, dmi, m0] = ancient_Newton_Raphson(max_iterations, tol, drate, tij, nij)
-    
-        # substitute NaNs when there are too many NaNs in the original data
+            nij[samp][nij[samp] < lct] = np.nan
+
+        # Newton–Raphson to estimate methylation
+        mi, dmi, m0 = ancient_Newton_Raphson(max_iterations, tol, drate, tij, nij)
+
+        # substitute NaNs where there are too few informative samples
         finit = np.isfinite(tij) & np.isfinite(nij)
-        finit = finit.sum(axis=0)  # this does not work for 1d array
-        mi[finit<min_finite] = np.nan  # any chance this will work?
-        #mi(finit < p_alg.min_finite) = nan;
-        
-        # modify methylation to match histogram
+        finit = finit.sum(axis=0)
+        mi[finit < min_finite] = np.nan
+
+        # histogram matching (optional)
         idx_finite = np.where(np.isfinite(mi))
         if match_histogram:
             # hard-coded parameters
             ref_bins = 100
             sig_bins = 1000
+
             # use only finite elements
             sig = [mi[x] for x in idx_finite[0]]
+
             # x-axis for reference and signal
-            ref_edges = np.linspace(0,1,ref_bins+1)
-            sig_edges = np.linspace(0,max(sig),sig_bins+1)
+            ref_edges = np.linspace(0, 1, ref_bins + 1)
+            sig_edges = np.linspace(0, max(sig), sig_bins + 1)
             ref_binwidth = ref_edges[1] - ref_edges[0]
+
             # smooth the reference
             ref_idx = ref.index([chrom])[0]
-            #vec = ref.smooth(ref_idx,win_size[j],name=chrom)[0]
-            vec = ref.smooth(ref_idx,ref_winsize,name=chrom)[0]
+            vec = ref.smooth(ref_idx, ref_winsize, name=chrom)[0]
             vec = [vec[x] for x in idx_finite[0]]
-            # generate histograms
+
+            # reference histogram
             hist = np.histogram(vec, bins=ref_edges)[0]
             N = np.sum(hist)
             c = np.cumsum(hist)
-            N_ref = c/N
+            N_ref = c / N
+
+            # signal histogram
             hist = np.histogram(sig, bins=sig_edges)[0]
             N = np.sum(hist)
             c = np.cumsum(hist)
-            N_sig = c/N
-            # generate the mapping
+            N_sig = c / N
+
+            # generate mapping
             hmap = np.zeros(sig_bins)
             for i in range(sig_bins):
-                # find closest value on the CDF
-                imin = np.argmin(abs(N_ref - N_sig[i]))
-                hmap[i] = ref_edges[imin] + 0.5*ref_binwidth
+                imin = np.argmin(np.abs(N_ref - N_sig[i]))
+                hmap[i] = ref_edges[imin] + 0.5 * ref_binwidth
+
             # make the range precisely [0,1]
             hmap = (hmap - hmap[0]) / np.ptp(hmap)
+
             # apply the mapping
-            sig1 = np.digitize(sig,sig_edges)
+            sig1 = np.digitize(sig, sig_edges)
             sig1[np.where(sig1 == len(sig_edges))] = len(sig_edges) - 1
-            tmp = [hmap[x-1] for x in sig1]
+            tmp = [hmap[x - 1] for x in sig1]
             d = dict(zip(idx_finite[0], tmp))
             for i in idx_finite[0]:
                 mi[i] = d[i]
         else:
-            #mi(idx_finite) = min(max(mi(idx_finite),0),1)
+            # clamp finite mi to [0,1]
             for x in idx_finite[0]:
-                mi[x] = min(max(mi[x],0),1)
-        
+                mi[x] = min(max(mi[x], 0), 1)
+
         m[j] = mi
         dm[j] = dmi
         j += 1
+
     return (m, dm)
+
 
 # ---------- small helpers for plot region ----------
 def _comma(n: int) -> str: return f"{n:,}"
