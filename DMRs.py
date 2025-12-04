@@ -113,10 +113,8 @@ class DMRs:
                     "end":cdmr.gen_end[dmr]
                     }
                 #reg_std = t.standardize_region(region)
-                #import cProfile
                 for samp in range(no_samples):
                     samp_meth[samp,dmr] = samples[samp].region_methylation(region, coord, standardize=False)
-                    #cProfile.runctx("samp_meth[samp,dmr] = samples[samp].region_methylation(region, coord)", globals=globals(), locals=locals(), filename="data/logs/regmeth_in_profile")
         return(samp_meth)    
     
     @staticmethod
@@ -177,15 +175,8 @@ class DMRs:
         is_ancient = [1 if type(x).__name__ == "Amsample" else 0 for x in samples]
         if all(x==0 for x in is_ancient):
             raise Exception("All samples are modern")
-        #to_remove = np.where(np.array(is_ancient) == 0)[0]
         is_meth_lcf = False
-        #if len(to_remove) != 0:  # fix--should test length of array
-        #    for x in to_remove:
-        #        del sample_groups[x]
-        #        del samples[x]
-        #    no_samples = len(samples)
-        #    print(f"In the current version, modern samples are ignored. {len(to_remove)} sample(s) removed.")
-
+        
         chromosomes = chroms if chroms else coord.chromosomes
         if type(win_size) == str and win_size == "meth":  # futurewarning--fix this and others
             is_auto_win = False
@@ -427,10 +418,8 @@ class DMRs:
             #loop on groups
             meth_stat = np.zeros((no_groups, no_pos))  # methylation statistic
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
-            for grp in range(no_groups):  
+            for grp in range(no_groups): 
                 if grp_ancient[grp][0] == 0:
-                    #mij_bar = np.zeros((len(positions[grp]), no_pos))
-                    #wij = np.zeros((len(positions[grp]), no_pos))
                     mij_bar = np.zeros((len(mod_idx), no_pos))
                     wij = np.zeros((len(mod_idx), no_pos))
                     for samp in range(len(mod_idx)):
@@ -444,11 +433,12 @@ class DMRs:
                         # Assign mm and dmm to m and dm respectively
                         meth_stat[grp, :] = mm
                         meth_err[grp, :] = dmm
-                else:  
+                else: 
                     [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
-                    #[ma, dma] = t.pooled_methylation(np.array(samples)[ancient_idx][grp], [chromosomes[chrom]], win_size=win_size[ancient_idx[grp],chrom], lcf=lcf[ancient_idx][grp], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                     meth_err[grp,:] = dma[0]  # ditto
+                
+                
             # compute the two statistics
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
@@ -496,12 +486,7 @@ class DMRs:
             cdm[chrom].chromosome = chromosomes[chrom]
             # compute methylation in each sample
             samp_meth = np.zeros((len(samples),cdm[chrom].no_DMRs))
-            #import cProfile
-            #cProfile.runctx("samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)", globals=globals(), locals=locals(), filename="data/logs/regmeth_profile")
             samp_meth = self.get_region_meth(cdm[chrom], no_samples, samples, samp_meth, coord)
-            #meth = np.array(cdm[chrom].methylation)
-            #meth = np.transpose(meth)
-            #samp_meth = np.insert(samp_meth,0,meth,axis=0)
             cdm[chrom].methylation = samp_meth
             # Filter DMR list by within-group variance
             mpor = 0.7    # hardcoded parameter
@@ -549,6 +534,7 @@ class DMRs:
                 cdm[chrom].methylation = np.array([np.array(cdm[chrom].methylation[x])[idx] for x in range(len(cdm[chrom].methylation))])  
                 cdm[chrom].no_DMRs = len(idx)
                 cdm[chrom].grp_methylation_statistic = np.array(cdm[chrom].grp_methylation_statistic)[idx]
+            
             if report:
                 print(f"\tdetected {cdm[chrom].no_DMRs} DMRs")
                 fid.write(f"\tdetected {cdm[chrom].no_DMRs} DMRs\n")
