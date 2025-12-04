@@ -423,10 +423,8 @@ class DMRs:
                     mij_bar = np.zeros((len(mod_idx), no_pos))
                     wij     = np.zeros((len(mod_idx), no_pos))   # will store v_ij (variance)
                     cij     = np.zeros((len(mod_idx), no_pos))   # coverage c_ij
-
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
-<<<<<<< HEAD
                         if win_mod == 1:
                             MIN_VAR = 0.01**2
                             meth_vec = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
