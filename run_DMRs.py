@@ -146,7 +146,7 @@ if "DMR" in stages or "fdr" in stages:
     else:
         mms.create_mms_from_text_file(modern)
 if "DMR" in stages:
-    import cProfile
+    #import cProfile
     ref = False if parameters["noref"] else config["basic"].getboolean("ref")
     if ref:
         ref = mms
