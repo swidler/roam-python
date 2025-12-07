@@ -207,7 +207,7 @@ if "fdr" in stages:
         for chrom in range(mms_cp.no_chrs):
             chr = mms_cp.chr_names[chrom]
             # run hist-matching
-            sref.methylation[chrom] = samp.match_hist(samp.index([chr])[0], sref)
+            sref.methylation[chrom] = samp.match_hist(chr, sref)
         print("Average methylation in ", samp.name, "ref:", np.nanmean(np.concatenate(sref.methylation).ravel()))
         refd[samp.name] = sref
         del(sref)
@@ -218,7 +218,7 @@ if "fdr" in stages:
         for chrom in range(mms_cp.no_chrs):
             chr = mms_cp.chr_names[chrom]
             # run hist-matching
-            sref.methylation[chrom] = samp.match_hist(samp.index([chr])[0], sref)
+            sref.methylation[chrom] = samp.match_hist(chr, sref)
         print("Average methylation in ", samp.name, "ref:", np.nanmean(np.concatenate(sref.methylation).ravel()))
         mod_refd[samp.name] = sref
         del(sref)

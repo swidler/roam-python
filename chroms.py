@@ -28,58 +28,6 @@ class Chrom:
         return result
 
 
-    def basic_match_hist(target, query, qbins=1000, tbins=1000):
-        """
-        Matches methylation in `query` to the distribution of `target` on a chromosome.
-
-        Input:
-            target  vector of methylation values (e.g., sample), assumed in [0, 1]
-            query   vector of methylation values to be transformed (e.g., reference)
-        Output:
-            Vector of methylation values for `query` after histogram-matching to `target`.
-            Same shape as `query`.
-        """
-        target = np.asarray(target, dtype=float)
-        query  = np.asarray(query,  dtype=float)
-
-        idx_finite = np.where(np.isfinite(query))
-        if idx_finite[0].size == 0:
-            # nothing to do
-            return np.full_like(query, np.nan, dtype=float)
-        qmeth = query[idx_finite]
-        tmeth = target[idx_finite]
-        qedges = np.linspace(0, np.nanmax(qmeth), qbins + 1)
-        tedges = np.linspace(0, 1.0, tbins + 1)
-        tbinwidth = tedges[1] - tedges[0]
-        # CDF of query
-        hist, _ = np.histogram(qmeth, bins=qedges)
-        N = hist.sum()
-        qN = np.cumsum(hist) / N
-        # CDF of target
-        hist, _ = np.histogram(tmeth, bins=tedges)
-        N = hist.sum()
-        tN = np.cumsum(hist) / N
-        # build mapping: for each query-quantile, find closest target-quantile
-        hmap = np.zeros(qbins)
-        for i in range(qbins):
-            imin = np.argmin(np.abs(tN - qN[i]))
-            hmap[i] = tedges[imin] + 0.5 * tbinwidth
-        # normalize hmap to [0, 1]
-        if np.ptp(hmap) > 0:
-            hmap = (hmap - hmap[0]) / np.ptp(hmap)
-        else:
-            # degenerate case: all values same
-            hmap[:] = hmap[0]
-
-        # apply mapping
-        q_bins_idx = np.digitize(qmeth, qedges)
-        q_bins_idx[q_bins_idx == len(qedges)] = len(qedges) - 1
-        mapped = np.array([hmap[i - 1] for i in q_bins_idx])
-        methi = np.full_like(query, np.nan, dtype=float)
-        methi[idx_finite] = mapped
-        return(methi)
-
-
     def match_hist(self, chrom, ref):
         """ Wrapper: histogram-match the reference (ref) to this sample on a given chromosome. 
 
@@ -105,5 +53,5 @@ class Chrom:
         refmeth = t.nansmooth(ref.methylation[refidx], win_size, "same")[0]
 
         # match ref (query) to sample (target)
-        methi = basic_match_hist(target=meth, query=refmeth)
+        methi = t.basic_match_hist(target=meth, query=refmeth)
         return(methi)
