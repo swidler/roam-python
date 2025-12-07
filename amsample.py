@@ -995,7 +995,7 @@ class Amsample(Chrom):
         #close file
         fid.close()
 
-    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1):
+    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1, report=True):
         """Estimates deamination rate
         
         Input: method        the method used to perform the estimation. Can be one of:
@@ -1056,7 +1056,7 @@ class Amsample(Chrom):
         
         #verify reference is merged and scaled
         if method == "reference":
-            meth_params["ref"].merge() #ref should be type mms, so this should work
+            meth_params["ref"].merge(report=report) #ref should be type mms, so this should work
             meth_params["ref"].scale()
         
         #initialize
@@ -1152,7 +1152,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto"):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto", report=True):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1245,7 +1245,7 @@ class Amsample(Chrom):
             #compute methylation
             c_to_t = no_t/no_ct
             if function == "histogram":
-                ref.merge()
+                ref.merge(report=report)
                 ref.scale()
                 # hard-coded parameters
                 ref_bins = 100
@@ -1297,7 +1297,7 @@ class Amsample(Chrom):
             meth.append(methi)
         self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
-    def simulate(self, mms, chrom=None):
+    def simulate(self, mms, chrom=None, report=True):
         """Simulates Cs and Ts of ancient DNA based on the degradation rate and coverage of Amsample object,
             assuming a methylation given by Mmsample object.
         
@@ -1312,7 +1312,7 @@ class Amsample(Chrom):
 
         #make sure methylation in {mms} is scaled to [0,1]
         mms.scale()
-        mms.merge()
+        mms.merge(report=report)
         degrad_rate = self.d_rate["rate"]["global"]
         #parameters needed for the simulation
         meth_map = mms.get_methylation(chrom=chrom)[1]

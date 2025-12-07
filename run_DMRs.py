@@ -40,6 +40,7 @@ argParser.add_argument("-mb", "--min_bases", type=int, help="DMRs shorter than m
 argParser.add_argument("-mad", "--max_adj_dist", type=int, help="max distance between adjacent CpGs within the same DMR")
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="minimum number of ancient samples for which we require data")
 argParser.add_argument("-w", "--win_size", help="window size for smoothing")
+argParser.add_argument("-wm", "--win_mod", type=int, help="window size for smoothing for modern samples")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr")
 argParser.add_argument("-th", "--thresh", type=float, help="FDR threshold")
@@ -58,7 +59,6 @@ argParser.add_argument("-an", "--noannot", help="flag for running annotation", a
 argParser.add_argument("-pr", "--propinf", type=float, help="Minimum fraction of informative samples per group in DMR")
 argParser.add_argument("-sc", "--min_dmrcov", type=int, help="Minimum mean coverage per CpG at DMR per sample")
 argParser.add_argument("-wi", "--widenby", type=int, help="Flanking region size in bp for individual DMR plot")
-
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -105,6 +105,7 @@ report = False if parameters["noreport"] else config["options"].getboolean("repo
 annot = False if parameters["noannot"] else config["options"].getboolean("annot")
 por = parameters["propinf"] if "propinf" in parameters else float(config["basic"]["por"])
 mcpc = parameters["min_dmrcov"] if "min_dmrcov" in parameters else config["basic"].getint("mcpc")
+win_mod = parameters["win_mod"] if "win_mod" in parameters else config["basic"].getint("win_mod")
 
 if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
@@ -152,7 +153,7 @@ if "DMR" in stages:
         ref = mms
     min_finite = min_fin[:]
     logfile = log_dir + f"DMR_log_{time}.txt"
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -227,10 +228,10 @@ if "fdr" in stages:
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
         for sample in samplist:
-            print(f"sample {sample.name}, perm {perm}\n")
+            print(f"\nsample {sample.name}, perm {perm}\n")
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
-            samp_copy.simulate(refd[sample.name])    #sim
+            samp_copy.simulate(refd[sample.name], report=False)    #sim
             method = sample.d_rate["method"]
             min_cov = int(sample.d_rate["min_coverage"])
             d_params = {}
@@ -239,7 +240,7 @@ if "fdr" in stages:
                 d_params["min_beta"] = sample.d_rate["min_beta"]
             else:
                 d_params["global_meth"] = sample.d_rate["global_meth"]
-            samp_copy.estimate_drate(method=method, min_cov=min_cov, **d_params)
+            samp_copy.estimate_drate(method=method, min_cov=min_cov, report=False, **d_params)
             method = sample.methylation["algorithm"]
             win_size = sample.methylation["win_size"]
             lcf = sample.methylation["lcf"]
@@ -250,7 +251,7 @@ if "fdr" in stages:
                 m_params["slope"] = sample.methylation["slope"]
                 if method == "linear" or method == "lin":
                     m_params["intercept"] = sample.methylation["intercept"]
-            samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, **m_params)
+            samp_copy.reconstruct_methylation(ref=mms, function=method, win_size=win_size, lcf=lcf, report=False, **m_params)
             #dump object to text file
             sim_obj_list[samp_name] = samp_copy
             del samp_copy  # will this fix memory errors?
@@ -268,7 +269,7 @@ if "fdr" in stages:
         #    ref = mms
         #min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     print(f"Running fdr calculation on DMR_obj_{time}")
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)

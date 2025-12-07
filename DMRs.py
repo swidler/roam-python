@@ -131,7 +131,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=1, mcpc=3, por=0.667):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, mcpc=3, por=0.667):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -426,6 +426,7 @@ class DMRs:
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
                         if win_mod == 1:
+                            print("Modern group: using win_mod=1, no smoothing", chromosomes[chrom])
                             MIN_VAR = 0.01**2
                             meth_vec = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
                             cov_vec  = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
@@ -450,6 +451,7 @@ class DMRs:
                             # store variances v_ij
                             wij[samp][valid] = variance[valid]
                         else:
+                            print("Modern group: using win_mod=", win_mod, "with smooth()", chromosomes[chrom])
                             winsize = int(win_size[mod_idx[samp], idx_chrom])
                             mij_bar[samp], inv_var = samples[mod_idx[samp]].smooth(idx_chrom, [winsize])
 
@@ -482,6 +484,7 @@ class DMRs:
                     meth_err[grp, :]  = dmm
 
                 else:  
+                    print("Ancient group:", chromosomes[chrom])
                     [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                     meth_err[grp,:] = dma[0]  # ditto

@@ -589,6 +589,7 @@ def pooled_methylation(samples, chroms, win_size="auto", winsize_alg={}, lcf=0.0
             ref_binwidth = ref_edges[1] - ref_edges[0]
 
             # smooth the reference
+            print("smoothing the reference with window:", ref_winsize)
             ref_idx = ref.index([chrom])[0]
             vec = ref.smooth(ref_idx, ref_winsize, name=chrom)[0]
             vec = [vec[x] for x in idx_finite[0]]
