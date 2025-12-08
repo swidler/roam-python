@@ -1244,13 +1244,14 @@ class DMRs:
         plt.ylabel("Methylation")
         
         # beautify
+        meth_stats = self.cDMRs[chrom].grp_methylation_statistic[DMR_idx, :]
         gs = np.cumsum(np.array([len(x) for x in self.groups["positions"]]))
         gs = -0.5 + np.insert(gs, 0, 0)
         for x in range(1,len(gs)):
             if x < len(gs)-1:
                 plt.vlines(gs[x],0,1)
             plt.text(0.5*(gs[x-1]+gs[x]), 1.03, self.groups["group_names"][x-1], ha="center")
-            plt.hlines(meth_groups[x-1], gs[x-1], gs[x], linestyles="dotted", linewidths=1)
+            plt.hlines(meth_stats[x-1], gs[x-1], gs[x], linestyles="dotted", linewidths=1)
         #plt.show()
         plt.savefig(fname)
         
