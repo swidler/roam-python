@@ -554,6 +554,7 @@ class DMRs:
             mincov = np.array([cc*mcpc for cc in cdm[chrom].no_CpGs])    # min required coverage per CpG
             for grp in range(len(giS)):
                 ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
+                print(f"Requiring {ms} informative samples in group {grp}")
                 counti = np.zeros(len(cdm[chrom].no_CpGs))    # will count the number of informative samples in group per DMR
                 if grp_ancient[grp][0] == 0:    # if modern
                     for samp in giS[grp]:
