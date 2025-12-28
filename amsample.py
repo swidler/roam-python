@@ -1177,6 +1177,24 @@ class Amsample(Chrom):
         Output: Amsample object with udpated methylation field.
         """
         no_chr = self.no_chrs
+            # ── Prepare reference + constants for histogram mode (once) ──
+        if function == "histogram":
+            if not ref:
+                raise Exception("Histogram-based reconstruction requires a reference (ref) methylome")
+
+            # prepare ref only once
+            ref.merge()
+            ref.scale()
+
+            # hard-coded histogram parameters
+            ref_bins = 100
+            sig_bins = 1000
+            ref_edges = np.linspace(0, 1, ref_bins + 1)
+            ref_binwidth = ref_edges[1] - ref_edges[0]
+
+            # cache smoothed reference per (chr_name, win_size)
+            if not hasattr(ref, "_recon_smooth_cache"):
+                ref._recon_smooth_cache = {}
         if isinstance(slope, np.ndarray):
             if len(slope) == 0:
                 slope=[1/self.d_rate["rate"]["global"]]
@@ -1225,69 +1243,84 @@ class Amsample(Chrom):
                 print(f"Computing methylation in chrom #{chrom+1}")  # does this work with partial chrom list?
             #get smoothed No_Ts and No_CTs
             (no_t, no_ct) = self.smooth(chrom, int(win_size[chrom]))
-            #remove regions with particularly low coverage
+            # remove regions with particularly low coverage
             lct = t.find_low_coverage_thresh(no_ct, lcf)
-            #LOOK MORE LOCALLY
+
+            # LOOK MORE LOCALLY
+            no_ct = np.asarray(no_ct, dtype=float)
+
             if local_win_size == "skip":
-                no_ct = [np.nan if x < lct else x for x in no_ct]
+                # simple global cutoff
+                no_ct[no_ct < lct] = np.nan
             else:
+                # determine local window size
                 if local_win_size == "auto":
-                    local_win = np.ceil((win_size[chrom]-1)/3) //2 *2 +1 ## window third of the size of original window
+                    # window ~1/3 of original size, forced to be odd
+                    local_win = np.ceil((win_size[chrom] - 1) / 3) // 2 * 2 + 1
                 else:
                     local_win_size = int(local_win_size)
-                    if not local_win_size%2: # should be odd
+                    if not local_win_size % 2:    # should be odd
                         local_win = local_win_size + 1
                     else:
-                         local_win =  local_win_size
-                mno_ct = np.array(self.smooth(chrom, int(local_win))[1]) ## no_ct smoothed over a local window
-                no_ct = [np.nan if ((mno_ct[i] < np.ceil(lct/win_size[chrom])) | (no_ct[i] < lct)) else no_ct[i] for i in range(len(no_ct))]
-                
+                        local_win = local_win_size
+
+                # local smoothed CT
+                mno_ct = np.array(self.smooth(chrom, int(local_win))[1])
+                cov_cut = np.ceil(lct / win_size[chrom])
+                bad_cov = (mno_ct < cov_cut) | (no_ct < lct)
+                no_ct[bad_cov] = np.nan
             #compute methylation
             c_to_t = no_t/no_ct
             if function == "histogram":
-                ref.merge()
-                ref.scale()
-                # hard-coded parameters
-                ref_bins = 100
-                sig_bins = 1000
                 # use only finite elements
                 idx_finite = np.where(np.isfinite(c_to_t))
-                sig = [c_to_t[x] for x in idx_finite[0]]
-                #sig = c_to_t[idx_finite]  # !!
-                # x-axis for reference and signal
-                ref_edges = np.linspace(0,1,ref_bins+1)
-                sig_edges = np.linspace(0,max(sig),sig_bins+1)
-                ref_binwidth = ref_edges[1] - ref_edges[0]
-                # smooth the reference
-                vec = ref.smooth(None,win_size[chrom],name=self.chr_names[chrom])[0]
-                vec = [vec[x] for x in idx_finite[0]]
-                # generate histograms
-                hist = np.histogram(vec, bins=ref_edges)[0]
-                N = np.sum(hist)
-                c = np.cumsum(hist)
-                N_ref = c/N
-                hist = np.histogram(sig, bins=sig_edges)[0]
-                N = np.sum(hist)
-                c = np.cumsum(hist)
-                N_sig = c/N
-                # generate the mapping
-                hmap = np.zeros(sig_bins)
-                for i in range(sig_bins):
-                    # find closest value on the CDF
-                    imin = np.argmin(abs(N_ref - N_sig[i]))
-                    hmap[i] = ref_edges[imin] + 0.5*ref_binwidth
-                # make the range precisely [0,1]
-                hmap = (hmap - hmap[0]) / np.ptp(hmap)
-                # apply the mapping
-                sig1 = np.digitize(sig,sig_edges)
-                sig1[np.where(sig1 == len(sig_edges))] = len(sig_edges) - 1
-                methi = np.empty(len(c_to_t))
-                methi[:] = np.nan
-                tmp = [hmap[x-1] for x in sig1]
-                d = dict(zip(idx_finite[0], tmp))
-                for i in idx_finite[0]:
-                    methi[i] = d[i]
-                            
+                if idx_finite[0].size == 0:
+                    # nothing to map – all NaNs
+                    methi = np.empty(len(c_to_t))
+                    methi[:] = np.nan
+                else:
+                    sig = c_to_t[idx_finite]
+                    # x-axis for signal
+                    sig_edges = np.linspace(0, np.max(sig), sig_bins + 1)
+
+                    # smooth reference for this chromosome & window size, with caching
+                    chr_name = self.chr_names[chrom] if self.chr_names else f"chrom_{chrom+1}"
+                    key = (chr_name, int(win_size[chrom]))
+                    cache = ref._recon_smooth_cache
+                    if key in cache:
+                        vec = cache[key]
+                    else:
+                        vec = ref.smooth(None, int(win_size[chrom]), name=chr_name)[0]
+                        vec = np.asarray(vec, dtype=float)
+                        cache[key] = vec
+
+                    vec = vec[idx_finite]
+
+                    # reference histogram + CDF
+                    hist = np.histogram(vec, bins=ref_edges)[0]
+                    N_ref = np.cumsum(hist) / np.sum(hist)
+
+                    # signal histogram + CDF
+                    hist_sig = np.histogram(sig, bins=sig_edges)[0]
+                    N_sig = np.cumsum(hist_sig) / np.sum(hist_sig)
+
+                    # generate mapping hmap: each signal CDF value → ref quantile
+                    hmap = np.zeros(sig_bins)
+                    for i in range(sig_bins):
+                        imin = np.argmin(np.abs(N_ref - N_sig[i]))
+                        hmap[i] = ref_edges[imin] + 0.5 * ref_binwidth
+
+                    # make the range precisely [0,1]
+                    hmap = (hmap - hmap[0]) / np.ptp(hmap)
+
+                    # apply mapping
+                    sig1 = np.digitize(sig, sig_edges)
+                    sig1[sig1 == len(sig_edges)] = len(sig_edges) - 1
+
+                    methi = np.empty(len(c_to_t))
+                    methi[:] = np.nan
+                    mapped = hmap[sig1 - 1]
+                    methi[idx_finite] = mapped
             elif function == "logistic" or function == "log":
                 methi = np.tanh(slope[chrom]*c_to_t)
             elif function == "linear" or function == "lin":
