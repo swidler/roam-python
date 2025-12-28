@@ -96,26 +96,91 @@ class DMRs:
 
     @staticmethod
     def get_region_meth(cdmr, no_samples, samples, samp_meth, coord):
-        """Finds methylation for each DMR in each sample
-        
-        Input: cdmr        cDMR object for 1 chrom
-               no_samples  number of samples
-               samples     list of sample (Amsample or Mmsample) objects
-               samp_meth   2 dimensional zero array of size no_samples by num DMRs in this chrom
-               coord       Gcoordinates object
-        Output: populated samp_meth array
+        """Finds methylation for each DMR in each sample, using CpG indices
+        instead of calling region_methylation for every (sample, DMR) pair.
+
+        For the FDR pipeline (where reconstruct_methylation has already been
+        run on ancient samples), this is equivalent to:
+            np.nanmean( per-CpG methylation over [CpG_start:CpG_end] )
+
+        Input:
+            cdmr        cDMR object for 1 chromosome
+            no_samples  number of samples
+            samples     list of sample (Amsample or Mmsample) objects
+            samp_meth   2D array [no_samples x no_DMRs], filled in-place
+            coord       Gcoordinates object (kept for API compatibility)
+
+        Output:
+            samp_meth   populated array [no_samples x no_DMRs]
         """
-        for dmr in range(cdmr.no_DMRs):
-                #region = f"{cdmr.chromosome}:{cdmr.gen_start[dmr]}-{cdmr.gen_end[dmr]}"
-                region = {
-                    "chrom":cdmr.chromosome,
-                    "start":cdmr.gen_start[dmr],
-                    "end":cdmr.gen_end[dmr]
+        import numpy as np
+
+        chrom_name = cdmr.chromosome
+        n_dmrs     = cdmr.no_DMRs
+
+        # CpG_start / CpG_end are indices into the CpG coordinate array for this chrom
+        starts = np.asarray(cdmr.CpG_start, dtype=int)
+        ends   = np.asarray(cdmr.CpG_end,   dtype=int)
+
+        if len(starts) != n_dmrs or len(ends) != n_dmrs:
+            raise ValueError(
+                f"Length of CpG_start ({len(starts)}) / CpG_end ({len(ends)}) "
+                f"does not match no_DMRs ({n_dmrs}) for chromosome {chrom_name}"
+            )
+
+        for s in range(no_samples):
+            sample = samples[s]
+
+            # ---- get per-CpG methylation vector for this sample & chromosome ----
+            # This mirrors region_methylation, which uses sample.get_methylation(chrom_name)
+            try:
+                meth_tuple = sample.get_methylation(chrom_name)
+            except AttributeError:
+                # Fallback to the original behavior if needed (e.g. very old paths
+                # where get_methylation is not defined). This preserves robustness
+                # outside the FDR pipeline.
+                for dmr in range(n_dmrs):
+                    region = {
+                        "chrom": chrom_name,
+                        "start": cdmr.gen_start[dmr],
+                        "end":   cdmr.gen_end[dmr],
                     }
-                #reg_std = t.standardize_region(region)
-                for samp in range(no_samples):
-                    samp_meth[samp,dmr] = samples[samp].region_methylation(region, coord, standardize=False)
-        return(samp_meth)    
+                    samp_meth[s, dmr] = sample.region_methylation(
+                        region, coord, standardize=False
+                    )
+                continue
+
+            # meth_tuple is typically (coords, meth_vec)
+            meth_vec = np.asarray(meth_tuple[1], dtype=float)
+
+            # ---- compute region means ignoring NaNs, via cumulative sums ----
+            finite_mask = np.isfinite(meth_vec)
+            vals        = np.where(finite_mask, meth_vec, 0.0)
+            counts      = finite_mask.astype(np.int64)
+
+            cs_vals   = np.cumsum(vals)
+            cs_counts = np.cumsum(counts)
+
+            prev_idx   = starts - 1
+            valid_prev = prev_idx >= 0
+
+            # sum of methylation in each region
+            sum_region = cs_vals[ends].copy()
+            sum_region[valid_prev] -= cs_vals[prev_idx[valid_prev]]
+
+            # number of non-NaN CpGs in each region
+            cnt_region = cs_counts[ends].copy()
+            cnt_region[valid_prev] -= cs_counts[prev_idx[valid_prev]]
+
+            # avoid division by zero; replicate np.nanmean semantics
+            with np.errstate(divide="ignore", invalid="ignore"):
+                mean_region = sum_region / cnt_region
+            mean_region[cnt_region == 0] = np.nan
+
+            samp_meth[s, :] = mean_region
+
+        return samp_meth
+
     
     @staticmethod
     def get_regions(cdmr):
@@ -413,6 +478,7 @@ class DMRs:
             if report:
                 print(f"Processing chromosome {chromosomes[chrom]}")
                 fid.write(f"Processing chromosome {chromosomes[chrom]}\n")
+
             #get number of positions along the chrom
             no_pos = len(coord.coords[coord.index([chromosomes[chrom]])[0]])  # in case of diff chrom order
             #loop on groups
@@ -437,8 +503,6 @@ class DMRs:
                     [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                     meth_err[grp,:] = dma[0]  # ditto
-                
-                
             # compute the two statistics
             meth_stat[meth_stat>1] = 1
             diffi = meth_stat[0] - meth_stat[1]  # since there must be exactly 2 groups
