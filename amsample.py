@@ -26,74 +26,98 @@ class Amsample(Chrom):
         
     An amsample object is created (with empty defaults): ams = Amsample(). The attributes can then be populated.
     """
-    def __init__(self, name="unknown", species="unknown", reference="", library="", chr_names=[], coord_per_position="", no_a = [], no_c = [], no_g = [], no_t = [], g_to_a = [], c_to_t = [], diagnostics = {}, p_filters = {}, is_filtered = False, is_simulated = False, methylation={}, d_rate = {}, metadata=[]):
-        self.name = name
-        self.species = species
+    def __init__(self, name="unknown", species="unknown", reference="",
+                 library="", chr_names=None, coord_per_position="",
+                 no_a=None, no_c=None, no_g=None, no_t=None,
+                 g_to_a=None, c_to_t=None,
+                 diagnostics=None, p_filters=None,
+                 is_filtered=False, is_simulated=False,
+                 methylation=None, d_rate=None, metadata=None):
+
+        self.name      = name
+        self.species   = species
         self.reference = reference
-        self.library = library
-        self.chr_names = chr_names
+        self.library   = library
+
+        self.chr_names = [] if chr_names is None else list(chr_names)
         self.coord_per_position = coord_per_position
-        self.no_a = copy.deepcopy(no_a)  # if these are just assigned (not copied), when creating 2 objects, these
-        self.no_c = copy.deepcopy(no_c)  # elements will be identical and changing one will change the other
-        self.no_g = copy.deepcopy(no_g)
-        self.no_t = copy.deepcopy(no_t)
-        self.g_to_a = copy.deepcopy(g_to_a)
-        self.c_to_t = copy.deepcopy(c_to_t)
-        self.diagnostics = copy.deepcopy(diagnostics)
-        self.p_filters = copy.deepcopy(p_filters)
+
+        self.no_a   = [] if no_a   is None else list(no_a)
+        self.no_c   = [] if no_c   is None else list(no_c)
+        self.no_g   = [] if no_g   is None else list(no_g)
+        self.no_t   = [] if no_t   is None else list(no_t)
+        self.g_to_a = [] if g_to_a is None else list(g_to_a)
+        self.c_to_t = [] if c_to_t is None else list(c_to_t)
+
+        self.diagnostics = {} if diagnostics is None else dict(diagnostics)
+        self.p_filters   = {} if p_filters   is None else dict(p_filters)
         self.is_filtered = is_filtered
         self.is_simulated = is_simulated
-        self.methylation = copy.deepcopy(methylation)
-        self.d_rate = copy.deepcopy(d_rate)
-        self.metadata = copy.deepcopy(metadata)
-        self.no_chrs = len(chr_names)
+
+        self.methylation = {} if methylation is None else dict(methylation)
+        self.d_rate      = {} if d_rate      is None else dict(d_rate)
+        self.metadata    = [] if metadata    is None else list(metadata)
+
+        self.no_chrs = len(self.chr_names)
 
     def __repr__(self): #defines print of object
         return "name: %s\nspecies: %s\nreference: %s\nlibrary: %s\nchr_names: %s\ncoord_per_position: %s\nno_a: %s\nno_c: %s\nno_g: %s\nno_t: %s\ng_to_a: %s \nc_to_t: %s\ndiagnostics: %s\np_filters: %s\nis_filtered: %s\nis_simulated: %s\nmethylation: %s\nd_rate: %s\nmetadata: %s\nno_chrs: %s" % (self.name, self.species, self.reference, self.library, self.chr_names, self.coord_per_position, self.no_a, self.no_c, self.no_g, self.no_t, self.g_to_a, self.c_to_t, self.diagnostics, self.p_filters, self.is_filtered, self.is_simulated, self.methylation, self.d_rate, self.metadata, self.no_chrs)
 
     @staticmethod
     def find_indel(cig, seq, qual):
-        """Adjusts sequence and quality values based on CIGAR string
-        
-        Input: CIGAR, query sequence, query quality (all lists)
-        
-        Output: new values for query sequence and query quality (lists)
+        """Adjusts sequence and quality values based on CIGAR string.
+
+        Input:
+            cig  : list of (op, length) CIGAR tuples (as from pysam)
+            seq  : query sequence (string)
+            qual : quality mask/list (0/1) aligned to seq
+
+        Output:
+            (seq_new, qual_new) with insertions removed, deletions padded with '0'
+            and soft-clipped reads zeroed out.
         """
-        types = {0:"M", 1:"I", 2:"D", 3:"N", 4:"S"}
-        start = 0
-        cig_vals = []
-        seq_new = ""
         seq_old = seq
-        qual_new = []
-        for element in cig:
-            cat = types[element[0]]
-            val = element[1]
-            cig_vals.append(str(val)+cat)
-        cig_string = "".join(cig_vals)
-        for val in cig_vals:
-            cat = val[-1]
-            val = int(val[:-1])
-            if cat == "M":
-                seq_new += seq[0:val]
-                seq = seq[val:]
-                qual_new.append(qual[:val])
-                qual = qual[val:]
-            elif cat == "S":
-                seq_new = seq_old
-                qual_new = [0 for x in range(len(seq_new))]  # throw out soft-clipped reads by making qual = 0 for each pos
-                return(seq_new, qual_new)
-            elif cat == "I":
-                seq = seq[val:]
-                qual = qual[val:]  # commented till temp bug removed
-                continue
-            elif cat == "D" or cat == "N":
-                size = val
-                seq_new += "0"*size
-                qual_new.append([0 for x in range(size)])
-        #if "I" in cig_string:
-            #qual_new = qual_new[0:len(seq_new)]  # temporarily adding a bug to match matlab code
-        qual_new = [x for y in qual_new for x in y]  # flatten list
-        return(seq_new, qual_new)
+        seq_new_parts = []
+        qual_new_parts = []
+
+        # qual may be a list or numpy array; we want list-like slicing
+        # if it's numpy, slicing still works; we only convert back at the caller.
+        for op, length in cig:
+            # pysam CIGAR op codes:
+            # 0: M, 1: I, 2: D, 3: N, 4: S
+            if op == 0:  # M: alignment match (keep)
+                seq_new_parts.append(seq[:length])
+                qual_new_parts.append(qual[:length])
+                seq = seq[length:]
+                qual = qual[length:]
+            elif op == 4:  # S: soft clip
+                # throw out soft-clipped reads by zeroing all qual
+                return seq_old, [0] * len(seq_old)
+            elif op == 1:  # I: insertion to the reference (skip)
+                # skip inserted bases/quals
+                seq = seq[length:]
+                qual = qual[length:]
+            elif op == 2 or op == 3:  # D or N: deletion / skipped region in reference
+                # pad with zeros for deleted/skipped reference positions
+                seq_new_parts.append("0" * length)
+                qual_new_parts.append([0] * length)
+            else:
+                # other op types (H, P, =, X, etc.) are very rare here.
+                # To mimic the old behavior (which only knew 0–4),
+                # we conservatively skip over query-consuming ops, if any.
+                # For non-query-consuming ops, we just ignore.
+                # Here we treat them as skipping length bases in seq/qual.
+                seq = seq[length:]
+                qual = qual[length:]
+
+        # flatten
+        seq_new = "".join(seq_new_parts)
+        qual_flat = []
+        for block in qual_new_parts:
+            qual_flat.extend(block)
+
+        return seq_new, qual_flat
+
 
     def process_bam(self, bam, chrom_name, chrom, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, bam_chrom):
         """Goes over bam files to extract data
@@ -102,47 +126,58 @@ class Amsample(Chrom):
         corrupt_reads = 0
         low_mapq_reads = 0
         reads_long_cigar = 0
+        skipped_oob     = 0
+        unmapped_reads  = 0
+        duplicate_reads = 0
         long_cigar_not_i_d = 0
         xflag = 0
         date = datetime.datetime.now()
         date = date.strftime("%c")
         print(f"Starting chromosome {chrom_name}: {date}")
         chrom_bam = bam.fetch(chrom_name)
-        tot_a_plus = np.zeros(chr_lengths[bam_chrom])
-        tot_a_minus = np.zeros(chr_lengths[bam_chrom])
-        tot_g_plus = np.zeros(chr_lengths[bam_chrom])
-        tot_g_minus = np.zeros(chr_lengths[bam_chrom])
-        tot_c_plus = np.zeros(chr_lengths[bam_chrom])
-        tot_c_minus = np.zeros(chr_lengths[bam_chrom])
-        tot_t_plus = np.zeros(chr_lengths[bam_chrom])
-        tot_t_minus = np.zeros(chr_lengths[bam_chrom])
+        n_bp = chr_lengths[bam_chrom]
+        
+        tot_a_plus  = np.zeros(n_bp, dtype=np.uint32)
+        tot_a_minus = np.zeros(n_bp, dtype=np.uint32)
+        tot_g_plus  = np.zeros(n_bp, dtype=np.uint32)
+        tot_g_minus = np.zeros(n_bp, dtype=np.uint32)
+        tot_c_plus  = np.zeros(n_bp, dtype=np.uint32)
+        tot_c_minus = np.zeros(n_bp, dtype=np.uint32)
+        tot_t_plus  = np.zeros(n_bp, dtype=np.uint32)
+        tot_t_minus = np.zeros(n_bp, dtype=np.uint32)
         cpg_chrom = chrom_name
         cpg_plus = gc.coords[bam_chrom]-1
         cpg_minus = gc.coords[bam_chrom]
         for read in chrom_bam:
             if read.is_unmapped:
-                print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
+                #print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
+                unmapped_reads += 1
+                continue
+            mapq = read.mapping_quality
+            if mapq < mapq_thresh:
+                low_mapq_reads += 1
+                continue  
+            if read.is_duplicate:  # new in python script--matlab didn't skip duplicates
+                duplicate_reads += 1
                 continue
             seq = read.query_sequence
             cig = read.cigar
-            flag = read.flag
-            mapq = read.mapping_quality
-            qual = read.query_qualities[:]  # copy, so as not to change in object
-            qual = [1 if x>qual_thresh else 0 for x in qual]
             pos = read.reference_start
             strand = "-" if read.is_reverse else "+"
-            if mapq < mapq_thresh:
-                low_mapq_reads += 1
-                continue
+            # original qualities -> numpy array
+            qual = np.array(read.query_qualities, dtype=np.uint8)  # or int16/32, doesn’t matter much
+            # threshold to 0/1 mask
+            qual = (qual > qual_thresh).astype(np.uint32)
+            
             if len(seq) != len(qual):
                 corrupt_reads += 1
                 continue
-            if read.is_duplicate:  # new in python script--matlab didn't skip duplicates
-               continue
             if len(cig) != 1:
                 (seq, qual) = self.find_indel(cig, seq, qual)
-            if pos + len(seq) > chr_lengths[bam_chrom]:
-                print(f"Chrom {chrom_name} is {chr_lengths[bam_chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
+                qual = np.array(qual, dtype=np.uint32)
+            if pos + len(seq) > n_bp:
+                skipped_oob += 1
+                #print(f"Chrom {chrom_name} is {chr_lengths[bam_chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
                 continue
             if trim_ends:
                 if strand == "+":
@@ -151,14 +186,14 @@ class Amsample(Chrom):
                 else:
                     qual[:2] = [0,0]
                     qual[-1] = 0
-            read_a = [1 if x=="A" else 0 for x in seq]
-            read_a = np.array(read_a)*qual
-            read_g = [1 if x=="G" else 0 for x in seq]
-            read_g = np.array(read_g)*qual
-            read_c = [1 if x=="C" else 0 for x in seq]
-            read_c = np.array(read_c)*qual
-            read_t = [1 if x=="T" else 0 for x in seq]
-            read_t = np.array(read_t)*qual
+            # Vectorized base detection
+            # seq is a Python string; convert once to a byte array
+            seq_bytes = np.frombuffer(seq.encode("ascii"), dtype="S1")
+
+            read_a = (seq_bytes == b"A").astype(np.uint32) * qual
+            read_g = (seq_bytes == b"G").astype(np.uint32) * qual
+            read_c = (seq_bytes == b"C").astype(np.uint32) * qual
+            read_t = (seq_bytes == b"T").astype(np.uint32) * qual
             if strand == "+":
                 tot_a_plus[pos:pos+len(read_a)] += read_a
                 tot_g_plus[pos:pos+len(read_g)] += read_g
@@ -169,10 +204,11 @@ class Amsample(Chrom):
                 tot_g_minus[pos:pos+len(read_c)] += read_c
                 tot_c_minus[pos:pos+len(read_g)] += read_g
                 tot_t_minus[pos:pos+len(read_a)] += read_a
-        chr_a = np.zeros(len(cpg_plus)*2)
-        chr_g = np.zeros(len(cpg_plus)*2)
-        chr_c = np.zeros(len(cpg_plus)*2)
-        chr_t = np.zeros(len(cpg_plus)*2)
+        n_cpg = len(cpg_plus)
+        chr_a = np.zeros(n_cpg * 2, dtype=np.uint32)
+        chr_g = np.zeros(n_cpg * 2, dtype=np.uint32)
+        chr_c = np.zeros(n_cpg * 2, dtype=np.uint32)
+        chr_t = np.zeros(n_cpg * 2, dtype=np.uint32)
         if library == "single":
             chr_a[0::2] = tot_a_minus[cpg_plus]
             chr_a[1::2] = tot_a_plus[cpg_minus]
@@ -191,11 +227,18 @@ class Amsample(Chrom):
             chr_c[1::2] = tot_c_minus[cpg_minus]+tot_g_plus[cpg_minus]
             chr_t[0::2] = tot_t_plus[cpg_plus]+tot_a_minus[cpg_plus]
             chr_t[1::2] = tot_t_minus[cpg_minus]+tot_a_plus[cpg_minus]
-        c_to_t = chr_t/(chr_c+chr_t)
+        # compute C→T ratio
+        denom_ct = chr_c + chr_t
+        with np.errstate(divide='ignore', invalid='ignore'):
+            c_to_t = np.where(denom_ct > 0, chr_t / denom_ct, np.nan)
+
+        # compute G→A ratio (only for single libraries)
         if library == "single":
-            g_to_a = chr_a/(chr_a+chr_g)
+            denom_ga = chr_a + chr_g
+            with np.errstate(divide='ignore', invalid='ignore'):
+                g_to_a = np.where(denom_ga > 0, chr_a / denom_ga, np.nan)
         else:
-            g_to_a = []
+            g_to_a = np.array([])
         self.no_a[chrom] = chr_a
         self.no_g[chrom] = chr_g
         self.no_c[chrom] = chr_c
@@ -204,6 +247,15 @@ class Amsample(Chrom):
         self.g_to_a[chrom] = g_to_a
         
         self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
+        #one-line summary for this chromosome
+        #print(
+        #    f"[{chrom_name}] done. "
+        #    f"unmapped={unmapped_reads}, "
+        #    f"low_mapq={low_mapq_reads}, "
+        #    f"corrupt={corrupt_reads}, "
+        #    f"duplicates={duplicate_reads}, "
+        #    f"out_of_bounds={skipped_oob}"
+        #)
 
     def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
@@ -225,13 +277,15 @@ class Amsample(Chrom):
         """
         self.library = library
         self.species = species
-        self.chr_names = [None]*(len(chroms))
-        self.no_t = [[]]*(len(chroms))
-        self.no_c = [[]]*(len(chroms))
-        self.no_g = [[]]*(len(chroms))
-        self.no_a = [[]]*(len(chroms))
-        self.c_to_t = [[]]*(len(chroms))
-        self.g_to_a = [[]]*(len(chroms))
+        n_chroms = len(chroms)
+        self.chr_names = [None] * n_chroms
+        self.no_t      = [None] * n_chroms
+        self.no_c      = [None] * n_chroms
+        self.no_g      = [None] * n_chroms
+        self.no_a      = [None] * n_chroms
+        self.c_to_t    = [None] * n_chroms
+        self.g_to_a    = [None] * n_chroms
+
         
         gc = t.load_object(gc_object)  # load CpG gcoordinates object
         
@@ -283,11 +337,17 @@ class Amsample(Chrom):
                     print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
                     sys.exit(1)
                 i += 1
+            # NEW: map from bam_chrom index -> chromosome length
+            # chr_lengths[i] corresponds to chroms[i], and chrom_index[i] is the bam index
+            length_by_bam_index = {
+                chrom_index[i]: chr_lengths[i]
+                for i in range(len(chrom_index))
+            }    
             chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
             for chrom_num in chrom_index:
                 chrom_name = chrom_names[chrom_num]
                 chrom_pos = input_index[chrom_num]
-                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
+                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, length_by_bam_index, chrom_names, chrom_num)
             bam.close()  
         if len(self.no_t[-1])/len(gc.coords[chrom_num]) == 2:  # compare gc.coords of most recent chrom to no_t in last done chrom
             self.coord_per_position = "2"
@@ -325,7 +385,7 @@ class Amsample(Chrom):
                     elif fields[0] == "Library":
                         self.library = fields[1]
                     elif fields[0] == "Chromosomes":
-                        self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
+                        self.chr_names = re.sub(r"[\[\]\']", "", fields[1]).split(", ")
                 elif i == 5: #filtered line
                     if "False" in line:
                         self.is_filtered = False
@@ -1378,7 +1438,7 @@ class Amsample(Chrom):
         Output: text file in format <object_name>_<stage>.txt (directory currently hard-coded).
         """
         aname = self.name
-        aname = re.sub("\s", "_", aname)
+        aname = re.sub(r"\s", "_", aname)
         fname = dir + aname + "_" + stage + ".txt"
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nSpecies: {self.species}\nReference: {self.reference}\n")
@@ -1510,6 +1570,45 @@ class Amsample(Chrom):
             t.save_object(outfile, self)
 
 
+import numpy as np
+import json
+
+def summarize_amsample(ams, out_path):
+    per_chr = {}
+    for idx, chr_name in enumerate(ams.chr_names):
+        if chr_name is None:
+            continue
+        A = ams.no_a[idx]
+        C = ams.no_c[idx]
+        G = ams.no_g[idx]
+        T = ams.no_t[idx]
+
+        def pack(arr):
+            if arr is None:
+                return {"sum": 0, "n_positions": 0}
+            return {
+                "sum": int(np.nansum(arr)),
+                "n_positions": int(len(arr)),
+            }
+
+        per_chr[chr_name] = {
+            "A": pack(A),
+            "C": pack(C),
+            "G": pack(G),
+            "T": pack(T),
+        }
+
+    summary = {
+        "name": ams.name,
+        "species": ams.species,
+        "library": ams.library,
+        "coord_per_position": ams.coord_per_position,
+        "chromosomes": ams.chr_names,
+        "per_chr": per_chr,
+    }
+
+    with open(out_path, "w") as f:
+        json.dump(summary, f, indent=2)
 
 
 if __name__ == "__main__":
