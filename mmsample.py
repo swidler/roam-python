@@ -59,7 +59,7 @@ class Mmsample(Chrom):
                         coord = [int(x) for x in coord]
                         self.coord_per_position = coord[0]
                     elif fields[0] == "Chromosomes":
-                        self.chr_names = re.sub("[\[\]\']", "", fields[1]).split(", ")
+                        self.chr_names = re.sub(r"[\[\]\']", "", fields[1]).split(", ")
                 else:
                     if fields[0] == "Methylation:":
                         meth_flag = 1
@@ -332,7 +332,7 @@ class Mmsample(Chrom):
         Output: text file in format <object_name>_<desc>.txt (directory currently hard-coded).
         """
         mname = self.name
-        mname = re.sub("\s", "_", mname)
+        mname = re.sub(r"\s", "_", mname)
         fname = outdir + mname + "_" + desc + ".txt"
         with open(fname, "w") as fid:
             fid.write(f"Name: {mname}\nSpecies: {self.species}\nReference: {self.reference}\nMethod: {self.method}\n")
