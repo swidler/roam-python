@@ -119,7 +119,7 @@ class Amsample(Chrom):
         return seq_new, qual_flat
 
 
-    def process_bam(self, bam, chrom_name, chrom, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, bam_chrom):
+    def process_bam(self, bam, chrom_name, chrom, library, trim_ends, mapq_thresh, qual_thresh, len_by_refname, cpg_by_refname):
         """Goes over bam files to extract data
         
         """
@@ -135,7 +135,14 @@ class Amsample(Chrom):
         date = date.strftime("%c")
         print(f"Starting chromosome {chrom_name}: {date}")
         chrom_bam = bam.fetch(chrom_name)
-        n_bp = chr_lengths[bam_chrom]
+        chrom_key = t.norm_chr(chrom_name)
+
+        # (REPLACE) length and CpGs by chromosome NAME (not index)
+        n_bp = len_by_refname[chrom_key]
+
+        cpg = cpg_by_refname[chrom_key]   # 1-based positions
+        cpg_plus = cpg - 1
+        cpg_minus = cpg
         
         tot_a_plus  = np.zeros(n_bp, dtype=np.uint32)
         tot_a_minus = np.zeros(n_bp, dtype=np.uint32)
@@ -145,9 +152,6 @@ class Amsample(Chrom):
         tot_c_minus = np.zeros(n_bp, dtype=np.uint32)
         tot_t_plus  = np.zeros(n_bp, dtype=np.uint32)
         tot_t_minus = np.zeros(n_bp, dtype=np.uint32)
-        cpg_chrom = chrom_name
-        cpg_plus = gc.coords[bam_chrom]-1
-        cpg_minus = gc.coords[bam_chrom]
         for read in chrom_bam:
             if read.is_unmapped:
                 #print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
@@ -177,7 +181,6 @@ class Amsample(Chrom):
                 qual = np.array(qual, dtype=np.uint32)
             if pos + len(seq) > n_bp:
                 skipped_oob += 1
-                #print(f"Chrom {chrom_name} is {chr_lengths[bam_chrom]} bp. Current read ({read.qname}) starts at {pos} and is {len(seq)} bp")
                 continue
             if trim_ends:
                 if strand == "+":
@@ -246,7 +249,7 @@ class Amsample(Chrom):
         self.c_to_t[chrom] = c_to_t
         self.g_to_a[chrom] = g_to_a
         
-        self.chr_names[chrom] = "chr"+chrom_names[bam_chrom]
+        self.chr_names[chrom] = "chr"+chrom_key
         #one-line summary for this chromosome
         #print(
         #    f"[{chrom_name}] done. "
@@ -257,7 +260,7 @@ class Amsample(Chrom):
         #    f"out_of_bounds={skipped_oob}"
         #)
 
-    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, chr_lengths=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
+    def bam_to_am(self, filename="", filedir=None, file_per_chrom=False, library=None, species=None, chroms=list(range(23)), trim_ends=False, mapq_thresh=20, qual_thresh=20, gc_object=""):  # genome_seq is filename, orig qual_thresh=53, subtract 33 for 0 start
         """Converts bam files to Amsample objects
         
         Input: 
@@ -265,7 +268,6 @@ class Amsample(Chrom):
             filedir            name of dir (for multiple files)
             file_per_chrom     True if there is exactly one file for each chromosome
             library            single or double
-            chr_lengths        list of chromosome lengths in the same order as the chromosomes are given
             species
             chroms             list of chromosomes (defaults to chroms 1-22, X, Y)
             trim_ends          True to trim ends during processing, False if this has already been done
@@ -292,11 +294,11 @@ class Amsample(Chrom):
         if filedir:
             filenames = glob.glob(filedir+"/*.bam")
             if file_per_chrom:
-                chrom_names = [x.split("_")[-1].split(".")[0] for x in filenames]  # filename format: <your label>_chr<chrom>.bam
+                file_chrom_names = [x.split("_")[-1].split(".")[0] for x in filenames]  # filename format: <your label>_chr<chrom>.bam
                 file_ref = {}
         if file_per_chrom:
-            for i in range(len(chrom_names)):
-                file_ref[chrom_names[i]] = filenames[i]
+            for i in range(len(file_chrom_names)):
+                file_ref[file_chrom_names[i]] = filenames[i]
             i = 0
             for chrom in chroms:
                 try:
@@ -306,25 +308,52 @@ class Amsample(Chrom):
                     sys.exit(1)
                 bam = pysam.AlignmentFile(bamfile, "rb")
                 all_chroms = bam.references
+                # (NEW) lengths by normalized chrom name
+                len_by_refname = {t.norm_chr(r): L for r, L in zip(bam.references, bam.lengths)}
+
+                # (NEW) CpG coords by normalized chrom name (from gc object)
+                # gc.chr_names must exist (it does in your Gcoordinates object)
+                cpg_by_refname = {t.norm_chr(n): gc.coords[i] for i, n in enumerate(gc.chr_names)}
+
+                # sanity: every requested chrom must exist in both maps
+                for ch in chroms:
+                    k = t.norm_chr(str(ch))
+                    if k not in len_by_refname:
+                        raise ValueError(f"Chrom {ch} (norm={k}) missing from BAM references")
+                    if k not in cpg_by_refname:
+                        raise ValueError(f"Chrom {ch} (norm={k}) missing from GC CpG object")
                 chrom_key = t.build_chr_key(all_chroms)
                 try:
                     chrom_num = chrom_key[chrom]
                 except KeyError:
-                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
+                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it from the config file.")
                     sys.exit(1)
-                chrom_names = bam.references[0:chrom_num+1]  # lists names of all chroms up to max present in num order
+                chrom_names = all_chroms
                 if self.chr_names[i]:
                     continue
                 chrom_name = chrom_names[chrom_num]
                 if bam.count(chrom_name) == 0:
                     continue
                 chrom_pos = i
-                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, chr_lengths, chrom_names, chrom_num)
+                self.process_bam(bam, chrom_name, chrom_pos, library, trim_ends, mapq_thresh, qual_thresh, len_by_refname, cpg_by_refname)
                 bam.close()
                 i += 1
         else:
             bam = pysam.AlignmentFile(filename, "rb")
             all_chroms = bam.references
+            # (NEW) lengths by normalized chrom name
+            len_by_refname = {t.norm_chr(r): L for r, L in zip(bam.references, bam.lengths)}
+
+            # (NEW) CpG coords by normalized chrom name (from gc object)
+            # gc.chr_names must exist (it does in your Gcoordinates object)
+            cpg_by_refname = {t.norm_chr(n): gc.coords[i] for i, n in enumerate(gc.chr_names)}
+            # sanity: every requested chrom must exist in both maps
+            for ch in chroms:
+                k = t.norm_chr(str(ch))
+                if k not in len_by_refname:
+                    raise ValueError(f"Chrom {ch} (norm={k}) missing from BAM references")
+                if k not in cpg_by_refname:
+                    raise ValueError(f"Chrom {ch} (norm={k}) missing from GC CpG object")
             chrom_key = t.build_chr_key(all_chroms)
             chrom_index = []
             input_index = {}
@@ -334,20 +363,14 @@ class Amsample(Chrom):
                     chrom_index.append(chrom_key[chrom])
                     input_index[chrom_key[chrom]] = i
                 except KeyError:
-                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it (and its length) from the config file.")
+                    print(f"Chromosome {chrom} cannot be found in the bam file. Please remove it from the config file.")
                     sys.exit(1)
                 i += 1
-            # NEW: map from bam_chrom index -> chromosome length
-            # chr_lengths[i] corresponds to chroms[i], and chrom_index[i] is the bam index
-            length_by_bam_index = {
-                chrom_index[i]: chr_lengths[i]
-                for i in range(len(chrom_index))
-            }    
-            chrom_names = bam.references[0:max(chrom_index)+1]  # lists names of all chroms up to max present in num order
+            chrom_names = all_chroms
             for chrom_num in chrom_index:
                 chrom_name = chrom_names[chrom_num]
                 chrom_pos = input_index[chrom_num]
-                self.process_bam(bam, chrom_name, chrom_pos, gc, library, trim_ends, mapq_thresh, qual_thresh, length_by_bam_index, chrom_names, chrom_num)
+                self.process_bam(bam, chrom_name, chrom_pos, library, trim_ends, mapq_thresh, qual_thresh, len_by_refname, cpg_by_refname)
             bam.close()  
         if len(self.no_t[-1])/len(gc.coords[chrom_num]) == 2:  # compare gc.coords of most recent chrom to no_t in last done chrom
             self.coord_per_position = "2"
