@@ -60,38 +60,45 @@ class Gcoordinates(Chrom):
         self.coords = np.asarray(temp)
         self.no_chrs = len(self.coords) #reassign chrom num based on new info
         
-    def create_cpg_file(self, genome_file, outfile, chr_lengths):
+    def create_cpg_file(self, genome_file, outfile):
         """Builds pickled CpG for reference genome
         
         Output: pickled file in format <species_name>_cpg_coords.P in object dir
         """
         with gzip.open(genome_file, "rt") as fas:
             records = list(SeqIO.parse(fas, "fasta"))
-        
-        for chrom_name in self.chr_names:
-            chrom = self.index([chrom_name])[0]
-            for record in records:  # these are from the genome fasta file
-                num, seq = record.id, str(record.seq)
-                if num == "chrM":
-                    num = "chrMT"  # fasta file has chrM, bam has chrMT (always?)
-                if num == "chr"+chrom_name or num == chrom_name:
-                    seq = seq.upper()  # change all letters to uppercase
-                    c_in_genome = [1 if x == "C" else 0 for x in seq]
-                    c_in_genome[-1] = 0  # c in last pos can't be cpg
-                    g_in_genome = [1 if x == "G" else 0 for x in seq]
-            c_in_cpg = np.zeros(chr_lengths[chrom])
-            g_in_cpg = np.zeros(chr_lengths[chrom])
-            c_idx = []
-            g_idx = []
-            for i in range(len(c_in_genome)):
-                if c_in_genome[i] and g_in_genome[i+1]:
-                    c_in_cpg[i] = 1
-                    g_in_cpg[i+1] = 1
-                    c_idx.append(i)
-                    g_idx.append(i+1)
-            cpg_plus = [x+1 for x,y in enumerate(c_in_cpg) if y == 1]
-            self.coords[chrom] = (np.array(cpg_plus))
+            
+        # Map fasta record ids to sequences once (avoid scanning records repeatedly)
+        rec_by_id = {r.id: str(r.seq).upper() for r in records}
+        for chrom, chrom_name in enumerate(self.chr_names):
+
+            # Try both "<name>" and "chr<name>" conventions, plus chrM/chrMT weirdness
+            candidates = [chrom_name, "chr" + chrom_name]
+
+            # Handle common mitochondrial naming mismatch
+            # If user asked for chrMT, accept fasta's chrM
+            if chrom_name in ("MT", "chrMT"):
+                candidates += ["chrM", "MT", "chrMT"]
+                
+            seq = None
+            for cid in candidates:
+                if cid in rec_by_id:
+                    seq = rec_by_id[cid]
+                    break
+
+            if seq is None:
+                raise ValueError(
+                    f"Chromosome '{chrom_name}' not found in FASTA. Tried ids: {candidates}"
+                )
+
+            # Find CpG: positions where seq[i]=='C' and seq[i+1]=='G'
+            # Store 1-based positions of the C (like your original code)
+            cpg_plus = [i + 1 for i in range(len(seq) - 1) if seq[i] == "C" and seq[i + 1] == "G"]
+
+            self.coords[chrom] = np.array(cpg_plus, dtype=np.int32)
+
         t.save_object(outfile, self)
+
 
     def calc_tss(self, genes):
         """Computes Transcription Start Sites (TSSs)
