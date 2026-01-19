@@ -17,6 +17,7 @@ import time
 
 """This module contains helper functions used in the RoAM process.
 """
+
 def nanmerge(arr, operation):
     """Merges the two adjacent positions of each CpG. The rules of merger are as follows:
         (1) nan + nan = nan
@@ -294,7 +295,7 @@ def build_chr_key(all_chroms):
             num = chrom[3:]
             chr_key[num] = all_chroms.index(chrom)
             num = chrom[3:]
-            dig = re.search("^\d+", num)
+            dig = re.search(r"^\d+", num)
             if not dig:
                 chr_key[num.upper()] = all_chroms.index(chrom)
                 chr_key[num.lower()] = all_chroms.index(chrom)
@@ -302,7 +303,7 @@ def build_chr_key(all_chroms):
         else:
             chr_key[chrom] = all_chroms.index(chrom)
             chr_key["chr"+chrom] = all_chroms.index(chrom)
-            dig = re.search("^\d+", chrom)
+            dig = re.search(r"^\d+", chrom)
             if not dig:
                 chr_key[chrom.lower()] = all_chroms.index(chrom)
                 chr_key[chrom.upper()] = all_chroms.index(chrom)
@@ -312,6 +313,18 @@ def build_chr_key(all_chroms):
                 chr_key["chr"+chrom.capitalize()] = all_chroms.index(chrom)
     return chr_key
 
+def norm_chr(name: str) -> str:
+    """
+    Normalize chromosome names so 'chr1' and '1' match, likewise X/Y/MT.
+    """
+    name = name.strip()
+    if name.lower().startswith("chr"):
+        name = name[3:]
+    name = name.upper()
+    if name == "M":
+        name = "MT"
+    return name
+    
 def determine_shared_winsize(samples, chrom, coverage=[], drate=[], min_meth=0.2, p0=0.01, max_width=31):
         """Estimates the optimal window size in cases that collecting data from a window is required.
         
