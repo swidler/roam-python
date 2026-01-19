@@ -63,8 +63,7 @@ Input files:
 Running the scripts:  
 	&emsp;To run the process, start by editing the variables in the config.ini file (or edit 
 	the command line parameters). These include input and output filenames, sample name,
- 	a list of chromosomes, their respective lengths, various flags, and the the parts
-  	of the script to run.  
+ 	a list of chromosomes, various flags, and the parts	of the script to run.  
 	&emsp;The first 3 variables, filename (input .bam file), name (identifier of the sample),
  	and library (single or double stranded) are required. If instead of one BAM file, the
   	directory contains (exactly) one file per chromosome, the filename param can be
@@ -83,15 +82,14 @@ Running the scripts:
    **OR**
    
   	run_roam.py --filename <path to bam file> --name <sample name> --library <single or double>
+  	
+  	The first stage (bam, see below) can be run in several parallel processes by using the -bw (--bam_workers) parameter.
       
-IMPORTANT: If the sample is aligned to any genome version but Hg19, it is important to
- 	modify the chromosome lengths, either in the config file or by using the -le parameter.
-	The rest of the parameters can be specified as well, to override defaults (strings, except 
-	where noted):
+IMPORTANT: All parameters can be specified, to override defaults (strings, except where noted):
  
- 	-co, --config path of config file (different config files can be used for different runs).
-	-le, --lengths chromosome lengths, specified with no quotes or commas, eg -le 12345 23456 (must 
-		correspond to chromosome list below) (default: chromosome lengths of hg19).
+ 	-bw, --bam_workers Number of parallel workers for BAM processing (chromosome-level). 1 (default) disables
+		parallelization.
+	-co, --config path of config file (different config files can be used for different runs).
 	-s, --species taxonomical classification of the ancient sample (default: human).
 	-c, --chroms list of chromosomes to use, a list specified with no quotes or commas, 
 		e.g., -c chr1 chr2 chr3 (default: chromosomes 1 to 22, X).
