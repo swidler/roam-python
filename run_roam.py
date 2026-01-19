@@ -12,16 +12,16 @@ import configparser as cp
 import gcoordinates as gcoord
 import numpy as np
 import os
-
+import amsample_parallel as ap
 
 
 # params from config can be specified on the command line
 argParser = argparse.ArgumentParser()
+argParser.add_argument("-bw", "--bam_workers", type=int, default=1, help="Number of parallel workers for BAM processing (chromosome-level). 1 disables parallelization.")
 argParser.add_argument("-co", "--config", help="path of config file")
 argParser.add_argument("-f", "--filename", help="path of bam input file")
 argParser.add_argument("-l", "--library", help="single or double stranded")
 argParser.add_argument("-n", "--name", help="sample name")
-argParser.add_argument("-le", "--lengths", nargs="+", help="chrom lengths--should correspond with the list of chromosomes")
 argParser.add_argument("-s", "--species", help="sample species")
 argParser.add_argument("-c", "--chroms", nargs="+", help="list of chromosomes to use")
 argParser.add_argument("-t", "--trim", help="flag to trim ends during processing", action="store_true")
@@ -110,15 +110,13 @@ species = parameters["species"] if "species" in parameters else config["basic"][
 chroms = parameters["chroms"] if "chroms" in parameters else config["basic"]["chroms"].split(",")
 genome_file = parameters["genome"] if "genome" in parameters else config["files"]["genome_file"]
 object_dir = parameters["objectdir"] if "objectdir" in parameters else config["paths"]["object_dir"]
-lengths = parameters["lengths"] if "lengths" in parameters else config["basic"]["chr_lengths"].split(",")
-lengths = [int(x) for x in lengths]
 if parameters["create_cpg"]:
     outfile = object_dir + species.replace(" ","_") + "_cpg_coords.P"
     ref = parameters["cpg_ref"] if "cpg_ref" in parameters else config["basic"]["cpg_ref"]
     if not ref or ref == "":
         ref = genome_file.split("/")[-1].split(".")[0]
     gc_obj = gcoord.Gcoordinates(chr_names=chroms, species=species, name="CpG coordinates", reference=ref)
-    gc_obj.create_cpg_file(genome_file, outfile, lengths)
+    gc_obj.create_cpg_file(genome_file, outfile)
     if parameters["no_roam"]:
         print("Finished creating CpG file. Exiting.")
         sys.exit(0)
@@ -138,6 +136,7 @@ def roam_pipeline(**params):
     stages = params["stages"[:]] if "stages" in params else config["basic"]["stages"].split(",") 
     stage = stages[0]
     if stage == "bam":
+        bam_workers = params["bam_workers"]  # always exists because default=1
         filename = params["filename"] if "filename" in params else config["required"]["filename"]
         if not file_per_chrom:
             if filename == "filename_path" or not filename:
@@ -151,9 +150,13 @@ def roam_pipeline(**params):
         mapq = int(params["mapq"]) if "mapq" in params else int(config["basic"]["mapq_thresh"])
         qual = int(params["qual"]) if "qual" in params else int(config["basic"]["qual_thresh"])
         
-#populate object from bam file
-        ams.bam_to_am(filename=filename, library=library, chr_lengths=lengths, species=species, trim_ends=trim, chroms=chroms, filedir=filedir, file_per_chrom=file_per_chrom, mapq_thresh=mapq, qual_thresh=qual, gc_object=gc)
-       # eg: ams.bam_to_am(filename="../../ust_ishim.bam", library="single", chr_lengths=ust_chr_lengths, genome_seq="../../hg19.fa.gz", species="Homo sapiens")
+        if bam_workers <= 1:
+		#populate object from bam file
+            ams.bam_to_am(filename=filename, library=library, species=species, trim_ends=trim, chroms=chroms, filedir=filedir, file_per_chrom=file_per_chrom, mapq_thresh=mapq, qual_thresh=qual, gc_object=gc)
+      # eg: ams.bam_to_am(filename="../../ust_ishim.bam", library="single", genome_seq="../../hg19.fa.gz", species="Homo sapiens")
+        else:
+            # build_amsample_parallel should return a full merged Amsample
+            ams = ap.build_amsample_parallel(name=name, filename=filename, filedir=filedir, file_per_chrom=file_per_chrom, library=library, species=species, chroms_full=chroms, trim_ends=trim, mapq_thresh=mapq, qual_thresh=qual, gc_object=gc, n_workers=bam_workers)
         stages = stages[1:]  # remove bam stage from list 
     else:
         #get object info from text file
