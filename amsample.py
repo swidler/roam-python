@@ -14,6 +14,25 @@ import re
 #from config import *
 import sys
 
+# --- fast base lookup tables (built once) ---
+_BASE_LUT = {}
+def _init_base_luts():
+    lutA = np.zeros(256, dtype=np.uint8)
+    lutC = np.zeros(256, dtype=np.uint8)
+    lutG = np.zeros(256, dtype=np.uint8)
+    lutT = np.zeros(256, dtype=np.uint8)
+
+    lutA[ord("A")] = 1
+    lutC[ord("C")] = 1
+    lutG[ord("G")] = 1
+    lutT[ord("T")] = 1
+
+    _BASE_LUT["A"] = lutA
+    _BASE_LUT["C"] = lutC
+    _BASE_LUT["G"] = lutG
+    _BASE_LUT["T"] = lutT
+
+_init_base_luts()
 
 class Amsample(Chrom):
     """Ancient methylation sample class
@@ -144,69 +163,89 @@ class Amsample(Chrom):
         cpg_plus = cpg - 1
         cpg_minus = cpg
         
-        tot_a_plus  = np.zeros(n_bp, dtype=np.uint32)
-        tot_a_minus = np.zeros(n_bp, dtype=np.uint32)
-        tot_g_plus  = np.zeros(n_bp, dtype=np.uint32)
-        tot_g_minus = np.zeros(n_bp, dtype=np.uint32)
-        tot_c_plus  = np.zeros(n_bp, dtype=np.uint32)
-        tot_c_minus = np.zeros(n_bp, dtype=np.uint32)
-        tot_t_plus  = np.zeros(n_bp, dtype=np.uint32)
-        tot_t_minus = np.zeros(n_bp, dtype=np.uint32)
-        for read in chrom_bam:
-            if read.is_unmapped:
-                #print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.")
-                unmapped_reads += 1
-                continue
-            mapq = read.mapping_quality
-            if mapq < mapq_thresh:
-                low_mapq_reads += 1
-                continue  
-            if read.is_duplicate:  # new in python script--matlab didn't skip duplicates
-                duplicate_reads += 1
-                continue
-            seq = read.query_sequence
-            cig = read.cigar
-            pos = read.reference_start
-            strand = "-" if read.is_reverse else "+"
-            # original qualities -> numpy array
-            qual = np.array(read.query_qualities, dtype=np.uint8)  # or int16/32, doesn’t matter much
-            # threshold to 0/1 mask
-            qual = (qual > qual_thresh).astype(np.uint32)
-            
-            if len(seq) != len(qual):
-                corrupt_reads += 1
-                continue
-            if len(cig) != 1:
-                (seq, qual) = self.find_indel(cig, seq, qual)
-                qual = np.array(qual, dtype=np.uint32)
-            if pos + len(seq) > n_bp:
-                skipped_oob += 1
-                continue
-            if trim_ends:
-                if strand == "+":
-                    qual[0] = 0
-                    qual[-2:] = [0,0]
-                else:
-                    qual[:2] = [0,0]
-                    qual[-1] = 0
-            # Vectorized base detection
-            # seq is a Python string; convert once to a byte array
-            seq_bytes = np.frombuffer(seq.encode("ascii"), dtype="S1")
+        tot_a_plus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_a_minus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_g_plus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_g_minus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_c_plus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_c_minus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_t_plus = np.zeros(n_bp, dtype=np.uint32) 
+        tot_t_minus = np.zeros(n_bp, dtype=np.uint32) 
+        lutA = _BASE_LUT["A"] 
+        lutC = _BASE_LUT["C"] 
+        lutG = _BASE_LUT["G"] 
+        lutT = _BASE_LUT["T"] 
+        for read in chrom_bam: 
+            if read.is_unmapped: 
+		        #print(f"Read {read.qname} on chrom {chrom_name} is unmapped. Skipping.") 
+                unmapped_reads += 1 
+                continue 
+            mapq = read.mapping_quality 
+            if mapq < mapq_thresh: 
+                low_mapq_reads += 1 
+                continue 
+            if read.is_duplicate: # new in python script--matlab didn't skip duplicates 
+                duplicate_reads += 1 
+                continue 
+            seq = read.query_sequence 
+            q = read.query_qualities 
+            # Defensive: pysam can give None in edge cases 
+            if seq is None or q is None: 
+                corrupt_reads += 1 
+                continue 
+            # Quality mask: keep it small (uint8) — it’s just 0/1. 
+            # (We’ll upcast automatically when adding into uint32 totals.) 
+            # q is usually a Python list of ints (Phred scores) 
+            q_u8 = np.asarray(q, dtype=np.uint8)
+            qual_mask = (q_u8 > qual_thresh)          # bool
+            # if you want uint8 explicitly:
+            qual_mask = qual_mask.view(np.uint8)      # 0/1 without another pass
+            L = len(seq)
+            if L != qual_mask.shape[0]: 
+                corrupt_reads += 1 
+                continue 
+            cig = read.cigar 
+            pos = read.reference_start 
+            #strand = "-" if read.is_reverse else "+" 
+            strand = read.is_reverse 
+            if cig is not None and len(cig) != 1: 
+                (seq, qual_mask) = self.find_indel(cig, seq, qual_mask) 
+                qual_mask = np.asarray(qual_mask, dtype=np.uint8) 
+                L = len(seq)
+            end = pos + L
+            if end > n_bp: 
+                skipped_oob += 1 
+                continue 
+            if trim_ends: 
+                if not strand:  # if strand == "+": 
+                    qual_mask[0] = 0 
+                    qual_mask[-2:] = 0 
+                else: 
+                    qual_mask[:2] = 0 
+                    qual_mask[-1] = 0 
+            # FAST: use ASCII uint8 buffer 
+            seq_u8 = np.frombuffer(seq.encode("ascii"), dtype=np.uint8) 
+            # LUT masks (uint8 0/1), then multiply by qual_mask (uint8 0/1) 
+            maskA = lutA[seq_u8] * qual_mask 
+            maskC = lutC[seq_u8] * qual_mask 
+            maskG = lutG[seq_u8] * qual_mask 
+            maskT = lutT[seq_u8] * qual_mask 
+            sl = slice(pos, end)
+            if not strand: # if strand == "+": 
+                #sl = slice(pos, pos + maskA.size) 
+                tot_a_plus[sl] += maskA 
+                tot_c_plus[sl] += maskC 
+                tot_g_plus[sl] += maskG 
+                tot_t_plus[sl] += maskT 
+            else: 
+                #sl = slice(pos, pos + maskA.size) 
+                # preserve your existing “swap for reverse” logic exactly 
+                tot_a_minus[sl] += maskT 
+                tot_c_minus[sl] += maskG 
+                tot_g_minus[sl] += maskC 
+                tot_t_minus[sl] += maskA
 
-            read_a = (seq_bytes == b"A").astype(np.uint32) * qual
-            read_g = (seq_bytes == b"G").astype(np.uint32) * qual
-            read_c = (seq_bytes == b"C").astype(np.uint32) * qual
-            read_t = (seq_bytes == b"T").astype(np.uint32) * qual
-            if strand == "+":
-                tot_a_plus[pos:pos+len(read_a)] += read_a
-                tot_g_plus[pos:pos+len(read_g)] += read_g
-                tot_c_plus[pos:pos+len(read_c)] += read_c
-                tot_t_plus[pos:pos+len(read_t)] += read_t
-            else:
-                tot_a_minus[pos:pos+len(read_t)] += read_t
-                tot_g_minus[pos:pos+len(read_c)] += read_c
-                tot_c_minus[pos:pos+len(read_g)] += read_g
-                tot_t_minus[pos:pos+len(read_a)] += read_a
+
         n_cpg = len(cpg_plus)
         chr_a = np.zeros(n_cpg * 2, dtype=np.uint32)
         chr_g = np.zeros(n_cpg * 2, dtype=np.uint32)
