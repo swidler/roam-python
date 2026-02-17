@@ -196,7 +196,7 @@ class DMRs:
                 regions.append(region)
         return(regions)    
 
-    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, mcpc=3, por=0.667):
+    def groupDMRs(self, samples=[], sample_groups=[], coord=[], d_rate_in=[], chroms=[], winsize_alg={}, fname="DMR_log.txt", win_size="meth", lcf="meth", delta=0.5, min_bases=100, min_Qt=0, min_CpGs=10, max_adj_dist=1000, min_finite=1, max_iterations=20, tol=1e-3, report=True, match_histogram=False, ref=None, win_mod=11, weight_mod_var=False, mcpc=3, por=0.667):
         """Detects DMRs between two groups of samples
         
         Input: samples            list of sample (Amsample or Mmsample) objects
@@ -230,6 +230,7 @@ class DMRs:
                match_histogram    whether to perform histogram matching in pooled_methylation
                ref                mmSample reference object (used only for histogram matching).
                win_mod            window size for modern samples
+               weight_mod_var     should the error calculation for modern samples use coverage-based weights (default False)
                mcpc               Minimum coverage per CpG in a DMR (on average) in sample to be considered informative
                    If sample in not informative at DMR, reported average methylation will be nan. 
                por                Minimum fraction of informative samples (per DMR) in group of size n to pass 
@@ -485,21 +486,82 @@ class DMRs:
             meth_stat = np.zeros((no_groups, no_pos))  # methylation statistic
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
             for grp in range(no_groups): 
-                if grp_ancient[grp][0] == 0:
+                if grp_ancient[grp][0] == 0:    # modern samples
                     mij_bar = np.zeros((len(mod_idx), no_pos))
                     wij = np.zeros((len(mod_idx), no_pos))
+                    cij = np.zeros((len(mod_idx), no_pos))   # coverage c_ij, to use with weighted error calculation
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
-                        [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
-                        Wj = np.nansum(wij, axis=0)
-                        # Calculate mm
-                        mm = np.sum(wij * mij_bar, axis=0) / Wj
-                        # Calculate dmm
-                        dmm = np.sqrt(1 / Wj)
-                        # Assign mm and dmm to m and dm respectively
-                        meth_stat[grp, :] = mm
-                        meth_err[grp, :] = dmm
-                else: 
+                        if weight_mod_var == False:    # normal calculation
+                            print("Modern group: using unweighted error calculation, with smoothing")
+                            [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
+                            Wj = np.nansum(wij, axis=0)
+                            # Calculate mm
+                            mm = np.sum(wij * mij_bar, axis=0) / Wj
+                            # Calculate dmm
+                            dmm = np.sqrt(1 / Wj)
+                            # Assign mm and dmm to m and dm respectively
+                            meth_stat[grp, :] = mm
+                            meth_err[grp, :] = dmm
+                        else:
+                            if win_mod == 1:    # no smoothing for modern samples
+                                print("Modern group: using win_mod=1, no smoothing", chromosomes[chrom])
+                                MIN_VAR = 0.01**2
+                                meth_vec = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
+                                cov_vec  = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
+
+                                mij_bar[samp] = np.zeros_like(meth_vec, dtype=float)
+                                wij[samp]     = np.zeros_like(meth_vec, dtype=float)
+                                cij[samp]     = np.zeros_like(meth_vec, dtype=float)
+
+                                valid = np.isfinite(meth_vec) & np.isfinite(cov_vec) & (cov_vec > 0)
+                                mij_bar[samp][valid] = meth_vec[valid]
+                                cij[samp][valid]     = cov_vec[valid]
+
+                                # binomial variance of methylation v_ij = m(1−m)/cov
+                                variance = np.empty_like(meth_vec, dtype=float)
+                                variance[:] = np.nan
+                                variance[valid] = meth_vec[valid] * (1 - meth_vec[valid]) / cov_vec[valid]
+                                # floor very small variances
+                                mask_small = np.isfinite(variance) & (variance < MIN_VAR)
+                                variance[mask_small] = MIN_VAR
+                                # store variances v_ij
+                                wij[samp][valid] = variance[valid]
+                            else:    # weighted smoothing for modern samples
+                                print("Modern group: using win_mod=", win_mod, "with smoothing", chromosomes[chrom])
+                                winsize = int(win_size[mod_idx[samp], idx_chrom])
+                                mij_bar[samp], inv_var = samples[mod_idx[samp]].smooth(idx_chrom, [winsize])
+
+                                # convert inverse-variance
+                                var_vec = np.full_like(inv_var, np.nan, dtype=float)
+                                valid_w = np.isfinite(inv_var) & (inv_var > 0)
+                                var_vec[valid_w] = 1.0 / inv_var[valid_w]
+                                wij[samp] = var_vec
+
+                                # smooth coverage with the same window (sum of coverage in window)
+                                cov_vec = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
+                                tpl = np.ones(winsize, dtype=float)
+                                cij[samp] = t.nanconv(cov_vec, tpl, "same")
+
+                            Cj = np.nansum(cij, axis=0)
+                            # weighted mean methylation using coverage weights
+                            num = np.nansum(cij * mij_bar, axis=0)
+                            mm  = np.full_like(Cj, np.nan, dtype=float)
+                            dmm = np.full_like(Cj, np.nan, dtype=float)
+                            positive = Cj > 0
+                            mm[positive] = num[positive] / Cj[positive]
+                            # group variance per position:
+                            # var_group_j = sum( v_ij * (c_ij / C_j)^2)
+                            frac = np.zeros_like(cij, dtype=float)
+                            frac[:, positive] = cij[:, positive] / Cj[positive]
+                            var_group = np.nansum(wij * frac**2, axis=0)     # sum over samples
+                            dmm[positive] = np.sqrt(var_group[positive])     # error [sqrt(var)]
+
+                            # Assign mm and dmm to m and dm respectively
+                            meth_stat[grp, :] = mm
+                            meth_err[grp, :]  = dmm
+                else:     # ancient samples
+                    print("Ancient group:", chromosomes[chrom])
                     [ma, dma] = t.pooled_methylation(np.array(samples)[giS[grp]], [chromosomes[chrom]], win_size=win_size[giS[grp],chrom], lcf=lcf[giS[grp]], min_finite=min_finite[grp], max_iterations=max_iterations, tol=tol, match_histogram=match_histogram, ref=ref, ref_winsize=ref_winsize[chrom])
                     meth_stat[grp,:] = ma[0]  # ma for the first (only, in this case) chrom sent
                     meth_err[grp,:] = dma[0]  # ditto
@@ -568,6 +630,7 @@ class DMRs:
             mincov = np.array([cc*mcpc for cc in cdm[chrom].no_CpGs])    # min required coverage per CpG
             for grp in range(len(giS)):
                 ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
+                print(f"Requiring {ms} informative samples in group {grp}")
                 counti = np.zeros(len(cdm[chrom].no_CpGs))    # will count the number of informative samples in group per DMR
                 if grp_ancient[grp][0] == 0:    # if modern
                     for samp in giS[grp]:
@@ -612,6 +675,8 @@ class DMRs:
         alg_props["max_adj_dist"] = max_adj_dist
         alg_props["drate"] = d_rate
         alg_props["win_size"] = win_size
+        alg_props["win_mod"] = win_mod
+        alg_props["weight_mod_var"] = weight_mod_var
         alg_props["min_finite"] = min_finite
         alg_props["lcf"] = lcf
         alg_props["max_iterations"] = max_iterations

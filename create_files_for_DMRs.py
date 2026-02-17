@@ -18,6 +18,7 @@ argParser.add_argument("-mt", "--mtempl", help="template to match any extra text
 argParser.add_argument("-msp", "--mspecies", help="modern sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
+argParser.add_argument("-sm", "--smoothed", help="sample is already smoothed (use methylation and not counts)", action="store_true")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -33,6 +34,7 @@ gc_object = parameters["gc_file"] if "gc_file" in parameters else ""
 mod_species = parameters["mspecies"] if "mspecies" in parameters else ""
 mod_ref = parameters["mref"] if "mref" in parameters else ""
 mod_method = parameters["mmethod"] if "mmethod" in parameters else ""
+smoothed = args.smoothed
 
 """if samples:
     data_dir = parameters["data_dir"] if "data_dir" in parameters else ""
@@ -47,10 +49,14 @@ data_dir = parameters["data_dir"] if "data_dir" in parameters else ""
 i = 0
 for sample in mod_samples:
     print(f"Processing {sample}")
+    if smoothed:
+        print(f"\tUsing given methylation values (already smoothed)") 
+    else:
+        print(f"\tUsing counts to calculate methylation")
     mms = m.Mmsample()
     bisfile = data_dir + sample + ".cov"
     if os.path.isfile(bisfile):
-        mms.bismark_to_mm(bisfile, gc_object, sample, mod_species, mod_ref, mod_method)
+        mms.bismark_to_mm(bisfile, gc_object, sample, mod_species, mod_ref, mod_method, smoothed=smoothed)
         outfile = object_dir + sample + mtempl
         t.save_object(outfile, mms)
     else:

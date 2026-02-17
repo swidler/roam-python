@@ -40,6 +40,8 @@ argParser.add_argument("-mb", "--min_bases", type=int, help="DMRs shorter than m
 argParser.add_argument("-mad", "--max_adj_dist", type=int, help="max distance between adjacent CpGs within the same DMR")
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="minimum number of ancient samples for which we require data")
 argParser.add_argument("-w", "--win_size", help="window size for smoothing")
+argParser.add_argument("-wm", "--win_mod", help="window size for smoothing modern samples")
+argParser.add_argument("-we", "--weight_mod_var", help="calculate modern group statistic error with coverage weights", action="store_true")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr")
 argParser.add_argument("-th", "--thresh", type=float, help="FDR threshold")
@@ -80,6 +82,8 @@ stages = parameters["stages"[:]] if "stages" in parameters else config["basic"][
 gc_object = parameters["gc_file"] if "gc_file" in parameters else config["files"]["gc_object"]
 min_fin = parameters["min_finite"] if "min_finite" in parameters else list(map(int, config["basic"]["min_fin"].split(",")))
 win_size = parameters["win_size"] if "win_size" in parameters else config["basic"]["win_size"]
+win_mod = parameters["win_mod"] if "win_mod" in parameters else config["basic"].getint("win_mod")
+weight_mod_var = args.weight_mod_var
 lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
 lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
 group_names = parameters["groups"[:]] if "groups" in parameters else config["basic"]["group_names"].split(",")
@@ -152,7 +156,7 @@ if "DMR" in stages:
         ref = mms
     min_finite = min_fin[:]
     logfile = log_dir + f"DMR_log_{time}.txt"
-    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
+    (qt_up, qt_down) = dms.groupDMRs(win_size=win_size, lcf=lcf, samples=samplist, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod, weight_mod_var=weight_mod_var)
     
     t.save_object(f"{object_dir}DMR_obj_{time}", dms) 
     if report:
@@ -163,6 +167,8 @@ if "DMR" in stages:
 if "fdr" in stages:
     alg_props = dms.algorithm
     win_size_orig = alg_props["win_size"]  # save values from original groupDMRs process
+    win_mod_orig = alg_props["win_mod"]
+    weight_mod_var = alg_props["weight_mod_var"]
     delta =  alg_props["delta"]
     min_Qt =  alg_props["min_Qt"]
     lcf_orig =  alg_props["lcf"]
@@ -206,7 +212,7 @@ if "fdr" in stages:
         for chrom in range(mms_cp.no_chrs):
             chr = mms_cp.chr_names[chrom]
             # run hist-matching
-            sref.methylation[chrom] = samp.match_hist(samp.index([chr])[0], sref)
+            sref.methylation[chrom] = samp.match_hist(chr, sref)
         print("Average methylation in ", samp.name, "ref:", np.nanmean(np.concatenate(sref.methylation).ravel()))
         refd[samp.name] = sref
         del(sref)
@@ -226,7 +232,7 @@ if "fdr" in stages:
         sim_obj_list = {}
         dmr_obj_list.append(d.DMRs())
         for sample in samplist:
-            print(f"sample {sample.name}, perm {perm}\n")
+            print(f"\nsample {sample.name}, perm {perm}\n")
             samp_name = sample.name
             samp_copy = copy.deepcopy(sample)
             samp_copy.simulate(refd[sample.name])    #sim
@@ -267,7 +273,7 @@ if "fdr" in stages:
         #    ref = mms
         #min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod_orig)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     print(f"Running fdr calculation on DMR_obj_{time}")
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)

@@ -83,10 +83,12 @@ class Mmsample(Chrom):
                 i += 1
         self.no_chrs = len(self.chr_names) #reassign chrom num based on new info
     
-    def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_spec, mod_ref, mod_method):
+    def bismark_to_mm(self, bisfile, gc_object, mod_name, mod_spec, mod_ref, mod_method, smoothed=False):
         """Converts Bismark result file (.cov) into mmsample object
         
         Input: empty Mmsample object, Bismark file name, gcoordinates object (reference) filename, modern sample specifics
+               smoothed:    is the sample already smoothed? If False, methylation values will be calculated from coverage 
+               data. If True, methylation values will be taken from meth column (defalut False)
         Output: populated Mmsample object
         """
         gc = t.load_object(gc_object)
@@ -108,11 +110,14 @@ class Mmsample(Chrom):
             coord_map.append(dr)
         coord_per_pos = "1"
         self.coord_per_position = coord_per_pos
-        meth = []
+        meth = [] 
+        beta = [] # meth percentage from bisfile
         cov = []
         for chrom in chr_lengths:
             meth.append(np.empty(chrom))  # build list of nan arrays corresponding
             meth[-1].fill(np.nan)         # to chrom lengths for methylation and for coverage
+            beta.append(np.empty(chrom))
+            beta[-1].fill(np.nan)
             cov.append(np.empty(chrom))
             cov[-1].fill(np.nan)
         with open(bisfile, "rt") as mmfile:
@@ -147,10 +152,12 @@ class Mmsample(Chrom):
                     continue
                 chr_names[chr_name1] = chr_ind
                 start1 = int(fields1[1])
+                b1 = float(fields1[3])
                 m1 = int(fields1[4])
                 um1 = int(fields1[5])
                 if len(fields2) <=1:
                     start2 = None
+                    b2 = None
                     m2 = None
                     um2 = None
                 else:    
@@ -168,17 +175,27 @@ class Mmsample(Chrom):
                     if start1 + 1 == start2:
                         tot_cov = m1 + m2 + um1 + um2
                         cov[chr_ind][i] = tot_cov
+                        beta[chr_ind][i] = (b1*(m1+um1) + b2*(m2+um2))/tot_cov
+                        if tot_cov == 0:
+                            tot_cov = np.nan
+                            beta[chr_ind][i] = (b1+b2)/2
                         meth[chr_ind][i] = (m1+m2)/tot_cov
                     else:
                         tot_cov = m1 + um1
                         cov[chr_ind][i] = tot_cov
-                        meth[chr_ind][i] = (m1)/tot_cov
+                        if tot_cov == 0:
+                            tot_cov = np.nan
+                        meth[chr_ind][i] = m1/tot_cov
+                        beta[chr_ind][i] = b1
                 elif (start1 - 1) in coord_map[chr_ind]:
                     i = coord_map[chr_ind][start1 - 1]
                     matched_counter[chr_ind] += 1
                     tot_cov = m1 + um1
                     cov[chr_ind][i] = tot_cov
+                    if tot_cov == 0:
+                        tot_cov = np.nan
                     meth[chr_ind][i] = (m1)/tot_cov
+                    beta[chr_ind][i] = b1
                 else:
                     unmatched_counter[chr_ind] += 1
                 if len(fields2) <=1:
@@ -187,17 +204,27 @@ class Mmsample(Chrom):
         print(f"found {unmatched_counter} unmatched positions and {matched_counter} matched positions") 
         print(f"proportion matched: {matched_counter/chr_lengths}")   
         self.chr_names = gc.chr_names  # list chrom names as they appear in coord file
-        self.methylation = meth
         self.coverage = cov
         self.no_chrs = len(self.chr_names)
+        if smoothed:
+            self.methylation = beta
+            self.scale()
+        else:
+            self.methylation = meth
 
     def scale(self):
         """Converts all values to be between 0 and 1
         """
-        for i in range(0,len(self.methylation)):
-            biggest = max([x for x in self.methylation[i] if ~np.isnan(x)]) #get biggest number in list (ignore string vals)
+        for i in range(len(self.methylation)):
+            arr = np.array(self.methylation[i], dtype=float)
+            finite = arr[~np.isnan(arr)]
+            # If this chromosome has no finite values, there's nothing to scale
+            if finite.size == 0:
+                continue
+            biggest = finite.max()
             if biggest > 1:
-                self.methylation[i] = [x/100 if ~np.isnan(x) else x for x in self.methylation[i]] #divide numeric vals by 100
+                arr[~np.isnan(arr)] = arr[~np.isnan(arr)] / 100.0
+                self.methylation[i] = arr
 
     def merge(self, report=True):
         """Merges pairs of consecutive CpG positions by averaging their values
