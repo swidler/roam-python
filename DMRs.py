@@ -465,13 +465,24 @@ class DMRs:
         giS = [None]*no_groups
         for grp in range(no_groups):
             giS[grp] = positions[grp]
+            ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
+            print(f"Requiring {ms} informative samples in group {grp}")
         # compute reference winsize per chromosome
         ref_winsize = np.round(np.mean(win_size, 0))
         ref_winsize = ref_winsize.astype(int)  # ensure that winsize values are integers
         for chrom in range(no_chr):
             if not ref_winsize[chrom]%2: #win_size is even
                 ref_winsize[chrom] += 1 #make it odd
-        
+
+        # do some reporting
+        if not weight_mod_var:
+            print("Modern group: using unweighted error calculation, with smoothing")
+        else:
+            if win_mod == 1:
+                print("Modern group: using win_mod = 1, no smoothing")
+            else:
+                print("Modern group: using win_mod =", win_mod, ", with smoothing")
+
         #loop on chroms
         cdm = [c.cDMR() for i in range(no_chr)]
         for chrom in range(no_chr):
@@ -485,6 +496,7 @@ class DMRs:
             #loop on groups
             meth_stat = np.zeros((no_groups, no_pos))  # methylation statistic
             meth_err = np.zeros((no_groups, no_pos))  # standard error in methylation
+
             for grp in range(no_groups): 
                 if grp_ancient[grp][0] == 0:    # modern samples
                     mij_bar = np.zeros((len(mod_idx), no_pos))
@@ -493,7 +505,6 @@ class DMRs:
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
                         if not weight_mod_var:    # normal calculation
-                            print("Modern group: using unweighted error calculation, with smoothing")
                             [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
                             Wj = np.nansum(wij, axis=0)
                             # Calculate mm
@@ -505,7 +516,6 @@ class DMRs:
                             meth_err[grp, :] = dmm
                         else:
                             if win_mod == 1:    # no smoothing for modern samples
-                                print("Modern group: using win_mod=1, no smoothing", chromosomes[chrom])
                                 MIN_VAR = 0.01**2
                                 meth_vec = samples[mod_idx[samp]].get_methylation(idx_chrom)[1]
                                 cov_vec  = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
@@ -528,7 +538,6 @@ class DMRs:
                                 # store variances v_ij
                                 wij[samp][valid] = variance[valid]
                             else:    # weighted smoothing for modern samples
-                                print("Modern group: using win_mod=", win_mod, "with smoothing", chromosomes[chrom])
                                 winsize = int(win_size[mod_idx[samp], idx_chrom])
                                 mij_bar[samp], inv_var = samples[mod_idx[samp]].smooth(idx_chrom, [winsize])
 
@@ -630,7 +639,6 @@ class DMRs:
             mincov = np.array([cc*mcpc for cc in cdm[chrom].no_CpGs])    # min required coverage per CpG
             for grp in range(len(giS)):
                 ms = int(np.ceil(por*len(giS[grp])))    # min number of informative samples
-                print(f"Requiring {ms} informative samples in group {grp}")
                 counti = np.zeros(len(cdm[chrom].no_CpGs))    # will count the number of informative samples in group per DMR
                 if grp_ancient[grp][0] == 0:    # if modern
                     for samp in giS[grp]:
@@ -691,6 +699,7 @@ class DMRs:
         self.no_chromosomes = no_chr
         self.no_samples = no_samples
         
+        print(f"\nFinished finding DMRs!")
         #close filehandle
         if report:
             fid.close()
