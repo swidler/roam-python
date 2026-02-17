@@ -40,7 +40,7 @@ argParser.add_argument("-mb", "--min_bases", type=int, help="DMRs shorter than m
 argParser.add_argument("-mad", "--max_adj_dist", type=int, help="max distance between adjacent CpGs within the same DMR")
 argParser.add_argument("-mf", "--min_finite", nargs="+", help="minimum number of ancient samples for which we require data")
 argParser.add_argument("-w", "--win_size", help="window size for smoothing")
-argParser.add_argument("-wm", "--win_mod", help="window size for smoothing modern samples")
+argParser.add_argument("-wm", "--win_mod", type=int, help="window size for smoothing modern samples")
 argParser.add_argument("-we", "--weight_mod_var", help="calculate modern group statistic error with coverage weights", action="store_true")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument("-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr")
@@ -60,7 +60,6 @@ argParser.add_argument("-an", "--noannot", help="flag for running annotation", a
 argParser.add_argument("-pr", "--propinf", type=float, help="Minimum fraction of informative samples per group in DMR")
 argParser.add_argument("-sc", "--min_dmrcov", type=int, help="Minimum mean coverage per CpG at DMR per sample")
 argParser.add_argument("-wi", "--widenby", type=int, help="Flanking region size in bp for individual DMR plot")
-
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
@@ -114,7 +113,13 @@ if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
 if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    
+
+dparams = vars(args)
+
+print("--- Run Configuration ---")
+for key, value in dparams.items():
+    print(f"{key}: {value}")
+print("-------------------------")    
 
 time = datetime.datetime.now()
 time = time.strftime("%d-%m-%Y_%H.%M.%S")
@@ -273,7 +278,7 @@ if "fdr" in stages:
         #    ref = mms
         #min_finite = min_fin[:]
         samps = list(sim_obj_list.values())
-        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod_orig)
+        dmr_obj_list[perm].groupDMRs(win_size=win_size_orig, lcf=lcf_orig, samples=samps, sample_groups=group_names, coord=gc, chroms=chr_names, min_finite=min_finite, min_CpGs=min_CpGs, delta=delta, ref=ref, max_adj_dist=max_adj_dist, min_bases=min_bases, min_Qt=min_Qt, fname=logfile, mcpc=mcpc, por=por, win_mod=win_mod_orig, weight_mod_var=weight_mod_var)
     statfile = log_dir + f"fdr_stats_{time}.txt"
     print(f"Running fdr calculation on DMR_obj_{time}")
     adjusted_DMR = dms.adjust_params(dmr_obj_list, thresh=thresh, fname=logfile, statfile=statfile)
@@ -282,10 +287,6 @@ if "fdr" in stages:
     fname = dump_dir + f"filtered_DMRs_{time}.txt"
     adjusted_DMR.dump_DMR(fname)
     print("done")
-    
-
-    
-    
         
     
 if "permute" in stages:

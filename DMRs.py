@@ -492,7 +492,7 @@ class DMRs:
                     cij = np.zeros((len(mod_idx), no_pos))   # coverage c_ij, to use with weighted error calculation
                     for samp in range(len(mod_idx)):
                         idx_chrom = samples[mod_idx[samp]].index([chromosomes[chrom]])[0]
-                        if weight_mod_var == False:    # normal calculation
+                        if not weight_mod_var:    # normal calculation
                             print("Modern group: using unweighted error calculation, with smoothing")
                             [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(idx_chrom, [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]])
                             Wj = np.nansum(wij, axis=0)
