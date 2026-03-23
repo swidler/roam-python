@@ -155,6 +155,7 @@ IMPORTANT: All parameters can be specified, to override defaults (strings, excep
 	-lws, --loc_win_size smaller window size for finer filtering with low coverage. Can be 'skip'  (without 
 		quotation marks) to ignore this step, 'auto' (without quotation marks), or the desired size. 
 		(default: 'auto')
+	-so, --stdout_file save stdout and stderr to this file while also keeping it on screen
 	
 Outputs:  
 	&emsp;If the pipeline runs to the final stage, two main outputs are produced: a BED file 
