@@ -297,6 +297,7 @@ Other optional parameters can be specified as follows:
 	-an, --noannot flag for running annotation, (use this flag, with no value following it, when 
 		annotation not desired).
     -wi, --widenby Flanking region size in bp for individual DMR plot (default: 1000)
+	-so, --stdout_file save stdout and stderr to this file while also keeping it on screen
 	
 The stages:  
 	&emsp;This pipeline is composed of "DMR" and "fdr". (Extra functions that can be used here are permute, 
