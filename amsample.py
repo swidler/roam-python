@@ -1618,7 +1618,7 @@ class Amsample(Chrom):
                         if bed:
                             meth_bed[chrom] = []
                             for i in range(len(self.methylation["methylation"][chrom])):
-                                meth_bed[chrom].append(f"{self.chr_names[chrom]}\t{gc.coords[chrom][i]}\t{gc.coords[chrom][i]+1}\t{self.methylation['methylation'][chrom][i]}\n")
+                                meth_bed[chrom].append(f"{self.chr_names[chrom]}\t{gc.coords[gc.chr_names.index(self.chr_names[chrom])][i]}\t{gc.coords[gc.chr_names.index(self.chr_names[chrom])][i]+1}\t{self.methylation['methylation'][chrom][i]}\n")
                         meth = self.methylation["methylation"][chrom]
                         fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
                     if bed:
