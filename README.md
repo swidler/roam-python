@@ -285,7 +285,7 @@ Other optional parameters can be specified as follows:
 		group (default: 1 for each group).
 	-pr, --propinf minimum fraction of informative samples per group (default: 0.667)
 	-sc, --min_dmrcov minimum mean coverage per CpG at DMR per sample (default: 3)
-	-w, --win_size window size for smoothing (default: calculated automatically).
+	-w, --win_size window size for smoothing (default: taken from the reconstructed methylation values).
 	-l, --lcf low coverage factor, positions with coverage below this value will be filtered out for 
 		the corresponding sample (default: calculated automatically).
 	-sp, --sim_permutations number of permutations to run for fdr.
