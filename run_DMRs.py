@@ -85,7 +85,7 @@ argParser.add_argument(
     nargs="+",
     help="minimum number of ancient samples for which we require data",
 )
-argParser.add_argument("-w", "--win_size", help="window size for smoothing")
+argParser.add_argument("-w", "--win_size", nargs="+", help="window size for smoothing")
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument(
     "-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr"

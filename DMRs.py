@@ -262,10 +262,9 @@ class DMRs:
                fname              log file name
                win_size           window size for smoothing. If 'meth', it is taken as the value used to reconstruct
                    the methylation in each sample. If 'auto', a recommended value is computed for every chromosome
-                   of each sample. Otherwise, it can be a scalar (used for all chromosomes in all samples), a vector
+                   of each sample. Otherwise, it can be a scalar (used for all chromosomes in all samples) or a vector
                    over the samples (same window size is used for all chromosomes of each ancient individual, nan is
-                   substituted for each modern individual), or a 2d array with values per individual and chromosome
-               lcf                low coverage factor. If 'meth', it is taken as the value used in reconstructing the
+                   substituted for each modern individual). If 'meth', it is taken as the value used in reconstructing the
                    methylation of each sample
                delta              minimum methylation difference between the two groups
                min_bases          the minimum length of each DMR in bases--shorter DMRs are filtered out
@@ -296,19 +295,40 @@ class DMRs:
         is_meth_lcf = False
 
         chromosomes = chroms if chroms else coord.chromosomes
-        if (
-            type(win_size) == str and win_size == "meth"
-        ):  # futurewarning--fix this and others
+        # process win_size argument
+        if isinstance(win_size, list) and len(win_size) == 1:
+            win_size = win_size[0]
+
+        if isinstance(win_size, str):
+            win_size_clean = win_size.strip().lower()
+
+            if win_size_clean == "meth":
+                is_auto_win = False
+                is_meth_win = True
+
+            elif win_size_clean == "auto":
+                is_auto_win = True
+                is_meth_win = False
+
+            else:
+                # numeric string, e.g. "31" or "31,29,19,25" or "31 29 19 25"
+                win_size = [x for x in re.split(r"[,\s]+", win_size.strip()) if x]
+                win_size = np.asarray([float(x) for x in win_size], dtype=float)
+
+                is_auto_win = False
+                is_meth_win = False
+
+        elif isinstance(win_size, list):
+            # list from config or argparse nargs="+", e.g. [31, 29, 19, 25]
+            win_size = np.asarray(win_size, dtype=float)
+
             is_auto_win = False
-            is_meth_win = True
-        elif type(win_size) == str and win_size == "auto":  # fix
-            is_auto_win = True
             is_meth_win = False
+
         else:
-            if type(win_size) == str:
-                win_size = re.split(",| ", win_size)
-            if type(win_size) == list:
-                win_size = [int(x) for x in win_size]
+            # direct Python scalar / numpy array case
+            win_size = np.asarray(win_size, dtype=float)
+
             is_auto_win = False
             is_meth_win = False
         if type(lcf) == str and lcf == "meth":  # buggy?
@@ -357,35 +377,35 @@ class DMRs:
                     else:
                         win_size[samp,] = win_mod
             else:
+                win_size = np.asarray(win_size, dtype=float)
                 # Option 1: same window size for all individuals/chromosomes
-                if len(win_size) == 1:
+                if win_size.size == 1:
                     if not win_size[0] % 2:  # win_size is even
                         win_size[0] += 1  # make it odd
                     win_size = win_size * np.ones((no_samples, no_chr))
                     if win_mod:  # prob a silly condition
                         win_size[idx_mod,] = win_mod
 
-                # same W for all chromosomes of an individual  THIS ISN'T RIGHT
-                elif (
-                    type(win_size) == "list" and (np.array(win_size)).ndim == 1
-                ) or win_size.ndim == 1:
+                # same W for all chromosomes of an individual  
+                elif win_size.ndim == 1:
+                    if win_size.size != no_samples:
+                        raise ValueError(
+                            f"1D win_size should have one value per sample; "
+                            f"got {win_size.size} values for {no_samples} samples."
+                        )
                     for samp in range(no_samples):
                         if ~np.isnan(win_size[samp]):
                             if not win_size[samp] % 2:  # win_size is even
                                 win_size[samp] += 1  # make it odd
-                    win_size = np.transpose([win_size]) * np.ones(no_chr)
+                    win_size = np.repeat(win_size[:, None], no_chr, axis=1)
                     if win_mod:  # prob a silly condition
                         win_size[idx_mod,] = win_mod
 
-                # different W for each chromosome and individual
                 else:
-                    for samp in range(no_samples):
-                        for chrom in range(no_chr):
-                            if ~np.isnan(win_size[samp, chrom]):
-                                if not win_size[samp, chrom] % 2:  # win_size is even
-                                    win_size[samp, chrom] += 1  # make it odd
-                    if win_mod:  # prob a silly condition
-                        win_size[idx_mod,] = win_mod
+                    raise ValueError(
+                        "win_size must be either a single value or a 1D vector "
+                        f"with one value per sample; got array with shape {win_size.shape}."
+                    )
 
         else:
             win_size = np.zeros((no_samples, no_chr))
