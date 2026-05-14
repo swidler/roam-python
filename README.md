@@ -229,7 +229,7 @@ Three input variables are required:
   	
 Apart from these three mandatory paramters, a modern reference methylation map should be
  	provided, similar to the DNA methylation reconstruction pipeline. This reference is used
-  	for the simulations. Lust like in the DNA methylation reconstruction pipeline, this file
+  	for the simulations. Just like in the DNA methylation reconstruction pipeline, this file
    	can be provided as a .cov Bismark output (-b) or as a .txt file (-mo), as described earlier
     	(the bone2 reference modern human bone DNA methylation [hg19] can be found in
      	http://carmelab.huji.ac.il/data.html). If no reference is provided (if your methylomes
