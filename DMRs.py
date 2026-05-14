@@ -1452,7 +1452,7 @@ class DMRs:
                     if self.cDMRs[chrom].annotation[0]["in_CGI"] != "N/A":
                         cg = "in_CGI\t"
                     if self.cDMRs[chrom].annotation[0]["in_gene"] != "N/A":
-                        g = "in_gene\tname(s)\tstrand(s)\tin_prom\tname(s)\tstrand(s)\tupstream_TSS\tname(s)\tstrand(s)\tdownstream_TSS\tname(s)\tstrand(s)\n"
+                        g = "in_gene_names\tin_gene_strands\tin_prom_names\tin_prom_strands\tupstream_TSS\tupstream_TSS_names\tupstream_TSS_strands\tdownstream_TSS\tdownstream_TSS_names\tdownstream_TSS_strands\n"
             fid.write(
                 f"Chrom\tDMR#\tout_of\tGenomic_start\tGenomic_end\tCpG_start\tCpG_end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}{c1}{c2}{cg}{g}"
             )
@@ -1488,9 +1488,6 @@ class DMRs:
                                 f"{self.cDMRs[chrom].annotation[dmr]['in_cust2']}\t"
                             )
                         if self.cDMRs[chrom].annotation[dmr]["in_gene"] != "N/A":
-                            fid.write(
-                                f"{self.cDMRs[chrom].annotation[dmr]['in_gene']['present']}\t"
-                            )
                             name = ", ".join(
                                 map(
                                     str,
@@ -1510,9 +1507,6 @@ class DMRs:
                                     ["+" if x == 1 or x == "1" else "-" for x in strand]
                                 )
                             fid.write(f"{clear_strand}\t")
-                            fid.write(
-                                f"{self.cDMRs[chrom].annotation[dmr]['in_prom']['present']}\t"
-                            )
                             name = ", ".join(
                                 map(
                                     str,
