@@ -375,7 +375,7 @@ def roam_pipeline(**params):
         picdir = params["picdir"] if "picdir" in params else config["paths"]["picdir"]
         logdir = params["logdir"] if "logdir" in params else config["paths"]["logdir"]
         if stage == "diagnose":
-            ams.diagnose(picdir=picdir, logdir=logdir)
+            ams.diagnose(chroms=chroms, picdir=picdir, logdir=logdir)
         elif stage == "filter":
             use_t = (
                 False
@@ -405,6 +405,7 @@ def roam_pipeline(**params):
                 params["method"] if "method" in params else config["filter"]["method"]
             )
             ams.filter(
+                chroms=chroms,
                 logdir=logdir,
                 max_c_to_t=float(max_c_to_t),
                 merge=merge,
@@ -499,7 +500,7 @@ def roam_pipeline(**params):
                 else:
                     drate_params["global_meth"] = float(global_meth)
                 drate_params["method"] = drate_method
-                ams.estimate_drate(**drate_params)
+                ams.estimate_drate(chroms=chroms, **drate_params)
             elif stage == "meth":
                 lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
                 slope = (
@@ -554,6 +555,7 @@ def roam_pipeline(**params):
                     win_params["max_width"] = int(max_width)
 
                 ams.reconstruct_methylation(
+                    chroms=chroms,
                     ref=mms,
                     function=recon_method,
                     win_size=win_size,
@@ -568,7 +570,7 @@ def roam_pipeline(**params):
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    ams.dump(stage, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
+    ams.dump(stage, chroms=chroms, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
 
 
 try:

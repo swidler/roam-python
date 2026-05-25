@@ -669,7 +669,7 @@ class Amsample(Chrom):
             meth = min(max(meth,0),1)
         return meth
 
-    def diagnose(self, fname=None, span=5, tolerance=1e-3, low_coverage=1, logdir=None, picdir=None):
+    def diagnose(self, fname=None, span=5, tolerance=1e-3, low_coverage=1, logdir=None, picdir=None, chroms=None):
         """Computes basic statistics on each input chromosome, and recommends what thresholds to use when excluding 
             PCR duplicates and true mutations.
             
@@ -684,6 +684,18 @@ class Amsample(Chrom):
         
         #initialize
         no_chrs = self.no_chrs
+        # determine which chromosomes to iterate over: either all, or the requested subset
+        if chroms is None:
+            chrom_iter = range(no_chrs)
+        else:
+            # accept list of names or numeric indices; normalize to indices in self
+            requested = [str(x) for x in chroms]
+            idxs = self.index(requested)
+            # detect missing chromosomes (self.index returns np.nan for missing)
+            missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+            if missing:
+                raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+            chrom_iter = [int(v) for v in idxs]
         #no_chrs = 3
         eff_coverage = np.zeros(no_chrs)
         coverage_threshold = np.zeros(no_chrs)
@@ -705,7 +717,7 @@ class Amsample(Chrom):
         time = datetime.datetime.now()
         time = time.strftime("%d-%m-%Y_%H_%M")
             
-        for chrom in range(no_chrs):
+        for chrom in chrom_iter:
             #report
             if self.chr_names:
                 print(f"Diagnosing {self.chr_names[chrom]}")
@@ -921,7 +933,7 @@ class Amsample(Chrom):
         to_remove = np.unique(to_remove)
         return to_remove
 
-    def filter(self, max_c_to_t = 0.25, merge = True, max_g_to_a = .25, method = None, use_diagnose_filter = True, max_coverage = None,  fname = None, min_t = 1, max_a = 1, logdir=None, thresh_as_upper = False):
+    def filter(self, max_c_to_t = 0.25, merge = True, max_g_to_a = .25, method = None, use_diagnose_filter = True, max_coverage = None,  fname = None, min_t = 1, max_a = 1, logdir=None, thresh_as_upper = False, chroms=None):
         """Removes information from CpG sites that did not pass various quality control tests
         
         Input:    max_c_to_t         threshold used to identify sites with a true C->T mutation. All positions 
@@ -961,6 +973,53 @@ class Amsample(Chrom):
         """
         #initialize
         no_chr = self.no_chrs
+        # determine which chromosomes to iterate over: either all, or the requested subset
+        if chroms is None:
+            chrom_iter = range(no_chr)
+        else:
+            # normalize input: accept single value or list, names or indices (0- or 1-based)
+            if not isinstance(chroms, (list, tuple, np.ndarray)):
+                requested_items = [chroms]
+            else:
+                requested_items = list(chroms)
+            idxs = []
+            missing = []
+            for item in requested_items:
+                # integer index provided
+                if isinstance(item, int):
+                    if 0 <= item < self.no_chrs:
+                        idxs.append(int(item))
+                    elif 1 <= item <= self.no_chrs:
+                        idxs.append(int(item - 1))
+                    else:
+                        missing.append(str(item))
+                else:
+                    s = str(item)
+                    # try to map as chromosome name first (handles '2' -> 'chr2' when appropriate)
+                    mapped = self.index([s])[0]
+                    if not (isinstance(mapped, float) and np.isnan(mapped)):
+                        idxs.append(int(mapped))
+                        continue
+                    # try with/without 'chr' prefix
+                    mapped = self.index([s.replace('chr','')])[0]
+                    if not (isinstance(mapped, float) and np.isnan(mapped)):
+                        idxs.append(int(mapped))
+                        continue
+                    # if still not found, fall back to numeric index interpretation (1-based preferred)
+                    if s.isdigit():
+                        n = int(s)
+                        if 0 <= n < self.no_chrs:
+                            idxs.append(int(n))
+                            continue
+                        if 1 <= n <= self.no_chrs:
+                            idxs.append(int(n - 1))
+                            continue
+                    missing.append(s)
+            if missing:
+                raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+            # deduplicate and preserve order
+            seen = set()
+            chrom_iter = [x for x in idxs if not (x in seen or seen.add(x))]
         if fname == None:
             fname = logdir+self.name+"_filter_log.txt"
         if max_coverage == None:
@@ -977,15 +1036,36 @@ class Amsample(Chrom):
         #bring input parameters into standard form - max_coverage
         if np.isscalar(max_coverage):
             max_coverage = max_coverage * np.ones(no_chr)
+        # coerce to integer array and ensure every chromosome has at least coverage 1
+        try:
+            max_coverage = np.array(max_coverage, dtype=int)
+        except Exception:
+            max_coverage = np.array(list(max_coverage), dtype=int)
+        max_coverage[max_coverage < 1] = 1
         #bring input parameters into standard form - max_TsPerCoverage
         if np.isscalar(max_TsPerCoverage):
             tmp_max = max_TsPerCoverage
         else:
-            tmp_max = max_TsPerCoverage.copy() 
+            # make a shallow copy so we can normalize missing entries below
+            try:
+                tmp_max = max_TsPerCoverage.copy()
+            except Exception:
+                tmp_max = max_TsPerCoverage
+        # ensure max_TsPerCoverage is a list-like object of length no_chr so missing entries can be filled
+        if np.isscalar(max_TsPerCoverage) or not isinstance(max_TsPerCoverage, (list, np.ndarray)):
+            max_TsPerCoverage = [max_TsPerCoverage] * no_chr
+        else:
+            # coerce to plain list and pad/truncate to no_chr
+            tmp_list = list(max_TsPerCoverage)
+            if len(tmp_list) < no_chr:
+                tmp_list.extend([None] * (no_chr - len(tmp_list)))
+            elif len(tmp_list) > no_chr:
+                tmp_list = tmp_list[:no_chr]
+            max_TsPerCoverage = tmp_list
         if thresh_as_upper:
             print("using max_c_to_t as upper limit") 
             max_TsPerCoverage = self.p_filters["max_TsPerCoverage"]
-            for chrom in range(no_chr):
+            for chrom in chrom_iter:
                 covlist=np.array([c for c in range(1,max_coverage[chrom]+1)])
                 ratios=np.array([max_c_to_t if (r > max_c_to_t) else r for r in (np.array(max_TsPerCoverage[chrom])/covlist)])
                 max_TsPerCoverage[chrom] = np.floor(ratios * covlist).astype(int)
@@ -993,18 +1073,23 @@ class Amsample(Chrom):
             if not use_diagnose_filter: #max_c_to_t
                 if np.isscalar(max_TsPerCoverage): #single ratio
                     max_TsPerCoverage = self.p_filters["max_TsPerCoverage"]
-                    for chrom in range(no_chr):
+                    for chrom in chrom_iter:
                         max_TsPerCoverage[chrom] = np.floor(tmp_max * np.array(range(1, max_coverage[chrom]+1))).astype(int)
                 else: #ratio per chrom or per coverage per chrom
-                    for chrom in range(no_chr):
+                    for chrom in chrom_iter:
                         max_TsPerCoverage[chrom] = np.floor(tmp_max * np.array(range(1, max_coverage[chrom]+1))).astype(int)
             else: #max_TsPerCoverage or default
                 if np.isscalar(max_TsPerCoverage): #single number
-                    for chrom in range(no_chr):
+                    for chrom in chrom_iter:
                         max_TsPerCoverage[chrom] = tmp_max * np.ones(int(max_coverage[chrom]))
                 else: #number per chrom
-                    for chrom in range(no_chr):
-                        max_TsPerCoverage[chrom] = tmp_max[chrom] * np.ones(int(max_coverage[chrom]))
+                        for chrom in chrom_iter:
+                            # if an entry is missing for this chromosome, fall back to tmp_max
+                            try:
+                                v = tmp_max[chrom]
+                            except Exception:
+                                v = tmp_max
+                            max_TsPerCoverage[chrom] = v * np.ones(int(max_coverage[chrom]))
         #bring input parameters into standard form - max_g_to_a
         if np.isscalar(max_g_to_a):
             max_g_to_a = max_g_to_a * np.ones(no_chr)
@@ -1012,10 +1097,22 @@ class Amsample(Chrom):
         if np.isscalar(max_a):
             max_a = max_a * np.ones(no_chr)
         #bring input parameters into standard form - min_t
-        for chrom in range(no_chr):
-            vec = max_TsPerCoverage[chrom] 
-            vec = [min_t if x < min_t else x for x in vec]
-            vec[0:max(0,min_t-1)] = range(1,min_t) #min_t for a given coverage can't be more than the coverage
+        for chrom in chrom_iter:
+            vec = max_TsPerCoverage[chrom]
+            # if this chrom has no precomputed thresholds, populate from tmp_max
+            if vec is None or (isinstance(vec, float) and np.isnan(vec)):
+                if np.isscalar(tmp_max):
+                    vec = np.floor(tmp_max * np.array(range(1, int(max_coverage[chrom]) + 1))).astype(int)
+                else:
+                    try:
+                        vec = np.floor(tmp_max[chrom] * np.array(range(1, int(max_coverage[chrom]) + 1))).astype(int)
+                    except Exception:
+                        vec = np.floor(np.array(tmp_max) * np.array(range(1, int(max_coverage[chrom]) + 1))).astype(int)
+            # normalize to numeric 1D array and enforce minimum coverage threshold per entry
+            vec = np.array(vec, dtype=float)
+            vec = np.where(vec < min_t, float(min_t), vec)
+            if min_t > 1:
+                vec[: max(0, min_t - 1)] = np.arange(1, min_t, dtype=float)
             max_TsPerCoverage[chrom] = vec
         f_ams = self #don't need to worry abt overwriting, since output has diff filename
         f_ams.p_filters["method"] = method
@@ -1024,9 +1121,15 @@ class Amsample(Chrom):
         f_ams.p_filters["max_g_to_a"] = max_g_to_a
         f_ams.p_filters["max_a"] = max_a
         fid = open(fname, "w")
-        #loop on chromosomes
+        #loop on requested chromosomes
         tot_removed = 0
-        for chrom in range(no_chr):
+        for chrom in chrom_iter:
+            # verify per-chrom data exists
+            if chrom >= len(self.no_t) or chrom >= len(self.no_c):
+                msg = f"Skipping chromosome index {chrom}: no per-chrom data present in object."
+                print(msg)
+                fid.write(msg + "\n")
+                continue
             #report
             if self.chr_names:
                 print(f"Filtering {self.chr_names[chrom]}")
@@ -1117,7 +1220,7 @@ class Amsample(Chrom):
         #close file
         fid.close()
 
-    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1):
+    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1, chroms=None):
         """Estimates deamination rate
         
         Input: method        the method used to perform the estimation. Can be one of:
@@ -1175,6 +1278,16 @@ class Amsample(Chrom):
         #    raise Exception(f"{self.name} is not filtered")
         if self.coord_per_position != "1" and self.coord_per_position != 1 and 1 not in self.coord_per_position:  # handle string and int (to cover both old and new objects)
             raise Exception(f"{self.name} is not merged")
+
+        if chroms is None:
+            chrom_iter = range(self.no_chrs)
+        else:
+            requested = [str(x) for x in chroms]
+            idxs = self.index(requested)
+            missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+            if missing:
+                raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+            chrom_iter = [int(v) for v in idxs]
         
         #verify reference is merged and scaled
         if method == "reference":
@@ -1190,7 +1303,7 @@ class Amsample(Chrom):
         tot_ct = 0
         
         #loop on chromosomes
-        for chrom in range(self.no_chrs):
+        for chrom in chrom_iter:
             if re.search("[Mm]",self.chr_names[chrom]):
                 continue
             #report
@@ -1274,7 +1387,7 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto"):
+    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto", chroms=None):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1299,6 +1412,15 @@ class Amsample(Chrom):
         Output: Amsample object with udpated methylation field.
         """
         no_chr = self.no_chrs
+        if chroms is None:
+            chrom_iter = range(no_chr)
+        else:
+            requested = [str(x) for x in chroms]
+            idxs = self.index(requested)
+            missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+            if missing:
+                raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+            chrom_iter = [int(v) for v in idxs]
             # ── Prepare reference + constants for histogram mode (once) ──
         if function == "histogram":
             if not ref:
@@ -1338,12 +1460,12 @@ class Amsample(Chrom):
                     win_size[0] += 1 #win_size should be odd
                 win_size = win_size * np.ones(no_chr)
             else:
-                for chrom in range(no_chr):
+                for chrom in chrom_iter:
                     if not win_size[chrom]%2:
                         win_size[chrom] += 1 #win_size should be odd
         else:
             win_size = np.zeros(no_chr)
-            for chrom in range(no_chr):
+            for chrom in chrom_iter:
                 win_size[chrom] = self.determine_winsize(chrom, **winsize_alg)
         win_size = [int(x) for x in win_size]
 
@@ -1357,8 +1479,8 @@ class Amsample(Chrom):
         intercept = [float(x) for x in intercept]
         
             
-        meth = []
-        for chrom in range(no_chr):
+        meth = [None] * no_chr
+        for chrom in chrom_iter:
             if self.chr_names:
                 print(f"Computing methylation in {self.chr_names[chrom]}")
             else:
@@ -1394,29 +1516,31 @@ class Amsample(Chrom):
             #compute methylation
             c_to_t = no_t/no_ct
             if function == "histogram":
-                # use only finite elements
-                idx_finite = np.where(np.isfinite(c_to_t))
-                if idx_finite[0].size == 0:
-                    # nothing to map – all NaNs
-                    methi = np.empty(len(c_to_t))
-                    methi[:] = np.nan
+                methi = np.empty(len(c_to_t))
+                methi[:] = np.nan
+
+                # smooth reference for this chromosome & window size, with caching
+                chr_name = self.chr_names[chrom] if self.chr_names else f"chrom_{chrom+1}"
+                key = (chr_name, int(win_size[chrom]))
+                cache = ref._recon_smooth_cache
+                if key in cache:
+                    vec = cache[key]
                 else:
-                    sig = c_to_t[idx_finite]
-                    # x-axis for signal
+                    vec = ref.smooth(None, int(win_size[chrom]), name=chr_name)[0]
+                    vec = np.asarray(vec, dtype=float)
+                    cache[key] = vec
+
+                common_len = min(len(c_to_t), len(vec))
+                if common_len < len(c_to_t) or common_len < len(vec):
+                    print(
+                        f"Warning: {self.chr_names[chrom]} has {len(c_to_t)} sample positions "
+                        f"and {len(vec)} reference positions; using first {common_len}."
+                    )
+                idx_finite = np.where(np.isfinite(c_to_t[:common_len]))
+                if common_len and idx_finite[0].size:
+                    sig = c_to_t[:common_len][idx_finite]
                     sig_edges = np.linspace(0, np.max(sig), sig_bins + 1)
-
-                    # smooth reference for this chromosome & window size, with caching
-                    chr_name = self.chr_names[chrom] if self.chr_names else f"chrom_{chrom+1}"
-                    key = (chr_name, int(win_size[chrom]))
-                    cache = ref._recon_smooth_cache
-                    if key in cache:
-                        vec = cache[key]
-                    else:
-                        vec = ref.smooth(None, int(win_size[chrom]), name=chr_name)[0]
-                        vec = np.asarray(vec, dtype=float)
-                        cache[key] = vec
-
-                    vec = vec[idx_finite]
+                    vec = vec[:common_len][idx_finite]
 
                     # reference histogram + CDF
                     hist = np.histogram(vec, bins=ref_edges)[0]
@@ -1439,8 +1563,6 @@ class Amsample(Chrom):
                     sig1 = np.digitize(sig, sig_edges)
                     sig1[sig1 == len(sig_edges)] = len(sig_edges) - 1
 
-                    methi = np.empty(len(c_to_t))
-                    methi[:] = np.nan
                     mapped = hmap[sig1 - 1]
                     methi[idx_finite] = mapped
             elif function == "logistic" or function == "log":
@@ -1449,7 +1571,7 @@ class Amsample(Chrom):
                 methi = slope[chrom]*c_to_t+intercept[chrom]
                 methi = np.minimum(np.maximum(methi,0),1) #keep between 0 and 1 (nans untouched)
             print(f"Average methylation: {np.nanmean(methi):.2f}")
-            meth.append(methi)
+            meth[chrom] = methi
         self.methylation = {"methylation":meth, "algorithm":function, "win_size":win_size, "slope": slope, "intercept":intercept, "lcf":lcf}
 
     def simulate(self, mms, chrom=None):
@@ -1502,10 +1624,69 @@ class Amsample(Chrom):
         aname = self.name
         aname = re.sub(r"\s", "_", aname)
         fname = dir + aname + "_" + stage + ".txt"
+        # Determine which chromosomes are being dumped
+        if chroms is None:
+            dumped_idxs = list(range(self.no_chrs))
+        else:
+            requested = [str(x) for x in chroms]
+            idxs = self.index(requested)
+            missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+            if missing:
+                raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+            dumped_idxs = [int(v) for v in idxs]
+        dumped_chr_names = [self.chr_names[i] for i in dumped_idxs]
+
+        def subset_values(values):
+            if values is None:
+                return []
+            if np.isscalar(values) or isinstance(values, str):
+                return values
+            vals = list(values)
+            if len(vals) == len(self.chr_names):
+                return [vals[i] for i in dumped_idxs if i < len(vals)]
+
+            result = []
+            for i in dumped_idxs:
+                if i < len(self.chr_names):
+                    chrom_name = str(self.chr_names[i])
+                    chrom_key = chrom_name.lower().removeprefix("chr")
+                    if chrom_key.isdigit():
+                        original_idx = int(chrom_key) - 1
+                    elif chrom_key == "x":
+                        original_idx = 22
+                    elif chrom_key == "y":
+                        original_idx = 23
+                    else:
+                        original_idx = i
+                else:
+                    original_idx = i
+                if original_idx < len(vals):
+                    result.append(vals[original_idx])
+            return result
+
+        def fmt_number(x, as_int=False):
+            try:
+                v = float(x)
+                if np.isnan(v) or np.isinf(v):
+                    return "NaN"
+                return str(int(v)) if as_int else str(v)
+            except Exception:
+                try:
+                    arr = np.asarray(x).flatten().tolist()
+                    return "[" + " ".join(map(str, arr)) + "]"
+                except Exception:
+                    return "NaN"
+
+        def fmt_values(values, as_int=False):
+            vals = subset_values(values)
+            if np.isscalar(vals) or isinstance(vals, str):
+                vals = [vals]
+            return " ".join(fmt_number(x, as_int=as_int) for x in vals)
+
         with open(fname, "w") as fid:
             fid.write(f"Name: {aname}\nSpecies: {self.species}\nReference: {self.reference}\n")
             fid.write(f"Library: {self.library}\n")
-            fid.write(f"Chromosomes: {self.chr_names}\n")
+            fid.write(f"Chromosomes: {dumped_chr_names}\n")
             #filt = "" if self.is_filtered else "not "
             #fid.write(f"This sample is {filt}filtered\n")
             fid.write(f"Is filtered: {self.is_filtered}\n")
@@ -1518,18 +1699,43 @@ class Amsample(Chrom):
                 if key == "method":
                     fid.write(f"\tMethod: {self.p_filters['method']}\n")
                 elif key == "max_coverage":
-                    max_cov = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_coverage']]
-                    fid.write(f"\tmax_coverage: {' '.join(map(str, max_cov))}\n")
+                    fid.write(f"\tmax_coverage: {fmt_values(self.p_filters['max_coverage'], as_int=True)}\n")
                 elif key == "max_TsPerCoverage":
                     fid.write("\tmax_TsPerCoverage:\n")
-                    for chrom in range(self.no_chrs):
-                        max_t = [int(x) if ~np.isnan(x) and ~np.isinf(x) else "NaN" for x in self.p_filters['max_TsPerCoverage'][chrom]]
-                        fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
+                    # normalize requested chroms (names or indices) into integer indices
+                    if chroms is None:
+                        iter_chroms = list(range(self.no_chrs))
+                    else:
+                        requested = [str(x) for x in chroms]
+                        idxs = self.index(requested)
+                        missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+                        if missing:
+                            raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+                        iter_chroms = [int(v) for v in idxs]
+                    entry = self.p_filters.get('max_TsPerCoverage', None)
+                    for chrom in iter_chroms:
+                        if entry is None or entry[chrom] is None:
+                            fid.write(f"\t\t{self.chr_names[chrom]}: No data\n")
+                        else:
+                            max_t = []
+                            for x in entry[chrom]:
+                                try:
+                                    v = float(x)
+                                    if np.isnan(v) or np.isinf(v):
+                                        max_t.append("NaN")
+                                    else:
+                                        max_t.append(int(v))
+                                except Exception:
+                                    try:
+                                        arr = np.asarray(x).flatten().tolist()
+                                        max_t.append('[' + ' '.join(map(str, arr)) + ']')
+                                    except Exception:
+                                        max_t.append("NaN")
+                            fid.write(f"\t\t{self.chr_names[chrom]}: {' '.join(map(str, max_t))}\n")
                 elif key == "max_g_to_a":
-                    fid.write(f"\tmax_g_to_a: {' '.join(map(str, self.p_filters['max_g_to_a']))}\n")
+                    fid.write(f"\tmax_g_to_a: {fmt_values(self.p_filters['max_g_to_a'])}\n")
                 elif key == "max_a":
-                    max_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.p_filters['max_a']]
-                    fid.write(f"\tmax_No_As: {' '.join(map(str, max_a))}\n")
+                    fid.write(f"\tmax_No_As: {fmt_values(self.p_filters['max_a'], as_int=True)}\n")
             #sim = "" if self.is_simulated else "not "
             #fid.write(f"This sample is {sim}simulated\n")
             fid.write(f"Is simulated: {self.is_simulated}\n")
@@ -1555,11 +1761,11 @@ class Amsample(Chrom):
                         elif subkey == "dglobal":
                             fid.write(f"\tdglobal: {self.d_rate['rate']['dglobal']}\n")
                         elif subkey == "local":
-                            fid.write(f"\tlocal: {' '.join(map(str, self.d_rate['rate']['local']))}\n")
+                            fid.write(f"\tlocal: {fmt_values(self.d_rate['rate']['local'])}\n")
                         elif subkey == "dlocal":
-                            fid.write(f"\tdlocal: {' '.join(map(str, self.d_rate['rate']['dlocal']))}\n")
+                            fid.write(f"\tdlocal: {fmt_values(self.d_rate['rate']['dlocal'])}\n")
                         elif subkey == "no_positions":
-                            fid.write(f"\tno_positions: {' '.join(map(str, self.d_rate['rate']['no_positions']))}\n")
+                            fid.write(f"\tno_positions: {fmt_values(self.d_rate['rate']['no_positions'])}\n")
             fid.write("Diagnostics: ")
             if self.diagnostics:
                 fid.write("True\n")
@@ -1567,30 +1773,38 @@ class Amsample(Chrom):
                 fid.write("False\n")
             for key in self.diagnostics.keys():
                 if key == "effective_coverage":
-                    fid.write(f"\tEffective coverage: {' '.join(map(str, self.diagnostics['effective_coverage']))}\n")
-            if not chroms:
-                chroms = range(self.no_chrs)
-            for chrom in chroms:
+                    fid.write(f"\tEffective coverage: {fmt_values(self.diagnostics['effective_coverage'])}\n")
+            # normalize requested chroms for dumping
+            if chroms is None:
+                iter_chroms = list(range(self.no_chrs))
+            else:
+                requested = [str(x) for x in chroms]
+                idxs = self.index(requested)
+                missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+                if missing:
+                    raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+                iter_chroms = [int(v) for v in idxs]
+            for chrom in iter_chroms:
                 fid.write(f"{self.chr_names[chrom]}:\n")
-                no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]] if self.no_a else 0
+                no_a = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_a[chrom]] if (self.no_a and self.no_a[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, no_a))}" if no_a else "False"
                 fid.write(f"No_As: {val}\n")
-                no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]] if self.no_c else 0
+                no_c = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_c[chrom]] if (self.no_c and self.no_c[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, no_c))}" if no_c else "False"
                 fid.write(f"No_Cs: {val}\n")
                 #if self.no_g:  # single stranded from matlab doesn't have
-                no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]] if self.no_g else 0
+                no_g = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_g[chrom]] if (self.no_g and self.no_g[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, no_g))}" if no_g else "False"
                 fid.write(f"No_Gs: {val}\n")
-                no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]] if self.no_t else 0
+                no_t = [int(x) if ~np.isnan(x) else "NaN" for x in self.no_t[chrom]] if (self.no_t and self.no_t[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, no_t))}" if no_t else "False"
                 fid.write(f"No_Ts: {val}\n")
                 #if len(self.g_to_a) != 0:
-                g_to_a = [float(x) for x in self.g_to_a[chrom]] if self.g_to_a else 0
+                g_to_a = [float(x) for x in self.g_to_a[chrom]] if (self.g_to_a and self.g_to_a[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, g_to_a))}" if g_to_a else "False"
                 fid.write(f"g_to_a: {val}\n")
                 #if self.c_to_t:  # single stranded from matlab doesn't have
-                c_to_t = [float(x) for x in self.c_to_t[chrom]] if self.c_to_t else 0
+                c_to_t = [float(x) for x in self.c_to_t[chrom]] if (self.c_to_t and self.c_to_t[chrom] is not None) else 0
                 val = f"True\n{' '.join(map(str, c_to_t))}" if c_to_t else "False"
                 fid.write(f"c_to_t: {val}\n")
             fid.write("Reconstructed methylation: ")
@@ -1600,31 +1814,43 @@ class Amsample(Chrom):
                 fid.write("False\n")
             for key in self.methylation.keys():
                 if key == "win_size":
-                    fid.write(f"\twin_size: {' '.join(map(str, self.methylation['win_size']))}\n")
+                    fid.write(f"\twin_size: {fmt_values(self.methylation['win_size'], as_int=True)}\n")
                 elif key == "algorithm":
                     fid.write(f"\talgorithm: {self.methylation['algorithm']}\n")
                 elif key == "slope":
-                    fid.write(f"\tslope: {' '.join(map(str, self.methylation['slope']))}\n")
+                    fid.write(f"\tslope: {fmt_values(self.methylation['slope'])}\n")
                 elif key == "intercept":
-                    fid.write(f"\tintercept: {' '.join(map(str, self.methylation['intercept']))}\n")
+                    fid.write(f"\tintercept: {fmt_values(self.methylation['intercept'])}\n")
                 elif key == "lcf":
                     fid.write(f"\tlcf: {self.methylation['lcf']}\n")
                 elif key == "methylation":
                     if bed:
                         gc = t.load_object(gc_object)
                         meth_bed = {}
-                    #for chrom in range(self.no_chrs):
-                    for chrom in range(len(self.methylation["methylation"])):
+                    if chroms is None:
+                        meth_chroms = list(range(len(self.methylation["methylation"])))
+                    else:
+                        requested = [str(x) for x in chroms]
+                        idxs = self.index(requested)
+                        missing = [requested[i] for i, v in enumerate(idxs) if (isinstance(v, float) and np.isnan(v))]
+                        if missing:
+                            raise ValueError(f"Requested chromosomes not found in sample: {missing}")
+                        meth_chroms = [int(v) for v in idxs]
+                    for chrom in meth_chroms:
+                        meth = self.methylation["methylation"][chrom]
+                        if meth is None:
+                            continue
                         if bed:
                             meth_bed[chrom] = []
-                            for i in range(len(self.methylation["methylation"][chrom])):
-                                meth_bed[chrom].append(f"{self.chr_names[chrom]}\t{gc.coords[gc.chr_names.index(self.chr_names[chrom])][i]}\t{gc.coords[gc.chr_names.index(self.chr_names[chrom])][i]+1}\t{self.methylation['methylation'][chrom][i]}\n")
-                        meth = self.methylation["methylation"][chrom]
+                            coord_chrom = gc.chr_names.index(self.chr_names[chrom])
+                            no_sites = min(len(meth), len(gc.coords[coord_chrom]))
+                            for i in range(no_sites):
+                                meth_bed[chrom].append(f"{self.chr_names[chrom]}\t{gc.coords[coord_chrom][i]}\t{gc.coords[coord_chrom][i]+1}\t{meth[i]}\n")
                         fid.write(f"\t{self.chr_names[chrom]}: {' '.join(map(str, meth))}\n")
                     if bed:
                         bed_fname = dir + aname + "_" + stage + ".bed"
                         with open(bed_fname, "w") as bid:
-                            for chrom in range(len(meth_bed)):
+                            for chrom in meth_bed:
                                 for line in range(len(meth_bed[chrom])):
                                     bid.write(meth_bed[chrom][line])
         if stage == "meth":
