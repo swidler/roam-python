@@ -337,12 +337,12 @@ class Amsample(Chrom):
                 file_ref = {}
         if file_per_chrom:
             for i in range(len(file_chrom_names)):
-                file_ref[file_chrom_names[i]] = filenames[i]
+                file_ref[t.norm_chr(str(file_chrom_names[i]))] = filenames[i]
             i = 0
             for chrom in chroms:
                 try:
-                    bamfile = file_ref[chrom]  # take files in chrom order, regardless of filename order
-                except:
+                    bamfile = file_ref[t.norm_chr(str(chrom))]  # take files in chrom order, regardless of filename order
+                except KeyError:
                     print(f"No bam file for chromosome {chrom}. Please make sure chromosomes in list match filenames.")
                     sys.exit(1)
                 bam = pysam.AlignmentFile(bamfile, "rb")
@@ -354,13 +354,13 @@ class Amsample(Chrom):
                 # gc.chr_names must exist (it does in your Gcoordinates object)
                 cpg_by_refname = {t.norm_chr(n): gc.coords[i] for i, n in enumerate(gc.chr_names)}
 
-                # sanity: every requested chrom must exist in both maps
-                for ch in chroms:
-                    k = t.norm_chr(str(ch))
-                    if k not in len_by_refname:
-                        raise ValueError(f"Chrom {ch} (norm={k}) missing from BAM references")
-                    if k not in cpg_by_refname:
-                        raise ValueError(f"Chrom {ch} (norm={k}) missing from GC CpG object")
+                # This chromosome-specific BAM only needs to contain the
+                # chromosome currently being processed.
+                k = t.norm_chr(str(chrom))
+                if k not in len_by_refname:
+                    raise ValueError(f"Chrom {chrom} (norm={k}) missing from BAM references")
+                if k not in cpg_by_refname:
+                    raise ValueError(f"Chrom {chrom} (norm={k}) missing from GC CpG object")
                 chrom_key = t.build_chr_key(all_chroms)
                 try:
                     chrom_num = chrom_key[chrom]
@@ -371,8 +371,6 @@ class Amsample(Chrom):
                 if self.chr_names[i]:
                     continue
                 chrom_name = chrom_names[chrom_num]
-                if bam.count(chrom_name) == 0:
-                    continue
                 chrom_pos = i
                 self.process_bam(bam, chrom_name, chrom_pos, library, trim_ends, mapq_thresh, qual_thresh, len_by_refname, cpg_by_refname)
                 bam.close()

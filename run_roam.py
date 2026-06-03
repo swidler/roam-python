@@ -296,6 +296,7 @@ def roam_pipeline(**params):
         sys.exit(1)
     # create Amsample object
     ams = a.Amsample(name=name)
+    active_chroms = chroms
     # eg: ams = a.Amsample(name="Ust_Ishim")
     stages = (
         params["stages"] if "stages" in params else config["basic"]["stages"].split(",")
@@ -329,6 +330,13 @@ def roam_pipeline(**params):
             if "qual" in params
             else int(config["basic"]["qual_thresh"])
         )
+        active_chroms = t.resolve_available_bam_chroms(
+            requested_chroms=chroms,
+            filename=filename,
+            filedir=filedir,
+            file_per_chrom=file_per_chrom,
+            gc_object=gc,
+        )
 
         if bam_workers <= 1:
             # populate object from bam file
@@ -337,7 +345,7 @@ def roam_pipeline(**params):
                 library=library,
                 species=species,
                 trim_ends=trim,
-                chroms=chroms,
+                chroms=active_chroms,
                 filedir=filedir,
                 file_per_chrom=file_per_chrom,
                 mapq_thresh=mapq,
@@ -354,7 +362,7 @@ def roam_pipeline(**params):
                 file_per_chrom=file_per_chrom,
                 library=library,
                 species=species,
-                chroms_full=chroms,
+                chroms_full=active_chroms,
                 trim_ends=trim,
                 mapq_thresh=mapq,
                 qual_thresh=qual,
@@ -375,7 +383,7 @@ def roam_pipeline(**params):
         picdir = params["picdir"] if "picdir" in params else config["paths"]["picdir"]
         logdir = params["logdir"] if "logdir" in params else config["paths"]["logdir"]
         if stage == "diagnose":
-            ams.diagnose(chroms=chroms, picdir=picdir, logdir=logdir)
+            ams.diagnose(chroms=active_chroms, picdir=picdir, logdir=logdir)
         elif stage == "filter":
             use_t = (
                 False
@@ -405,7 +413,7 @@ def roam_pipeline(**params):
                 params["method"] if "method" in params else config["filter"]["method"]
             )
             ams.filter(
-                chroms=chroms,
+                chroms=active_chroms,
                 logdir=logdir,
                 max_c_to_t=float(max_c_to_t),
                 merge=merge,
@@ -500,7 +508,7 @@ def roam_pipeline(**params):
                 else:
                     drate_params["global_meth"] = float(global_meth)
                 drate_params["method"] = drate_method
-                ams.estimate_drate(chroms=chroms, **drate_params)
+                ams.estimate_drate(chroms=active_chroms, **drate_params)
             elif stage == "meth":
                 lcf = params["lcf"] if "lcf" in params else float(config["meth"]["lcf"])
                 slope = (
@@ -555,7 +563,7 @@ def roam_pipeline(**params):
                     win_params["max_width"] = int(max_width)
 
                 ams.reconstruct_methylation(
-                    chroms=chroms,
+                    chroms=active_chroms,
                     ref=mms,
                     function=recon_method,
                     win_size=win_size,
@@ -570,7 +578,7 @@ def roam_pipeline(**params):
     outdir = params["outdir"] if "outdir" in params else config["paths"]["outdir"]
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    ams.dump(stage, chroms=chroms, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
+    ams.dump(stage, chroms=active_chroms, dir=outdir, bed=bed, gc_object=gc, object_dir=object_dir)
 
 
 try:

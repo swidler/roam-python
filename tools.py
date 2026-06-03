@@ -4,6 +4,7 @@ import os
 import pickle
 import re
 import sys
+import glob
 from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
@@ -410,6 +411,116 @@ def norm_chr(name: str) -> str:
     if name == "M":
         name = "MT"
     return name
+
+
+def resolve_available_bam_chroms(
+    requested_chroms,
+    filename="",
+    filedir=None,
+    file_per_chrom=False,
+    gc_object=None,
+):
+    """Keep chromosomes available in BAM input and CpG coords; warn on skips."""
+    import pysam
+
+    requested_chroms = list(requested_chroms)
+    cpg_chroms = None
+    if gc_object:
+        gc = load_object(gc_object) if isinstance(gc_object, str) else gc_object
+        cpg_chroms = {norm_chr(str(chrom)) for chrom in gc.chr_names}
+
+    bam_refs = set()
+    bam_ref_names = {}
+    missing_bam = []
+
+    if file_per_chrom:
+        if not filedir:
+            raise ValueError("filedir is required when file_per_chrom=True")
+        bam_files = glob.glob(os.path.join(filedir, "*.bam"))
+        files_by_chrom = {}
+        for bam_file in bam_files:
+            chrom_name = os.path.basename(bam_file).split("_")[-1].split(".")[0]
+            files_by_chrom[norm_chr(chrom_name)] = bam_file
+
+        for chrom in requested_chroms:
+            chrom_key = norm_chr(str(chrom))
+            bam_file = files_by_chrom.get(chrom_key)
+            if not bam_file:
+                missing_bam.append(chrom)
+                continue
+            with pysam.AlignmentFile(bam_file, "rb") as bam:
+                ref_names = {norm_chr(ref): ref for ref in bam.references}
+            if chrom_key in ref_names:
+                bam_refs.add(chrom_key)
+                bam_ref_names[chrom_key] = ref_names[chrom_key]
+            else:
+                missing_bam.append(chrom)
+    else:
+        with pysam.AlignmentFile(filename, "rb") as bam:
+            bam_ref_names = {norm_chr(ref): ref for ref in bam.references}
+            bam_refs = set(bam_ref_names)
+
+    available = []
+    missing_cpg = []
+    for chrom in requested_chroms:
+        chrom_key = norm_chr(str(chrom))
+        if chrom_key not in bam_refs:
+            if chrom not in missing_bam:
+                missing_bam.append(chrom)
+            continue
+        if cpg_chroms is not None and chrom_key not in cpg_chroms:
+            missing_cpg.append(chrom)
+            continue
+        available.append(chrom)
+
+    if missing_bam:
+        print(
+            "Skipping chromosomes missing from BAM input: "
+            + ", ".join(map(str, missing_bam)),
+            file=sys.stderr,
+        )
+    if missing_cpg:
+        print(
+            "Skipping chromosomes missing from CpG coordinates: "
+            + ", ".join(map(str, missing_cpg)),
+            file=sys.stderr,
+        )
+    if not available:
+        print(
+            "ERROR: None of the requested chromosomes are available in both "
+            "BAM input and CpG coordinates.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    zero_read_chroms = []
+    if file_per_chrom:
+        for chrom in available:
+            chrom_key = norm_chr(str(chrom))
+            bam_file = files_by_chrom[chrom_key]
+            ref_name = bam_ref_names[chrom_key]
+            with pysam.AlignmentFile(bam_file, "rb") as bam:
+                if bam.count(ref_name) == 0:
+                    zero_read_chroms.append(chrom)
+    else:
+        with pysam.AlignmentFile(filename, "rb") as bam:
+            for chrom in available:
+                ref_name = bam_ref_names[norm_chr(str(chrom))]
+                if bam.count(ref_name) == 0:
+                    zero_read_chroms.append(chrom)
+
+    if zero_read_chroms:
+        print(
+            "Chromosomes present in BAM input but with zero mapped reads will "
+            "be included with zero counts: " + ", ".join(map(str, zero_read_chroms)),
+            file=sys.stderr,
+        )
+
+    skipped = len(requested_chroms) - len(available)
+    if skipped:
+        print("Running chromosomes: " + ", ".join(map(str, available)))
+
+    return available
 
 
 def determine_shared_winsize(
