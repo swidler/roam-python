@@ -27,23 +27,23 @@ class DMRs:
 
     def __init__(
         self,
-        samples=[],
-        groups={},
+        samples=None,
+        groups=None,
         species="",
         reference="",
-        chromosomes=[],
-        cDMRs=[],
-        is_ancient=[],
-        algorithm=[],
+        chromosomes=None,
+        cDMRs=None,
+        is_ancient=None,
+        algorithm=None,
     ):
-        self.samples = samples
-        self.groups = groups
+        self.samples = [] if samples is None else list(samples)
+        self.groups = {} if groups is None else dict(groups)
         self.species = species
         self.reference = reference
-        self.chromosomes = chromosomes
-        self.cDMRs = cDMRs
-        self.is_ancient = is_ancient
-        self.algorithm = algorithm
+        self.chromosomes = [] if chromosomes is None else list(chromosomes)
+        self.cDMRs = [] if cDMRs is None else list(cDMRs)
+        self.is_ancient = [] if is_ancient is None else list(is_ancient)
+        self.algorithm = [] if algorithm is None else list(algorithm)
         self.no_chromosomes = len(self.chromosomes)
         self.no_samples = len(self.samples)
 
@@ -226,12 +226,12 @@ class DMRs:
 
     def groupDMRs(
         self,
-        samples=[],
-        sample_groups=[],
-        coord=[],
-        d_rate_in=[],
-        chroms=[],
-        winsize_alg={},
+        samples=None,
+        sample_groups=None,
+        coord=None,
+        d_rate_in=None,
+        chroms=None,
+        winsize_alg=None,
         fname="DMR_log.txt",
         win_size="meth",
         lcf="meth",
@@ -288,6 +288,13 @@ class DMRs:
                    filtering by mcpc. Calculated as ceil(n*por). Will be set to 1 if greater.
         Output: modified DMR object, Qt_up, Qt_down
         """
+        samples = [] if samples is None else samples
+        sample_groups = [] if sample_groups is None else sample_groups
+        coord = [] if coord is None else coord
+        d_rate_in = [] if d_rate_in is None else d_rate_in
+        chroms = [] if chroms is None else chroms
+        winsize_alg = {} if winsize_alg is None else winsize_alg
+
         no_samples = len(samples)
         is_ancient = [1 if type(x).__name__ == "Amsample" else 0 for x in samples]
         if all(x == 0 for x in is_ancient):
@@ -849,7 +856,7 @@ class DMRs:
         return (Qt_up, Qt_down)
 
     def annotate(
-        self, gene_bed, cgi_bed, prom_def=[5000, 1000], cust_bed1=None, cust_bed2=None
+        self, gene_bed, cgi_bed, prom_def=None, cust_bed1=None, cust_bed2=None
     ):
         """Retrieves important data about each DMR.
 
@@ -866,6 +873,8 @@ class DMRs:
         Output:
             cDMR objects with updated annotation in self.cDMRs[chrom].annotation
         """
+        prom_def = [5000, 1000] if prom_def is None else prom_def
+
         # --- genes / promoters / TSS setup (global, done once) ---
         if gene_bed:
             genes = pbt.BedTool(gene_bed)

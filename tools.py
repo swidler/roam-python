@@ -524,7 +524,7 @@ def resolve_available_bam_chroms(
 
 
 def determine_shared_winsize(
-    samples, chrom, coverage=[], drate=[], min_meth=0.2, p0=0.01, max_width=31
+    samples, chrom, coverage=None, drate=None, min_meth=0.2, p0=0.01, max_width=31
 ):
     """Estimates the optimal window size in cases that collecting data from a window is required.
 
@@ -539,22 +539,26 @@ def determine_shared_winsize(
     Output: win_size    recommended window size for each sample, forced to be an odd number.
     """
     no_samples = len(samples)
-    if len(coverage) != no_samples:
+    if coverage is None:
+        coverage = [np.nan] * no_samples
+    elif len(coverage) != no_samples:
         print(
             f"inserted coverage vector (length {len(coverage)}) does not match the number of samples ({no_samples})."
         )
         print("Ignoring user input.")
-        # coverage = np.nan*np.ones(no_samples)
+        coverage = [np.nan] * no_samples
     for samp in range(no_samples):
         chr_num = samples[samp].chr_names.index(chrom)
         coverage[samp] = samples[samp].diagnostics["effective_coverage"][chr_num]
     # else:
-    if len(drate) != no_samples:
+    if drate is None:
+        drate = [np.nan] * no_samples
+    elif len(drate) != no_samples:
         print(
             f"inserted drate vector (length {len(drate)}) does not match the number of samples ({no_samples})."
         )
         print("Ignoring user input.")
-        # drate = np.nan*np.ones(no_samples)
+        drate = [np.nan] * no_samples
     for samp in range(no_samples):
         drate[samp] = samples[samp].d_rate["rate"]["global"]
     if min_meth > 1:
@@ -663,9 +667,9 @@ def pooled_methylation(
     samples,
     chroms,
     win_size="auto",
-    winsize_alg={},
+    winsize_alg=None,
     lcf=0.05,
-    drate=[],
+    drate=None,
     min_finite=1,
     match_histogram=True,
     ref=None,
@@ -698,6 +702,8 @@ def pooled_methylation(
         m   list (per chromosome) of pooled methylation vectors
         dm  list (per chromosome) of standard errors
     """
+    winsize_alg = {} if winsize_alg is None else winsize_alg
+    drate = [] if drate is None else drate
     no_samples = len(samples)
 
     # if chroms not provided, use all chroms from first sample

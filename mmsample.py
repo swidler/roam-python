@@ -18,17 +18,28 @@ class Mmsample(Chrom):
     Methods:
     """
     
-    def __init__(self, name="unknown", species="unknown", reference="", method="", metadata=[], chr_names=[], coord_per_position="", methylation=[], coverage=[]):
+    def __init__(
+        self,
+        name="unknown",
+        species="unknown",
+        reference="",
+        method="",
+        metadata=None,
+        chr_names=None,
+        coord_per_position="",
+        methylation=None,
+        coverage=None,
+    ):
         self.name = name
         self.species = species
         self.reference = reference
         self.method = method
-        self.metadata = metadata
-        self.chr_names = chr_names
+        self.metadata = [] if metadata is None else list(metadata)
+        self.chr_names = [] if chr_names is None else list(chr_names)
         self.coord_per_position = coord_per_position
-        self.methylation = methylation
-        self.coverage = coverage
-        self.no_chrs = len(chr_names)   
+        self.methylation = [] if methylation is None else list(methylation)
+        self.coverage = [] if coverage is None else list(coverage)
+        self.no_chrs = len(self.chr_names)   
         
     def __repr__(self): #defines print of object
         return "name: %s\nspecies: %s\nreference: %s\nmethod: %s\nmetadata: %s\nchr_names: %s\ncoord_per_position: %s\nmethylation: %s\nno_chrs: %s" % (self.name, self.species, self.reference, self.method, self.metadata, self.chr_names, self.coord_per_position, self.methylation, self.no_chrs)

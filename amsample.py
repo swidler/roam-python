@@ -1218,7 +1218,7 @@ class Amsample(Chrom):
         #close file
         fid.close()
 
-    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=[], min_beta=1, chroms=None):
+    def estimate_drate(self, method="reference", global_meth=np.nan, min_cov=1, ref=None, min_beta=1, chroms=None):
         """Estimates deamination rate
         
         Input: method        the method used to perform the estimation. Can be one of:
@@ -1385,7 +1385,18 @@ class Amsample(Chrom):
         
         return win_size
     
-    def reconstruct_methylation(self, win_size="auto", winsize_alg={}, function="histogram", slope=None, intercept=[0], ref=[], lcf=0.05, local_win_size="auto", chroms=None):
+    def reconstruct_methylation(
+        self,
+        win_size="auto",
+        winsize_alg=None,
+        function="histogram",
+        slope=None,
+        intercept=None,
+        ref=None,
+        lcf=0.05,
+        local_win_size="auto",
+        chroms=None,
+    ):
         """Computes methylation from c_to_t data, based on some function of the C->T ratio (no_t/no_ct).
         
         Input: win_size        window size for smoothing. If 'auto', a recommended value is computed for each 
@@ -1409,6 +1420,8 @@ class Amsample(Chrom):
                    the user-entered value is used.
         Output: Amsample object with udpated methylation field.
         """
+        winsize_alg = {} if winsize_alg is None else dict(winsize_alg)
+        intercept = [0] if intercept is None else list(intercept)
         no_chr = self.no_chrs
         if chroms is None:
             chrom_iter = range(no_chr)

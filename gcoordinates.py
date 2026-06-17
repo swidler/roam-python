@@ -7,22 +7,33 @@ import gzip
 from Bio import SeqIO
 
 class Gcoordinates(Chrom):
-    def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], coords=[], strand=[], metadata=[], metadata_name=[]):
+    def __init__(
+        self,
+        name="",
+        description="",
+        species="unknown",
+        reference="",
+        chr_names=None,
+        coords=None,
+        strand=None,
+        metadata=None,
+        metadata_name=None,
+    ):
         self.name = name
         self.description = description
         self.species = species
         self.reference = reference
-        self.chr_names = chr_names
-        self.no_chrs = len(chr_names)
+        self.chr_names = [] if chr_names is None else list(chr_names)
+        self.no_chrs = len(self.chr_names)
         #for chrom in range(no_chrs)):
         #    self.coords[i] = np.array(self.coords[i])
         #for chrom in range(self.no_chrs):
-        strand.extend([[]]*self.no_chrs)
-        coords.extend([[]]*self.no_chrs)
-        self.strand = strand
-        self.coords = coords
-        self.metadata = metadata
-        self.metadata_name = metadata_name
+        self.strand = [] if strand is None else list(strand)
+        self.coords = [] if coords is None else list(coords)
+        self.strand.extend([] for _ in range(self.no_chrs - len(self.strand)))
+        self.coords.extend([] for _ in range(self.no_chrs - len(self.coords)))
+        self.metadata = [] if metadata is None else list(metadata)
+        self.metadata_name = [] if metadata_name is None else list(metadata_name)
         
 
     def __repr__(self): #defines print of object

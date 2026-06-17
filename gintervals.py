@@ -13,23 +13,36 @@ class Gintervals(Chrom):
     
     A Gintervals object is created (with empty defaults): g = Gintervals(). The attributes can then be populated.
     """
-    def __init__(self, name="", description="", species="unknown", reference="", chr_names=[], start=[], end=[], strand=[], iname=[], metadata=[], metadata_name = []):
+    def __init__(
+        self,
+        name="",
+        description="",
+        species="unknown",
+        reference="",
+        chr_names=None,
+        start=None,
+        end=None,
+        strand=None,
+        iname=None,
+        metadata=None,
+        metadata_name=None,
+    ):
         self.name = name
         self.description = description
         self.species = species
         self.reference = reference
-        self.chr_names = chr_names
-        self.no_chrs = len(chr_names)
-        start.extend([[]]*self.no_chrs)
-        end.extend([[]]*self.no_chrs)
-        iname.extend([[]]*self.no_chrs)
-        strand.extend([[]]*self.no_chrs)
-        self.start = start
-        self.end = end
-        self.strand = strand
-        self.iname = iname
-        self.metadata = metadata
-        self.metadata_name = metadata_name
+        self.chr_names = [] if chr_names is None else list(chr_names)
+        self.no_chrs = len(self.chr_names)
+        self.start = [] if start is None else list(start)
+        self.end = [] if end is None else list(end)
+        self.iname = [] if iname is None else list(iname)
+        self.strand = [] if strand is None else list(strand)
+        self.start.extend([] for _ in range(self.no_chrs - len(self.start)))
+        self.end.extend([] for _ in range(self.no_chrs - len(self.end)))
+        self.iname.extend([] for _ in range(self.no_chrs - len(self.iname)))
+        self.strand.extend([] for _ in range(self.no_chrs - len(self.strand)))
+        self.metadata = [] if metadata is None else list(metadata)
+        self.metadata_name = [] if metadata_name is None else list(metadata_name)
 
     def __repr__(self): #defines print of object
         return "name: %s\ndescription: %s\nspecies: %s\nreference: %s\nmetadata: %s\nchr_names: %s\nstart: %s\nend: %s\nstrand: %s\niname: %s\nno_chrs: %s" % (self.name, self.description, self.species, self.reference, self.metadata, self.chr_names, self.start, self.end, self.strand, self.iname, self.no_chrs)
