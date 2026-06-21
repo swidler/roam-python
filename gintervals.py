@@ -81,7 +81,7 @@ class Gintervals(Chrom):
                         prom_end = end + before
                         strand = 0
                 else:
-                    next    
+                    continue    
                 starts.append(prom_start)
                 ends.append(prom_end)
                 strands.append(strand)
