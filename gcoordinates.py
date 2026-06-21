@@ -65,7 +65,7 @@ class Gcoordinates(Chrom):
                     fields = line.split("\t")
                     self.chr_names.append(fields[0])
                     coords = fields[1].split(",")
-                    coords = [int(x) if x.isdigit else np.nan for x in coords] #convert numbers to int, leave nans
+                    coords = [int(x) if x.isdigit() else np.nan for x in coords] #convert numbers to int, leave nans
                     temp.append(np.asarray(coords))
                 i += 1
         self.coords = np.asarray(temp)
