@@ -493,29 +493,6 @@ def resolve_available_bam_chroms(
         )
         sys.exit(1)
 
-    zero_read_chroms = []
-    if file_per_chrom:
-        for chrom in available:
-            chrom_key = norm_chr(str(chrom))
-            bam_file = files_by_chrom[chrom_key]
-            ref_name = bam_ref_names[chrom_key]
-            with pysam.AlignmentFile(bam_file, "rb") as bam:
-                if bam.count(ref_name) == 0:
-                    zero_read_chroms.append(chrom)
-    else:
-        with pysam.AlignmentFile(filename, "rb") as bam:
-            for chrom in available:
-                ref_name = bam_ref_names[norm_chr(str(chrom))]
-                if bam.count(ref_name) == 0:
-                    zero_read_chroms.append(chrom)
-
-    if zero_read_chroms:
-        print(
-            "Chromosomes present in BAM input but with zero mapped reads will "
-            "be included with zero counts: " + ", ".join(map(str, zero_read_chroms)),
-            file=sys.stderr,
-        )
-
     skipped = len(requested_chroms) - len(available)
     if skipped:
         print("Running chromosomes: " + ", ".join(map(str, available)))
