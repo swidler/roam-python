@@ -663,7 +663,7 @@ class DMRs:
                                 wij[samp][valid] = variance[valid]
                             else:
                                 print("Modern group: using new variance calculation, with smooth()", chromosomes[chrom])
-                                [mij_bar[samp], wij[samp]] = samples[mod_idx[samp]].smooth(
+                                [mij_bar[samp], inv_var] = samples[mod_idx[samp]].smooth(
                                     idx_chrom,
                                     [int(x) for x in [win_size[mod_idx[samp], idx_chrom]]],
                                 )

@@ -56,7 +56,7 @@ for sample in mod_samples:
     mms = m.Mmsample()
     bisfile = data_dir + sample + ".cov"
     if os.path.isfile(bisfile):
-        mms.bismark_to_mm(bisfile, gc_object, sample, mod_species, mod_ref, mod_method)
+        mms.bismark_to_mm(bisfile, gc_object, sample, mod_species, mod_ref, mod_method, alsm)
         outfile = object_dir + sample + mtempl
         t.save_object(outfile, mms)
     else:

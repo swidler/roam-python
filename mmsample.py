@@ -332,8 +332,8 @@ class Mmsample(Chrom):
     def create_mms_from_text_file(self, mod_infile):
         self.parse_infile(mod_infile)
         
-    def create_mms_from_bismark_file(self, bis_infile, gc, mod_name, mod_species, mod_ref, mod_method):
-        self.bismark_to_mm(bis_infile, gc, mod_name, mod_species, mod_ref, mod_method)
+    def create_mms_from_bismark_file(self, bis_infile, gc, mod_name, mod_species, mod_ref, mod_method, alsm):
+        self.bismark_to_mm(bis_infile, gc, mod_name, mod_species, mod_ref, mod_method, alsm)
         
     def to_m(self, chroms=None):
         """Transforms methylation beta-values to M-values.
