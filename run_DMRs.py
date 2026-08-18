@@ -211,6 +211,7 @@ try:
         if "win_mod" in parameters
         else config["basic"].getint("win_mod")
         )
+    fdr_win_mod = None if win_mod == 1 else win_mod
     mod_stat_normal = True if parameters["mod_stat_normal"] else config["basic"].getboolean("mod_stat_normal")
     lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
     lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
@@ -563,7 +564,7 @@ try:
                 fname=logfile,
                 mcpc=mcpc,
                 por=por,
-                win_mod=win_mod,
+                win_mod=fdr_win_mod,
                 mod_stat_normal=mod_stat_normal,
             )
         statfile = log_dir + f"fdr_stats_{time}.txt"
