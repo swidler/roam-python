@@ -364,7 +364,7 @@ try:
         mms = m.Mmsample()
         if bismark_infile:
             mms.create_mms_from_bismark_file(
-                bismark_infile, gc_object, mod_name, mod_species, mod_ref, mod_method
+                bismark_infile, gc_object, mod_name, mod_species, mod_ref, mod_method, alsm
             )
         else:
             mms.create_mms_from_text_file(modern)

@@ -18,7 +18,7 @@ argParser.add_argument("-mt", "--mtempl", help="template to match any extra text
 argParser.add_argument("-msp", "--mspecies", help="modern sample species")
 argParser.add_argument("-mr", "--mref", help="modern sample reference genome")
 argParser.add_argument("-mm", "--mmethod", help="modern sample sequencing method")
-argParser.add_argument("-sm", "--smoothed", help="is sample already smmothed (use methylation and not counts). Default False")
+argParser.add_argument("-sm", "--smoothed", action="store_true", help="sample is already smoothed (use methylation and not counts)")
 
 args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]

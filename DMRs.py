@@ -676,7 +676,7 @@ class DMRs:
 
                                 # smooth coverage with the same window (sum of coverage in window)
                                 cov_vec = np.array(samples[mod_idx[samp]].coverage[idx_chrom], float)
-                                tpl = np.ones(int(win_size[mod_idx[samp], idx_chrom], dtype=float)
+                                tpl = np.ones(int(win_size[mod_idx[samp], idx_chrom]), dtype=float)
                                 cij[samp] = t.nanconv(cov_vec, tpl, "same")
                             Cj = np.nansum(cij, axis=0)
                             # weighted mean methylation using coverage weights
