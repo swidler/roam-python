@@ -425,7 +425,7 @@ try:
         por = alg_props["frac_inf"]
         win_mod = alg_props["win_mod"]
         mod_stat_normal = alg_props["mod_stat_normal"]
-        fdr_win_mod = None if win_mod == 1 else win_mod
+        fdr_win_mod = 11 if win_mod == 1 else win_mod
         # create Mmsample object
 
         samplist = []  # if dmr in stages, samplist already loaded
