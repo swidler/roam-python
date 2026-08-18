@@ -247,7 +247,7 @@ class DMRs:
         match_histogram=False,
         ref=None,
         win_mod=11,
-        mod_stat_normal=True
+        mod_stat_normal=True,
         mcpc=3,
         por=0.667,
     ):
@@ -911,6 +911,8 @@ class DMRs:
         alg_props["ref"] = ref
         alg_props["frac_inf"] = por
         alg_props["min_cov_CpG"] = mcpc
+        alg_props["win_mod"] = win_mod
+        alg_props["mod_stat_normal"] = mod_stat_normal
         self.algorithm = alg_props
         self.cDMRs = cdm
         self.no_chromosomes = no_chr

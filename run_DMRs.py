@@ -86,6 +86,13 @@ argParser.add_argument(
     help="minimum number of ancient samples for which we require data",
 )
 argParser.add_argument("-w", "--win_size", nargs="+", help="window size for smoothing")
+argParser.add_argument("-wm", "--win_mod", type=int, help="window size for smoothing for modern samples")
+argParser.add_argument(
+    "-msn",
+    "--mod_stat_normal",
+    help="flag for method of modern gorup statistic calculation. Default: normal",
+    action="store_true"
+)
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument(
     "-sp", "--sim_permutations", type=int, help="number of permutations to run for fdr"
@@ -199,6 +206,10 @@ try:
         if "win_size" in parameters
         else config["basic"]["win_size"]
     )
+    win_mod = parameters["win_mod"] 
+         if "win_mod" in parameters 
+         else config["basic"].getint("win_mod")
+    mod_stat_normal = True if parameters["mod_stat_normal"] else config["basic"].getboolean("mod_stat_normal")
     lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
     lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
     group_names = (
@@ -379,6 +390,8 @@ try:
             fname=logfile,
             mcpc=mcpc,
             por=por,
+            win_mod=win_mod,
+            mod_stat_normal=mod_stat_normal
         )
 
         t.save_object(f"{object_dir}DMR_obj_{time}", dms)
@@ -408,6 +421,8 @@ try:
         ref = alg_props["ref"]
         mcpc = alg_props["min_cov_CpG"]
         por = alg_props["frac_inf"]
+        win_mod = alg_props["win_mod"]
+        mod_stat_normal = alg_props["mod_stat_normal"]
         # create Mmsample object
 
         samplist = []  # if dmr in stages, samplist already loaded
@@ -546,6 +561,8 @@ try:
                 fname=logfile,
                 mcpc=mcpc,
                 por=por,
+                win_mod=win_mod,
+                mod_stat_normal=mod_stat_normal,
             )
         statfile = log_dir + f"fdr_stats_{time}.txt"
         print(f"Running fdr calculation on DMR_obj_{time}")
