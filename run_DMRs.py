@@ -211,7 +211,6 @@ try:
         if "win_mod" in parameters
         else config["basic"].getint("win_mod")
         )
-    fdr_win_mod = None if win_mod == 1 else win_mod
     mod_stat_normal = True if parameters["mod_stat_normal"] else config["basic"].getboolean("mod_stat_normal")
     lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
     lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
@@ -426,6 +425,7 @@ try:
         por = alg_props["frac_inf"]
         win_mod = alg_props["win_mod"]
         mod_stat_normal = alg_props["mod_stat_normal"]
+        fdr_win_mod = None if win_mod == 1 else win_mod
         # create Mmsample object
 
         samplist = []  # if dmr in stages, samplist already loaded
