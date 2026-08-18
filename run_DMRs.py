@@ -206,10 +206,11 @@ try:
         if "win_size" in parameters
         else config["basic"]["win_size"]
     )
-    win_mod = 
+    win_mod = (
         parameters["win_mod"]
         if "win_mod" in parameters
         else config["basic"].getint("win_mod")
+        )
     mod_stat_normal = True if parameters["mod_stat_normal"] else config["basic"].getboolean("mod_stat_normal")
     lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
     lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float

@@ -19,6 +19,7 @@ import re
 
 
 argParser = argparse.ArgumentParser()
+argParser.add_argument("-co", "--config", help="path of config file")
 argParser.add_argument("-di", "--dmr_infile", help="DMR object (pre-filtered)")
 argParser.add_argument("-ge", "--gene_file", help="sorted text file with genes")
 argParser.add_argument("-cg", "--cgi_file", help="CGI file")
@@ -32,6 +33,10 @@ args = argParser.parse_args()
 keys = [x for x in vars(args).keys() if vars(args)[x] != None]
 vals = [vars(args)[x] for x in keys]
 parameters = dict(zip(keys, vals))
+
+confile = parameters["config"] if "config" in parameters else "config_DMR.ini"
+config = cp.ConfigParser(interpolation=cp.ExtendedInterpolation())
+config.read(confile)
 
 DMR_obj_infile = parameters["dmr_infile"] if "dmr_infile" in parameters else config["files"]["DMR_obj_infile"]
 thresh_Qt = parameters["thresh_Qt"] if "thresh_Qt" in parameters else 0
