@@ -88,10 +88,10 @@ argParser.add_argument(
 argParser.add_argument("-w", "--win_size", nargs="+", help="window size for smoothing")
 argParser.add_argument("-wm", "--win_mod", type=int, help="window size for smoothing for modern samples")
 argParser.add_argument(
-    "-msn",
-    "--mod_stat_normal",
-    help="flag for method of modern gorup statistic calculation. Default: normal",
-    action="store_true"
+    "-wmv",
+    "--weight_mod_var",
+    help="weight the modern-group statistic by modern-sample variance",
+    action="store_true",
 )
 argParser.add_argument("-l", "--lcf", help="low coverage factor")
 argParser.add_argument(
@@ -211,7 +211,11 @@ try:
         if "win_mod" in parameters
         else config["basic"].getint("win_mod")
         )
-    mod_stat_normal = True if parameters["mod_stat_normal"] else config["basic"].getboolean("mod_stat_normal")
+    mod_stat_normal = (
+        False
+        if parameters.get("weight_mod_var", False)
+        else config["basic"].getboolean("mod_stat_normal")
+    )
     lcf = parameters["lcf"] if "lcf" in parameters else config["basic"]["lcf"]
     lcf = lcf if lcf == "meth" else float(lcf)  # if lcf isn't "meth" convert to float
     group_names = (
