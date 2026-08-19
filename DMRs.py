@@ -410,10 +410,33 @@ class DMRs:
                     if win_mod:  # prob a silly condition
                         win_size[idx_mod,] = win_mod
 
+                elif win_size.ndim == 2:
+                    expected_shape = (no_samples, no_chr)
+
+                    if win_size.shape != expected_shape:
+                        raise ValueError(
+                            "2D win_size should have shape "
+                            f"(number of samples, number of chromosomes) = {expected_shape}; "
+                            f"got {win_size.shape}."
+                        )
+
+                    # Reuse the original per-sample/per-chromosome windows stored
+                    # in the DMR object.
+                    win_size = win_size.copy()
+
+                    # For modern samples, use the FDR-specific modern window.
+                    # Normally this is identical to the original win_mod.
+                    # If the original DMR used win_mod=1 for already-smoothed
+                    # modern data, run_DMRs.py converts it to 30 for the
+                    # newly simulated, unsmoothed modern samples.
+                    if win_mod:
+                        win_size[idx_mod, :] = win_mod
+
                 else:
                     raise ValueError(
-                        "win_size must be either a single value or a 1D vector "
-                        f"with one value per sample; got array with shape {win_size.shape}."
+                        "win_size must be a scalar, a 1D vector with one value per sample, "
+                        "or a 2D matrix with one value per sample and chromosome; "
+                        f"got array with shape {win_size.shape}."
                     )
 
         else:
