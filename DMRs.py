@@ -1446,6 +1446,20 @@ class DMRs:
             samp_names += samp + "_average_methylation\t"
         for group in self.groups["group_names"]:
             group_names += group + "_meth_statistic\t"
+        fdr_cols = ""
+        fdr_values = ""
+        if isinstance(self.algorithm, dict) and "effective_FDR" in self.algorithm:
+            fdr_cols = (
+                "Requested_FDR\tEffective_FDR\tFDR_Qt_threshold\t"
+                "FDR_CpG_threshold\tFDR_fallback_used\t"
+            )
+            fdr_values = (
+                f"{self.algorithm['requested_FDR']}\t"
+                f"{self.algorithm['effective_FDR']}\t"
+                f"{self.algorithm['FDR_Qt_threshold']}\t"
+                f"{self.algorithm['FDR_CpG_threshold']}\t"
+                f"{self.algorithm['FDR_fallback_used']}\t"
+            )
         with open(fname, "w") as fid:
             # fid.write("cDMRs:\n")
             c1 = ""
@@ -1463,7 +1477,7 @@ class DMRs:
                     if self.cDMRs[chrom].annotation[0]["in_gene"] != "N/A":
                         g = "in_gene_names\tin_gene_strands\tin_prom_names\tin_prom_strands\tupstream_TSS\tupstream_TSS_names\tupstream_TSS_strands\tdownstream_TSS\tdownstream_TSS_names\tdownstream_TSS_strands\n"
             fid.write(
-                f"Chrom\tDMR#\tout_of\tGenomic_start\tGenomic_end\tCpG_start\tCpG_end\t#CpGs\t#bases\tMax_Qt\t{group_names}{samp_names}{c1}{c2}{cg}{g}"
+                f"Chrom\tDMR#\tout_of\tGenomic_start\tGenomic_end\tCpG_start\tCpG_end\t#CpGs\t#bases\tMax_Qt\t{fdr_cols}{group_names}{samp_names}{c1}{c2}{cg}{g}"
             )
             for chrom in range(self.no_chromosomes):
                 for dmr in range(self.cDMRs[chrom].no_DMRs):
@@ -1477,6 +1491,7 @@ class DMRs:
                     fid.write(f"{self.cDMRs[chrom].no_CpGs[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].no_bases[dmr]}\t")
                     fid.write(f"{self.cDMRs[chrom].max_Qt[dmr]}\t")
+                    fid.write(fdr_values)
                     for grp in range(self.groups["no_groups"]):
                         fid.write(
                             f"{self.cDMRs[chrom].grp_methylation_statistic[dmr][grp]}\t"
@@ -1681,6 +1696,12 @@ class DMRs:
         most_DMRs = 0
         thresh_Qt = None
         thresh_CpG = None
+        selected_fdr = None
+        fallback_used = False
+        min_fdr = None
+        min_fdr_DMRs = 0
+        min_fdr_Qt = None
+        min_fdr_CpG = None
         # observed number of DMRs
         obs_noDMRs = self.noDMRs()[0]
         # finding the largest value of the parameters
@@ -1733,30 +1754,79 @@ class DMRs:
                             sim_counter[i] += tot
                             i += 1
                     # evaluate FDR
-                    ratio = np.mean(sim_counter) / counter
+                    if counter == 0:
+                        ratio = np.nan
+                    else:
+                        ratio = np.mean(sim_counter) / counter
                     fid.write(
                         f"{cpg}\t{qt}\t{counter}\t{np.mean(sim_counter)}\t{ratio}\n"
                     )
                     if np.isnan(ratio):
                         continue
-                    elif ratio <= thresh:
+                    if (
+                        min_fdr is None
+                        or ratio < min_fdr
+                        or (ratio == min_fdr and counter > min_fdr_DMRs)
+                        or (
+                            ratio == min_fdr
+                            and counter == min_fdr_DMRs
+                            and (
+                                cpg > min_fdr_CpG
+                                or (cpg == min_fdr_CpG and qt > min_fdr_Qt)
+                            )
+                        )
+                    ):
+                        min_fdr = ratio
+                        min_fdr_DMRs = counter
+                        min_fdr_Qt = qt
+                        min_fdr_CpG = cpg
+                    if ratio <= thresh:
                         if counter > most_DMRs:
                             most_DMRs = counter
                             thresh_Qt = qt
                             thresh_CpG = cpg
+                            selected_fdr = ratio
+            if thresh_Qt is None and min_fdr_Qt is not None:
+                fallback_used = True
+                thresh_Qt = min_fdr_Qt
+                thresh_CpG = min_fdr_CpG
+                most_DMRs = min_fdr_DMRs
+                selected_fdr = min_fdr
             print(f"Qt threshold is {thresh_Qt}")
             print(f"CpG threshold is {thresh_CpG}")
+            if fallback_used:
+                print(
+                    f"FDR {thresh} could not be met; using minimum possible FDR "
+                    f"{selected_fdr}"
+                )
             if report:
                 with open(fname, "a") as fid:
                     fid.write(f"Qt threshold:{thresh_Qt}, CpG threshold:{thresh_CpG}\n")
+                    if fallback_used:
+                        fid.write(
+                            f"Requested FDR {thresh} could not be met. "
+                            f"Using minimum possible FDR: {selected_fdr}\n"
+                        )
             # recompute observed DMRs using chosen parameters
             adjusted_dm = copy.deepcopy(self)
-            # if not thresh_Qt:  # causes errors
-            if thresh_Qt == None:
-                print("FDR was larger than the threshold for all parameter values")
+            if isinstance(adjusted_dm.algorithm, dict):
+                adjusted_dm.algorithm["requested_FDR"] = thresh
+                adjusted_dm.algorithm["effective_FDR"] = selected_fdr
+                adjusted_dm.algorithm["FDR_Qt_threshold"] = thresh_Qt
+                adjusted_dm.algorithm["FDR_CpG_threshold"] = thresh_CpG
+                adjusted_dm.algorithm["FDR_fallback_used"] = fallback_used
+            if thresh_Qt is None:
+                print("No DMRs pass any parameter combination for FDR calculation")
+                adjusted_dm.cDMRs = [
+                    c.cDMR(chromosome=self.chromosomes[chrom])
+                    for chrom in range(self.no_chromosomes)
+                ]
             else:
                 # initalize the cDMRs object
-                cdm = [c.cDMR() for i in range(self.no_chromosomes)]
+                cdm = [
+                    c.cDMR(chromosome=self.chromosomes[chrom])
+                    for chrom in range(self.no_chromosomes)
+                ]
                 # populate the object
                 for chrom in range(self.no_chromosomes):
                     # find DMRs that pass the threshold
