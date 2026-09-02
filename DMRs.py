@@ -408,10 +408,27 @@ class DMRs:
                     if win_mod:  # prob a silly condition
                         win_size[idx_mod,] = win_mod
 
+                # different W for each chromosome and individual
+                elif win_size.ndim == 2:
+                    if win_size.shape != (no_samples, no_chr):
+                        raise ValueError(
+                            "2D win_size should have one value per sample and chromosome; "
+                            f"expected shape ({no_samples}, {no_chr}), got {win_size.shape}."
+                        )
+                    for samp in range(no_samples):
+                        for chrom in range(no_chr):
+                            if ~np.isnan(win_size[samp, chrom]):
+                                if not win_size[samp, chrom] % 2:  # win_size is even
+                                    win_size[samp, chrom] += 1  # make it odd
+                    if win_mod:  # prob a silly condition
+                        win_size[idx_mod,] = win_mod
+
                 else:
                     raise ValueError(
-                        "win_size must be either a single value or a 1D vector "
-                        f"with one value per sample; got array with shape {win_size.shape}."
+                        "win_size must be either a single value, a 1D vector "
+                        "with one value per sample, or a 2D matrix with one value "
+                        "per sample and chromosome; "
+                        f"got array with shape {win_size.shape}."
                     )
 
         else:
