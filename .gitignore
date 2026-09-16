@@ -8,6 +8,7 @@ data/*
 .metadata*
 .idea*
 *.png
+!assets/roam-logo.png
 *.cov
 *.bed
 *.tmp

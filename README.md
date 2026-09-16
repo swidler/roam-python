@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/roam-logo.png" alt="RoAM logo" width="240">
+</p>
+
 RoAM is a flexible tool including two pipelines allowing (1) the reconstruction of ancient DNA methylation, and
 (2) detection of differentially methylated regions (DMRs) distinguishing two groups of samples. Detailed
 information can be found in https://www.biorxiv.org/content/10.1101/2024.08.08.607143v1.
@@ -309,7 +313,7 @@ The stages:
 	the DMRs object in the specified object directory (DMR_obj_<timestamp\>), for use by
  	subsequent stages and functions. It also outputs a log file in the current dir
   	(DMR_log.txt) with info about the parameters used and DMRs found.  
-    	&emsp;The "fdr" (false detection rate) stage filters the DMRs to the match a desired FDR level.
+    	&emsp;The "fdr" (false detection rate) stage filters the DMRs to match a desired FDR level.
      	It also records the thresholds used at the end of the DMR_log file created in the DMR stage.
       	This stage outputs two text files in the dump directory (filtered_DMR_gen_<timestamp\>.txt and
     	filtered_DMRs_<timestamp\>.txt, as above), and a log file in the current dir with info about 
